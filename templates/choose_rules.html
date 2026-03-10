@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <title>Cleaning Strategy | ExcelCleaner</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+  <style>
+    body { background-color: #0f0f0f; color: #e0e0e0; font-family: 'Inter', sans-serif; }
+    .rule-card { border-top: 4px solid #dc3545; transition: 0.3s; background-color: #1a1a1a !important; }
+    .rule-card.disabled-card { opacity: 0.3; border-top-color: #6c757d; filter: grayscale(1); pointer-events: none; }
+    .global-card { background-color: #1a1a1a; border: 1px solid #333; border-radius: 15px; }
+    .delete-section { border-top: 1px solid #333; margin-top: 15px; padding-top: 15px; }
+    .schema-alert { border-radius: 12px; border-left: 5px solid #ffc107; background-color: #2a2410; }
+    .form-check-input:checked { background-color: #dc3545; border-color: #dc3545; }
+  </style>
+</head>
+<body class="py-5">
+  <div class="container">
+    <div class="text-center mb-5">
+      <h1 class="fw-bold">Cleaning Strategy</h1>
+      <p class="text-muted">Phase 3: Schema Validation & Intelligence Rules</p>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="alert schema-alert shadow-sm mb-4 d-flex align-items-center" role="alert">
+            <i class="bi bi-exclamation-diamond-fill fs-4 me-3 text-warning"></i>
+            <div>
+              <strong class="d-block text-warning">Schema Notice</strong>
+              <span class="small text-white">{{ message }}</span>
+            </div>
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <div class="card global-card shadow-lg mb-5 border-start border-danger border-5">
+      <div class="card-body p-4">
+        <h6 class="text-danger fw-bold mb-4 text-uppercase"><i class="bi bi-sliders me-2"></i>Global Bulk Actions</h6>
+        <div class="row row-cols-2 row-cols-lg-5 g-3 text-center">
+          <div class="col"><div class="p-2 bg-dark rounded border border-secondary small"><input class="form-check-input me-1" type="checkbox" onclick="toggleAll('remove_specials', this.checked)"> Specials</div></div>
+          <div class="col"><div class="p-2 bg-dark rounded border border-secondary small"><input class="form-check-input me-1" type="checkbox" onclick="toggleAll('validate_email', this.checked)"> Emails</div></div>
+          <div class="col"><div class="p-2 bg-dark rounded border border-secondary small"><input class="form-check-input me-1" type="checkbox" onclick="toggleAll('validate_phone', this.checked)"> Phones</div></div>
+          <div class="col"><div class="p-2 bg-dark rounded border border-secondary small"><input class="form-check-input me-1" type="checkbox" onclick="toggleAll('drop_duplicates', this.checked)"> Duplicates</div></div>
+          <div class="col"><div class="p-2 bg-dark rounded border border-warning small"><input class="form-check-input me-1" type="checkbox" onclick="toggleAll('drop_nulls', this.checked)"> <span class="text-warning">Nulls</span></div></div>
+        </div>
+      </div>
+    </div>
+
+    <form id="cleaningForm" method="POST" action="{{ url_for('clean') }}">
+      <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+        {% for col in columns %}
+        <div class="col">
+          <div class="card h-100 rule-card border-0 shadow" id="card-{{ loop.index }}">
+            <div class="card-header bg-transparent border-bottom border-secondary py-3">
+              <h6 class="mb-0 text-white fw-bold text-truncate"><i class="bi bi-table me-2 text-danger"></i>{{ col }}</h6>
+            </div>
+            <div class="card-body">
+              
+              <div class="form-check form-switch mb-3 p-2 bg-warning bg-opacity-10 rounded border border-warning border-opacity-25">
+                <input class="form-check-input rule-group-{{ loop.index }}" type="checkbox" name="rules_{{ col }}" value="drop_nulls" data-rule="drop_nulls">
+                <label class="form-check-label text-warning small fw-bold">Drop if Empty (Null)</label>
+              </div>
+
+              <div class="form-check form-switch mb-3">
+                <input class="form-check-input rule-group-{{ loop.index }}" type="checkbox" name="rules_{{ col }}" value="remove_specials" data-rule="remove_specials">
+                <label class="form-check-label">Remove Specials</label>
+              </div>
+              <div class="form-check form-switch mb-3">
+                <input class="form-check-input rule-group-{{ loop.index }}" type="checkbox" name="rules_{{ col }}" value="validate_email" data-rule="validate_email">
+                <label class="form-check-label">Validate Email</label>
+              </div>
+              <div class="form-check form-switch mb-3">
+                <input class="form-check-input rule-group-{{ loop.index }}" type="checkbox" name="rules_{{ col }}" value="validate_phone" data-rule="validate_phone">
+                <label class="form-check-label">Validate Phone</label>
+              </div>
+              <div class="form-check form-switch mb-3">
+                <input class="form-check-input rule-group-{{ loop.index }}" type="checkbox" name="rules_{{ col }}" value="drop_duplicates" data-rule="drop_duplicates">
+                <label class="form-check-label">Drop Duplicates</label>
+              </div>
+
+              <div class="delete-section">
+                <div class="form-check form-switch">
+                  <input class="form-check-input delete-checker" type="checkbox" name="delete_{{ col }}" value="yes" 
+                         id="del-{{ loop.index }}" data-colname="{{ col }}" onchange="handleDeleteToggle(this, '{{ loop.index }}')">
+                  <label class="form-check-label text-muted fw-bold" for="del-{{ loop.index }}">
+                    <i class="bi bi-trash3 me-1"></i> Delete Column
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+
+      <div class="text-center mt-5 mb-5">
+        <button type="button" onclick="showConfirmModal()" class="btn btn-danger btn-lg px-5 py-3 shadow fw-bold rounded-pill">
+          START PROCESSING <i class="bi bi-magic ms-2"></i>
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <div class="modal fade" id="confirmModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content bg-dark border border-secondary shadow-lg">
+        <div class="modal-header border-secondary">
+          <h5 class="modal-title text-warning"><i class="bi bi-shield-check me-2"></i> Confirm Strategy</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <p>Initiate cleaning task? This will run in the background via Celery.</p>
+          <div id="deleteWarning" class="alert alert-danger d-none">
+            <strong>Warning!</strong> These columns will be deleted:
+            <ul id="deleteList" class="mt-2 mb-0"></ul>
+          </div>
+        </div>
+        <div class="modal-footer border-secondary">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" onclick="submitForm()" class="btn btn-danger fw-bold">Proceed</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    function toggleAll(ruleValue, isChecked) {
+      const checkboxes = document.querySelectorAll(`input[data-rule="${ruleValue}"]:not(:disabled)`);
+      checkboxes.forEach(cb => { cb.checked = isChecked; });
+    }
+
+    function handleDeleteToggle(deleteCheckbox, index) {
+      const card = document.getElementById(`card-${index}`);
+      const ruleSwitches = document.querySelectorAll(`.rule-group-${index}`);
+      if (deleteCheckbox.checked) {
+        card.classList.add('disabled-card');
+        ruleSwitches.forEach(sw => { sw.checked = false; sw.disabled = true; });
+      } else {
+        card.classList.remove('disabled-card');
+        ruleSwitches.forEach(sw => { sw.disabled = false; });
+      }
+    }
+
+    const confirmModal = new bootstrap.Modal(document.getElementById('confirmModal'));
+    
+    function showConfirmModal() {
+      const deletes = document.querySelectorAll('.delete-checker:checked');
+      const deleteWarning = document.getElementById('deleteWarning');
+      const deleteList = document.getElementById('deleteList');
+      
+      if (deletes.length > 0) {
+        deleteList.innerHTML = '';
+        deletes.forEach(d => {
+          const li = document.createElement('li');
+          li.textContent = d.getAttribute('data-colname');
+          deleteList.appendChild(li);
+        });
+        deleteWarning.classList.remove('d-none');
+      } else {
+        deleteWarning.classList.add('d-none');
+      }
+      confirmModal.show();
+    }
+
+    function submitForm() {
+      document.getElementById('cleaningForm').submit();
+    }
+  </script>
+</body>
+</html>
