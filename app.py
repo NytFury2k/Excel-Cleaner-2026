@@ -10,6 +10,9 @@ from mysql.connector import pooling
 from io import BytesIO
 from dotenv import load_dotenv
 from celery import Celery
+import json
+from pathlib import Path
+from datetime import timedelta
 
 # Load secrets from .env
 load_dotenv()
@@ -18,6 +21,13 @@ REQUIRED_COLUMNS = ['first_name', 'last_name', 'email', 'phone', 'company']
 
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY")
+# Session timeout (minutes) - configurable via env var
+session_timeout = int(os.getenv('SESSION_TIMEOUT_MINUTES', '30'))
+app.permanent_session_lifetime = timedelta(minutes=session_timeout)
+
+# Directory to store user presets (simple file-based store)
+PRESETS_DIR = Path('presets')
+PRESETS_DIR.mkdir(exist_ok=True)
 
 # --- CELERY CONFIGURATION ---
 def make_celery(app):
@@ -41,19 +51,32 @@ celery_app.conf.beat_schedule = {
 celery_app.conf.timezone = 'UTC'
 
 # --- DATABASE POOLING ---
-db_pool = pooling.MySQLConnectionPool(
-    pool_name="mypool",
-    pool_size=5, 
-    host=os.getenv("DB_HOST"),
-    user=os.getenv("DB_USER"),
-    password=os.getenv("DB_PASSWORD"),
-    database=os.getenv("DB_NAME")
-)
+db_pool = None
+
+# Allow tests or environments to skip DB initialization by setting SKIP_DB_INIT=1
+if os.getenv("SKIP_DB_INIT") != "1":
+    try:
+        db_pool = pooling.MySQLConnectionPool(
+            pool_name="mypool",
+            pool_size=5,
+            host=os.getenv("DB_HOST"),
+            user=os.getenv("DB_USER"),
+            password=os.getenv("DB_PASSWORD"),
+            database=os.getenv("DB_NAME")
+        )
+    except Exception as e:
+        print(f"Warning: could not initialize DB pool: {e}")
 
 def get_db_connection():
+    if os.getenv("SKIP_DB_INIT") == "1" or db_pool is None:
+        raise RuntimeError("DB not initialized in this environment")
     return db_pool.get_connection()
 
 def log_action(user_id, action, total=None, valid=None, invalid=None):
+    # Skip DB logging when running in test or environments that opt-out
+    if os.getenv("SKIP_DB_INIT") == "1":
+        print(f"log_action skipped (test mode): user={user_id}, action={action}")
+        return
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -120,7 +143,11 @@ def process_cleaning_task(self, filepath, rules_dict, cols_to_drop, uploaded_nam
                         failed_indices.add(idx)
 
             if "drop_duplicates" in rules:
-                duplicates = df[df.duplicated(subset=[column], keep='first')].index
+                # Non-destructive, case-insensitive duplicate detection:
+                # use a temporary lowercased view for comparison so original values remain unchanged
+                folded = df[column].astype(str).str.lower()
+                dup_mask = folded.duplicated(keep='first')
+                duplicates = df[dup_mask].index
                 failed_indices.update(duplicates)
 
         # Separate data
@@ -185,21 +212,39 @@ def login():
         cursor.execute("SELECT id, password, role FROM users WHERE username=%s", (username,))
         user = cursor.fetchone(); conn.close()
         if user and bcrypt.checkpw(pw, user[1].encode("utf-8")):
-            session.update({"user_id": user[0], "role": user[2]})
+            # store username in session for display in templates
+            session.update({"user_id": user[0], "role": user[2], "username": username})
+            # make session permanent so the configured timeout applies
+            session.permanent = True
             log_action(user[0], "Logged in")
-            return redirect(url_for("dashboard"))
+            return redirect(url_for("choose_page"))
         flash("Invalid credentials", "danger")
     return render_template("login.html")
+
+
+@app.route("/choose-page")
+def choose_page():
+    if "user_id" not in session:
+        return redirect(url_for("login"))
+    return render_template("choose_page.html", role=session.get("role", "user"))
 
 @app.route("/dashboard")
 def dashboard():
     if "user_id" not in session: return redirect(url_for("login"))
     page = request.args.get("page", 1, type=int)
+    search = request.args.get("search", "")
     offset = (page - 1) * 10
     conn = get_db_connection(); cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT logs.*, users.username FROM logs JOIN users ON logs.user_id = users.id ORDER BY logs.created_at DESC LIMIT 10 OFFSET %s", (offset,))
+    if search:
+        q = ("SELECT logs.*, users.username FROM logs JOIN users ON logs.user_id = users.id "
+             "WHERE (logs.action LIKE %s OR users.username LIKE %s) "
+             "ORDER BY logs.created_at DESC LIMIT 10 OFFSET %s")
+        params = (f"%{search}%", f"%{search}%", offset)
+        cursor.execute(q, params)
+    else:
+        cursor.execute("SELECT logs.*, users.username FROM logs JOIN users ON logs.user_id = users.id ORDER BY logs.created_at DESC LIMIT 10 OFFSET %s", (offset,))
     logs = cursor.fetchall(); conn.close()
-    return render_template("dashboard.html", role=session["role"], logs=logs, page=page, total_pages=10)
+    return render_template("dashboard.html", role=session["role"], logs=logs, page=page, total_pages=10, search=search)
 
 # --- ADMIN ROUTES ---
 
@@ -208,11 +253,19 @@ def admin_logs():
     if "user_id" not in session or session.get("role") != "admin": 
         return redirect(url_for("login"))
     page = request.args.get("page", 1, type=int)
+    search = request.args.get("search", "")
     offset = (page - 1) * 10
     conn = get_db_connection(); cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT logs.*, users.username FROM logs JOIN users ON logs.user_id = users.id ORDER BY logs.created_at DESC LIMIT 10 OFFSET %s", (offset,))
+    if search:
+        q = ("SELECT logs.*, users.username FROM logs JOIN users ON logs.user_id = users.id "
+             "WHERE (logs.action LIKE %s OR users.username LIKE %s) "
+             "ORDER BY logs.created_at DESC LIMIT 10 OFFSET %s")
+        params = (f"%{search}%", f"%{search}%", offset)
+        cursor.execute(q, params)
+    else:
+        cursor.execute("SELECT logs.*, users.username FROM logs JOIN users ON logs.user_id = users.id ORDER BY logs.created_at DESC LIMIT 10 OFFSET %s", (offset,))
     logs = cursor.fetchall(); conn.close()
-    return render_template("admin_logs.html", logs=logs, page=page, total_pages=10)
+    return render_template("admin_logs.html", logs=logs, page=page, total_pages=10, search=search)
 
 @app.route("/admin/logs/export")
 def export_logs():
@@ -258,8 +311,15 @@ def clean():
 
 @app.route("/task_status/<task_id>")
 def task_status(task_id):
-    task = process_cleaning_task.AsyncResult(task_id)
-    return jsonify({'state': task.state, 'result': task.result if task.state == 'SUCCESS' else task.info})
+    # Use the Celery app to fetch task status reliably
+    task = celery_app.AsyncResult(task_id)
+    result = None
+    if task.state == 'SUCCESS':
+        result = task.result
+    else:
+        # progress/error metadata is stored in task.info
+        result = task.info
+    return jsonify({'state': task.state, 'result': result})
 
 @app.route("/preview_results")
 def preview_results():
@@ -276,6 +336,56 @@ def preview_results():
     args['invalid'] = int(args.get('invalid', 0))
         
     return render_template("preview.html", **args)
+
+
+@app.route('/presets', methods=['GET'])
+def get_presets():
+    if 'user_id' not in session:
+        return jsonify([])
+    user_id = session['user_id']
+    path = PRESETS_DIR / f"{user_id}.json"
+    if not path.exists():
+        return jsonify([])
+    try:
+        with open(path, 'r', encoding='utf-8') as fh:
+            data = json.load(fh)
+        return jsonify(data)
+    except Exception:
+        return jsonify([])
+
+
+@app.route('/presets', methods=['POST'])
+def save_preset():
+    if 'user_id' not in session:
+        return jsonify({'error': 'unauthenticated'}), 401
+    payload = request.get_json() or {}
+    name = payload.get('name')
+    rules = payload.get('rules')
+    deletes = payload.get('deletes', [])
+    if not name or not rules:
+        return jsonify({'error': 'name and rules required'}), 400
+    user_id = session['user_id']
+    path = PRESETS_DIR / f"{user_id}.json"
+    presets = []
+    if path.exists():
+        try:
+            with open(path, 'r', encoding='utf-8') as fh:
+                presets = json.load(fh)
+        except Exception:
+            presets = []
+    # replace if exists
+    existing = next((p for p in presets if p.get('name') == name), None)
+    entry = {'name': name, 'rules': rules, 'deletes': deletes}
+    if existing:
+        presets = [entry if p.get('name') == name else p for p in presets]
+    else:
+        presets.append(entry)
+    try:
+        with open(path, 'w', encoding='utf-8') as fh:
+            json.dump(presets, fh, indent=2)
+        return jsonify({'ok': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route("/download/<filename>")
 def download(filename):

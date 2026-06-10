@@ -16,6 +16,7 @@
     <div class="container-fluid">
       <a class="navbar-brand"><img width="180" height="35" src="https://paramantra.com/wp-content/uploads/2022/04/Paramantra-Logo-white-PNG-431X88.webp"></a>
       <div class="ms-auto d-flex align-items-center">
+        <div class="me-3 text-white small">Signed in as: <strong>{{ session.username }}</strong></div>
         <button class="btn btn-outline-light btn-sm me-3" id="themeToggle"><i class="bi bi-moon-stars"></i></button>
         <a href="{{ url_for('logout') }}" class="btn btn-light btn-sm fw-bold">Logout</a>
       </div>

@@ -1,0 +1,32 @@
+[
+  {
+    "name": "test",
+    "rules": {
+      "employeeid": [
+        "validate_email"
+      ],
+      "name": [
+        "validate_email"
+      ],
+      "email": [
+        "validate_email"
+      ],
+      "phone": [
+        "validate_email"
+      ],
+      "department": [
+        "validate_email"
+      ],
+      "salary": [
+        "validate_email"
+      ],
+      "joindate": [
+        "validate_email"
+      ],
+      "city": [
+        "validate_email"
+      ]
+    },
+    "deletes": []
+  }
+]
