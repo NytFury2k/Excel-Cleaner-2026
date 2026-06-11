@@ -4,15 +4,16 @@ import re
 import bcrypt
 import time
 import pandas as pd
-import mysql.connector
-from flask import Flask, render_template, request, redirect, url_for, session, flash, send_file, jsonify
-from mysql.connector import pooling
-from io import BytesIO
+from flask import Flask, render_template, request, redirect, url_for, session, flash, send_file, jsonify, abort, send_from_directory
 from dotenv import load_dotenv
 from celery import Celery
 import json
 from pathlib import Path
 from datetime import timedelta
+from psycopg2 import pool
+from psycopg2.extras import RealDictCursor
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
+from werkzeug.utils import secure_filename
 
 # Load secrets from .env
 load_dotenv()
@@ -20,7 +21,9 @@ load_dotenv()
 REQUIRED_COLUMNS = ['first_name', 'last_name', 'email', 'phone', 'company']
 
 app = Flask(__name__)
-app.secret_key = os.getenv("FLASK_SECRET_KEY")
+app.secret_key = os.getenv("FLASK_SECRET_KEY") or "dev-only-change-me"
+if app.secret_key == "dev-only-change-me":
+    print("Warning: FLASK_SECRET_KEY is not set; using an insecure development fallback.")
 # Session timeout (minutes) - configurable via env var
 session_timeout = int(os.getenv('SESSION_TIMEOUT_MINUTES', '30'))
 app.permanent_session_lifetime = timedelta(minutes=session_timeout)
@@ -28,11 +31,13 @@ app.permanent_session_lifetime = timedelta(minutes=session_timeout)
 # Directory to store user presets (simple file-based store)
 PRESETS_DIR = Path('presets')
 PRESETS_DIR.mkdir(exist_ok=True)
+UPLOADS_DIR = Path('uploads')
+UPLOADS_DIR.mkdir(exist_ok=True)
 
 # --- CELERY CONFIGURATION ---
 def make_celery(app):
     celery = Celery(
-        'app',  # <--- CHANGED THIS from app.import_name
+        'app',
         backend='redis://localhost:6379/0',
         broker='redis://localhost:6379/0'
     )
@@ -50,27 +55,130 @@ celery_app.conf.beat_schedule = {
 }
 celery_app.conf.timezone = 'UTC'
 
-# --- DATABASE POOLING ---
+# --- DATABASE POOLING (PostgreSQL / Neon) ---
 db_pool = None
+database_url = os.getenv("DATABASE_URL") or os.getenv("NEON_DATABASE_URL")
+
+def normalize_database_url(raw_url):
+    """Return a psycopg2-compatible Postgres URL with Neon-friendly defaults."""
+    if not raw_url:
+        return None
+
+    raw_url = raw_url.strip()
+    if raw_url.startswith("postgres://"):
+        raw_url = "postgresql://" + raw_url[len("postgres://"):]
+
+    parsed = urlsplit(raw_url)
+    if parsed.scheme not in {"postgresql", "postgres"}:
+        raise ValueError(
+            "DATABASE_URL must be a PostgreSQL/Neon URL, for example "
+            "postgresql://USER:PASSWORD@HOST/DBNAME?sslmode=require"
+        )
+
+    query = dict(parse_qsl(parsed.query, keep_blank_values=True))
+    query.setdefault("sslmode", os.getenv("DB_SSLMODE", "require"))
+    query.setdefault("connect_timeout", os.getenv("DB_CONNECT_TIMEOUT", "10"))
+    return urlunsplit((parsed.scheme, parsed.netloc, parsed.path, urlencode(query), parsed.fragment))
+
+def init_db_schema():
+    if os.getenv("AUTO_INIT_SCHEMA", "1") != "1" or db_pool is None:
+        return
+
+    schema_path = Path(__file__).with_name("schema.sql")
+    if not schema_path.exists():
+        print("Warning: schema.sql not found; skipping database schema initialization.")
+        return
+
+    conn = None
+    cursor = None
+    try:
+        conn = db_pool.getconn()
+        cursor = conn.cursor()
+        cursor.execute(schema_path.read_text(encoding="utf-8"))
+        conn.commit()
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        print(f"Warning: could not initialize DB schema: {e}")
+    finally:
+        if cursor:
+            cursor.close()
+        if db_pool is not None and conn is not None:
+            db_pool.putconn(conn)
 
 # Allow tests or environments to skip DB initialization by setting SKIP_DB_INIT=1
-if os.getenv("SKIP_DB_INIT") != "1":
+if os.getenv("SKIP_DB_INIT") != "1" and database_url:
     try:
-        db_pool = pooling.MySQLConnectionPool(
-            pool_name="mypool",
-            pool_size=5,
-            host=os.getenv("DB_HOST"),
-            user=os.getenv("DB_USER"),
-            password=os.getenv("DB_PASSWORD"),
-            database=os.getenv("DB_NAME")
+        database_url = normalize_database_url(database_url)
+        db_pool = pool.SimpleConnectionPool(
+            1,
+            5,
+            dsn=database_url,
         )
+        init_db_schema()
     except Exception as e:
         print(f"Warning: could not initialize DB pool: {e}")
+elif os.getenv("SKIP_DB_INIT") != "1":
+    print("Warning: DATABASE_URL/NEON_DATABASE_URL is not set; database access is disabled until it is provided.")
 
 def get_db_connection():
     if os.getenv("SKIP_DB_INIT") == "1" or db_pool is None:
         raise RuntimeError("DB not initialized in this environment")
-    return db_pool.get_connection()
+    return db_pool.getconn()
+
+def release_db_connection(conn):
+    if db_pool is not None and conn is not None:
+        db_pool.putconn(conn)
+
+def fetch_all(query, params=()):
+    conn = None
+    cursor = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        cursor.execute(query, params)
+        return cursor.fetchall()
+    finally:
+        if cursor:
+            cursor.close()
+        release_db_connection(conn)
+
+def fetch_one(query, params=()):
+    conn = None
+    cursor = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        cursor.execute(query, params)
+        return cursor.fetchone()
+    finally:
+        if cursor:
+            cursor.close()
+        release_db_connection(conn)
+
+def execute_db(query, params=()):
+    conn = None
+    cursor = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute(query, params)
+        conn.commit()
+    except Exception:
+        if conn:
+            conn.rollback()
+        raise
+    finally:
+        if cursor:
+            cursor.close()
+        release_db_connection(conn)
+
+def count_users():
+    row = fetch_one("SELECT COUNT(*) AS count FROM users")
+    return row["count"] if row else 0
+
+def is_safe_upload_name(filename):
+    return bool(filename) and Path(filename).name == filename and not Path(filename).is_absolute()
 
 def log_action(user_id, action, total=None, valid=None, invalid=None):
     # Skip DB logging when running in test or environments that opt-out
@@ -78,15 +186,10 @@ def log_action(user_id, action, total=None, valid=None, invalid=None):
         print(f"log_action skipped (test mode): user={user_id}, action={action}")
         return
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute("""
+        execute_db("""
             INSERT INTO logs (user_id, action, total_rows, valid_rows, invalid_rows)
             VALUES (%s, %s, %s, %s, %s)
         """, (user_id, action, total, valid, invalid))
-        conn.commit()
-        cursor.close()
-        conn.close()
     except Exception as e:   
         print(f"Logging error: {e}")
 
@@ -193,30 +296,42 @@ def process_cleaning_task(self, filepath, rules_dict, cols_to_drop, uploaded_nam
 
 @app.route("/register", methods=["GET", "POST"])
 def register():
+    try:
+        is_first_user = count_users() == 0
+    except Exception as e:
+        flash(f"Database is not ready: {e}", "danger")
+        return render_template("register.html")
+
+    if not is_first_user and session.get("role") != "admin":
+        return redirect(url_for("login"))
+
     if request.method == "POST":
         username, pw, role = request.form["username"], request.form["password"].encode("utf-8"), request.form["role"]
+        if is_first_user:
+            role = "admin"
         hashed = bcrypt.hashpw(pw, bcrypt.gensalt()).decode("utf-8")
         try:
-            conn = get_db_connection(); cursor = conn.cursor()
-            cursor.execute("INSERT INTO users (username, password, role) VALUES (%s, %s, %s)", (username, hashed, role))
-            conn.commit(); conn.close()
+            execute_db("INSERT INTO users (username, password, role) VALUES (%s, %s, %s)", (username, hashed, role))
             return redirect(url_for("login"))
-        except: flash("Username exists!", "danger")
-    return render_template("register.html")
+        except Exception as e:
+            flash(f"Could not create user: {e}", "danger")
+    return render_template("register.html", is_first_user=is_first_user)
 
 @app.route("/", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
         username, pw = request.form["username"], request.form["password"].encode("utf-8")
-        conn = get_db_connection(); cursor = conn.cursor()
-        cursor.execute("SELECT id, password, role FROM users WHERE username=%s", (username,))
-        user = cursor.fetchone(); conn.close()
-        if user and bcrypt.checkpw(pw, user[1].encode("utf-8")):
+        try:
+            user = fetch_one("SELECT id, password, role FROM users WHERE username=%s", (username,))
+        except Exception as e:
+            flash(f"Database is not ready: {e}", "danger")
+            return render_template("login.html")
+        if user and bcrypt.checkpw(pw, user["password"].encode("utf-8")):
             # store username in session for display in templates
-            session.update({"user_id": user[0], "role": user[2], "username": username})
+            session.update({"user_id": user["id"], "role": user["role"], "username": username})
             # make session permanent so the configured timeout applies
             session.permanent = True
-            log_action(user[0], "Logged in")
+            log_action(user["id"], "Logged in")
             return redirect(url_for("choose_page"))
         flash("Invalid credentials", "danger")
     return render_template("login.html")
@@ -234,17 +349,20 @@ def dashboard():
     page = request.args.get("page", 1, type=int)
     search = request.args.get("search", "")
     offset = (page - 1) * 10
-    conn = get_db_connection(); cursor = conn.cursor(dictionary=True)
     if search:
         q = ("SELECT logs.*, users.username FROM logs JOIN users ON logs.user_id = users.id "
-             "WHERE (logs.action LIKE %s OR users.username LIKE %s) "
+             "WHERE (logs.action ILIKE %s OR users.username ILIKE %s) "
              "ORDER BY logs.created_at DESC LIMIT 10 OFFSET %s")
         params = (f"%{search}%", f"%{search}%", offset)
-        cursor.execute(q, params)
+        count_query = ("SELECT COUNT(*) AS count FROM logs JOIN users ON logs.user_id = users.id "
+                       "WHERE (logs.action ILIKE %s OR users.username ILIKE %s)")
+        logs = fetch_all(q, params)
+        total_rows = fetch_one(count_query, params[:2])["count"]
     else:
-        cursor.execute("SELECT logs.*, users.username FROM logs JOIN users ON logs.user_id = users.id ORDER BY logs.created_at DESC LIMIT 10 OFFSET %s", (offset,))
-    logs = cursor.fetchall(); conn.close()
-    return render_template("dashboard.html", role=session["role"], logs=logs, page=page, total_pages=10, search=search)
+        logs = fetch_all("SELECT logs.*, users.username FROM logs JOIN users ON logs.user_id = users.id ORDER BY logs.created_at DESC LIMIT 10 OFFSET %s", (offset,))
+        total_rows = fetch_one("SELECT COUNT(*) AS count FROM logs")["count"]
+    total_pages = max(1, (total_rows + 9) // 10)
+    return render_template("dashboard.html", role=session["role"], logs=logs, page=page, total_pages=total_pages, search=search)
 
 # --- ADMIN ROUTES ---
 
@@ -255,23 +373,25 @@ def admin_logs():
     page = request.args.get("page", 1, type=int)
     search = request.args.get("search", "")
     offset = (page - 1) * 10
-    conn = get_db_connection(); cursor = conn.cursor(dictionary=True)
     if search:
         q = ("SELECT logs.*, users.username FROM logs JOIN users ON logs.user_id = users.id "
-             "WHERE (logs.action LIKE %s OR users.username LIKE %s) "
+             "WHERE (logs.action ILIKE %s OR users.username ILIKE %s) "
              "ORDER BY logs.created_at DESC LIMIT 10 OFFSET %s")
         params = (f"%{search}%", f"%{search}%", offset)
-        cursor.execute(q, params)
+        count_query = ("SELECT COUNT(*) AS count FROM logs JOIN users ON logs.user_id = users.id "
+                       "WHERE (logs.action ILIKE %s OR users.username ILIKE %s)")
+        logs = fetch_all(q, params)
+        total_rows = fetch_one(count_query, params[:2])["count"]
     else:
-        cursor.execute("SELECT logs.*, users.username FROM logs JOIN users ON logs.user_id = users.id ORDER BY logs.created_at DESC LIMIT 10 OFFSET %s", (offset,))
-    logs = cursor.fetchall(); conn.close()
-    return render_template("admin_logs.html", logs=logs, page=page, total_pages=10, search=search)
+        logs = fetch_all("SELECT logs.*, users.username FROM logs JOIN users ON logs.user_id = users.id ORDER BY logs.created_at DESC LIMIT 10 OFFSET %s", (offset,))
+        total_rows = fetch_one("SELECT COUNT(*) AS count FROM logs")["count"]
+    total_pages = max(1, (total_rows + 9) // 10)
+    return render_template("admin_logs.html", logs=logs, page=page, total_pages=total_pages, search=search)
 
 @app.route("/admin/logs/export")
 def export_logs():
     if session.get("role") != "admin": return redirect(url_for("login"))
-    conn = get_db_connection(); cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT * FROM logs"); logs = cursor.fetchall(); conn.close()
+    logs = fetch_all("SELECT logs.*, users.username FROM logs JOIN users ON logs.user_id = users.id ORDER BY logs.created_at DESC")
     df = pd.DataFrame(logs); df.to_excel("logs_export.xlsx", index=False)
     return send_file("logs_export.xlsx", as_attachment=True)
 
@@ -283,7 +403,6 @@ def upload():
     if request.method == "POST":
         file = request.files.get("file")
         if file and file.filename.endswith((".xls", ".xlsx")):
-            if not os.path.exists("uploads"): os.makedirs("uploads")
             df = pd.read_excel(file)
             
             # --- SCHEMA CHECK LOGIC ---
@@ -294,10 +413,11 @@ def upload():
             # ------------------------------
 
             unique_id = str(uuid.uuid4())
-            filepath = os.path.join("uploads", f"{unique_id}_{file.filename}")
+            uploaded_filename = secure_filename(file.filename)
+            filepath = UPLOADS_DIR / f"{unique_id}_{uploaded_filename}"
             df.to_excel(filepath, index=False)
             
-            session.update({"current_file": filepath, "uploaded_file_name": file.filename})
+            session.update({"current_file": str(filepath), "uploaded_file_name": uploaded_filename})
             return render_template("choose_rules.html", columns=df.columns.tolist())
     return render_template("upload.html")
 
@@ -323,8 +443,16 @@ def task_status(task_id):
 
 @app.route("/preview_results")
 def preview_results():
+    if "user_id" not in session:
+        return redirect(url_for("login"))
+
     file_name = request.args.get('file')
-    if not file_name or file_name == 'null':
+    if not is_safe_upload_name(file_name) or file_name == 'null':
+        flash("Result file not found.", "danger")
+        return redirect(url_for('dashboard'))
+
+    result_path = UPLOADS_DIR / file_name
+    if not result_path.exists():
         flash("Result file not found.", "danger")
         return redirect(url_for('dashboard'))
     
@@ -334,6 +462,7 @@ def preview_results():
     args['total'] = int(args.get('total', 0))
     args['valid'] = int(args.get('valid', 0))
     args['invalid'] = int(args.get('invalid', 0))
+    args['preview_table'] = pd.read_excel(result_path).head(10).to_html(classes="table table-bordered", index=False)
         
     return render_template("preview.html", **args)
 
@@ -389,7 +518,11 @@ def save_preset():
 
 @app.route("/download/<filename>")
 def download(filename):
-    return send_file(os.path.join("uploads", filename), as_attachment=True)
+    if "user_id" not in session:
+        return redirect(url_for("login"))
+    if not is_safe_upload_name(filename):
+        abort(404)
+    return send_from_directory(UPLOADS_DIR, filename, as_attachment=True)
 
 @app.route("/logout")
 def logout():

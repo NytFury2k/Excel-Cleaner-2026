@@ -1,27 +1,49 @@
-# Python
+# --- Python ---
 __pycache__/
 *.py[cod]
 *.egg-info/
+dist/
+build/
+*.egg
 
-# Virtual environments
+# --- Virtual Environments ---
 venv/
 .venv/
 env/
 
-# Local env
+# --- Environment Variables (SENSITIVE - NEVER COMMIT) ---
 .env
-DB_HOST=127.0.0.1
-DB_USER=root
-DB_PASSWORD=Admin@123
-DB_NAME=excel_cleaner
-FLASK_SECRET_KEY=856359e7f1771d8b4e40b7b4e693ea75216568c909e7d5526eca8458369459b7
+!env.example
 
-# Uploads and generated files
+# --- Generated / Uploaded Files ---
 uploads/
 *.xlsx
+*.xls
 logs_export.xlsx
-celerybeat-schedule*
+temp_uploaded.xlsx
+cleaned_data.xlsx
+invalid_rows.xlsx
 
-# OS files
+# --- Celery ---
+celerybeat-schedule*
+celerybeat.pid
+
+# --- IDE / Editor ---
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
 .DS_Store
 Thumbs.db
+
+# --- Testing ---
+.pytest_cache/
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+*.cover
+
+# --- Docker ---
+docker-compose.override.yml
