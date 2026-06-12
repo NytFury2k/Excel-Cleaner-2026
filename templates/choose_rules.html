@@ -144,31 +144,36 @@
                 <ul class="dropdown-menu rule-dropdown-menu shadow p-2" aria-labelledby="rules-btn-{{ loop.index }}">
                   <li>
                     <label class="dropdown-item rounded-2 d-flex align-items-center gap-2">
-                      <input class="form-check-input m-0 rule-option rule-group-{{ loop.index }}" type="checkbox" name="rules_{{ col }}" value="drop_nulls" data-rule="drop_nulls">
+                      <input class="form-check-input m-0 rule-option rule-group-{{ loop.index }}" type="checkbox" name="rules_{{ col }}" value="drop_nulls" data-rule="drop_nulls"
+                             {% if suggestions and col in suggestions and 'drop_nulls' in suggestions[col] %}checked{% endif %}>
                       <span>Drop if Empty (Null)</span>
                     </label>
                   </li>
                   <li>
                     <label class="dropdown-item rounded-2 d-flex align-items-center gap-2">
-                      <input class="form-check-input m-0 rule-option rule-group-{{ loop.index }}" type="checkbox" name="rules_{{ col }}" value="remove_specials" data-rule="remove_specials">
+                      <input class="form-check-input m-0 rule-option rule-group-{{ loop.index }}" type="checkbox" name="rules_{{ col }}" value="remove_specials" data-rule="remove_specials"
+                             {% if suggestions and col in suggestions and 'remove_specials' in suggestions[col] %}checked{% endif %}>
                       <span>Remove Specials</span>
                     </label>
                   </li>
                   <li>
                     <label class="dropdown-item rounded-2 d-flex align-items-center gap-2">
-                      <input class="form-check-input m-0 rule-option rule-group-{{ loop.index }}" type="checkbox" name="rules_{{ col }}" value="validate_email" data-rule="validate_email">
+                      <input class="form-check-input m-0 rule-option rule-group-{{ loop.index }}" type="checkbox" name="rules_{{ col }}" value="validate_email" data-rule="validate_email"
+                             {% if suggestions and col in suggestions and 'validate_email' in suggestions[col] %}checked{% endif %}>
                       <span>Validate Email</span>
                     </label>
                   </li>
                   <li>
                     <label class="dropdown-item rounded-2 d-flex align-items-center gap-2">
-                      <input class="form-check-input m-0 rule-option rule-group-{{ loop.index }}" type="checkbox" name="rules_{{ col }}" value="validate_phone" data-rule="validate_phone">
+                      <input class="form-check-input m-0 rule-option rule-group-{{ loop.index }}" type="checkbox" name="rules_{{ col }}" value="validate_phone" data-rule="validate_phone"
+                             {% if suggestions and col in suggestions and 'validate_phone' in suggestions[col] %}checked{% endif %}>
                       <span>Validate Phone</span>
                     </label>
                   </li>
                   <li>
                     <label class="dropdown-item rounded-2 d-flex align-items-center gap-2">
-                      <input class="form-check-input m-0 rule-option rule-group-{{ loop.index }}" type="checkbox" name="rules_{{ col }}" value="drop_duplicates" data-rule="drop_duplicates">
+                      <input class="form-check-input m-0 rule-option rule-group-{{ loop.index }}" type="checkbox" name="rules_{{ col }}" value="drop_duplicates" data-rule="drop_duplicates"
+                             {% if suggestions and col in suggestions and 'drop_duplicates' in suggestions[col] %}checked{% endif %}>
                       <span>Drop Duplicates</span>
                     </label>
                   </li>
@@ -319,6 +324,10 @@
     });
     // load presets on page load
     fetchPresets();
+
+    document.addEventListener('DOMContentLoaded', () => {
+      document.querySelectorAll('.rule-card').forEach(card => syncRuleDropdown(card));
+    });
 
     function toggleAll(ruleValue, isChecked) {
       const cards = document.querySelectorAll('.rule-card');

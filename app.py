@@ -14,9 +14,62 @@ from psycopg2 import pool
 from psycopg2.extras import RealDictCursor
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 from werkzeug.utils import secure_filename
+import phonenumbers
 
 # Load secrets from .env
 load_dotenv()
+
+def clean_and_standardize_phone(phone_str, default_region="US"):
+    if not phone_str:
+        return ""
+    phone_str = str(phone_str).strip()
+    if not phone_str:
+        return ""
+    try:
+        if phone_str.startswith('+'):
+            parsed = phonenumbers.parse(phone_str, None)
+        else:
+            parsed = phonenumbers.parse(phone_str, default_region)
+        
+        if phonenumbers.is_valid_number(parsed):
+            return phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.E164)
+    except Exception:
+        pass
+    return None
+
+
+def predict_rules_for_column(col_name):
+    col_clean = str(col_name).strip().lower()
+    suggested = []
+    
+    # Email rules
+    if 'email' in col_clean or 'mail' in col_clean:
+        suggested.append('validate_email')
+        suggested.append('drop_duplicates')
+        suggested.append('drop_nulls')
+        
+    # Phone rules
+    elif any(p in col_clean for p in ['phone', 'mobile', 'tel', 'contact', 'cell']):
+        suggested.append('validate_phone')
+        suggested.append('drop_duplicates')
+        suggested.append('drop_nulls')
+        
+    # Name rules
+    elif any(n in col_clean for n in ['name', 'fname', 'lname', 'first', 'last']):
+        suggested.append('remove_specials')
+        suggested.append('drop_nulls')
+        
+    # ID / Key / Code rules
+    elif any(i in col_clean for i in ['id', 'uuid', 'key', 'code', 'number', 'no']):
+        suggested.append('drop_duplicates')
+        suggested.append('drop_nulls')
+        
+    # Company / Organization
+    elif any(c in col_clean for c in ['company', 'org', 'firm', 'business']):
+        suggested.append('remove_specials')
+        
+    return suggested
+
 
 REQUIRED_COLUMNS = ['first_name', 'last_name', 'email', 'phone', 'company']
 
@@ -240,18 +293,65 @@ def process_cleaning_task(self, filepath, rules_dict, cols_to_drop, uploaded_nam
                         failed_indices.add(idx)
 
             if "validate_phone" in rules:
-                phone_pattern = re.compile(r'^\+?[0-9]{7,15}$')
                 for idx, val in df[column].items():
-                    if val != "" and not bool(phone_pattern.match(val)):
-                        failed_indices.add(idx)
+                    if val != "":
+                        standardized = clean_and_standardize_phone(val)
+                        if standardized is not None:
+                            df.at[idx, column] = standardized
+                        else:
+                            failed_indices.add(idx)
 
-            if "drop_duplicates" in rules:
-                # Non-destructive, case-insensitive duplicate detection:
-                # use a temporary lowercased view for comparison so original values remain unchanged
-                folded = df[column].astype(str).str.lower()
-                dup_mask = folded.duplicated(keep='first')
-                duplicates = df[dup_mask].index
-                failed_indices.update(duplicates)
+        # --- DUPLICATE DETECTION LOGIC ---
+        dup_columns = [col for col, rules in rules_dict.items() if "drop_duplicates" in rules and col in df.columns]
+        if dup_columns:
+            # Identify unique identifier columns (email, phone/mobile/tel)
+            unique_cols = [c for c in dup_columns if any(u in c.lower() for u in ['email', 'phone', 'mobile', 'tel'])]
+            non_unique_cols = [c for c in dup_columns if c not in unique_cols]
+            
+            # Check unique columns individually (ignoring empty strings)
+            for col in unique_cols:
+                folded = df[col].astype(str).str.strip().str.lower()
+                non_empty_mask = folded != ''
+                dup_mask = folded[non_empty_mask].duplicated(keep='first')
+                failed_indices.update(dup_mask[dup_mask].index)
+            
+            # Check non-unique columns row-wise
+            if non_unique_cols:
+                has_first = 'first_name' in df.columns
+                has_last = 'last_name' in df.columns
+                
+                if has_first and has_last and ('first_name' in non_unique_cols or 'last_name' in non_unique_cols):
+                    # Create a combined name series
+                    first_clean = df['first_name'].astype(str).str.strip().str.lower()
+                    last_clean = df['last_name'].astype(str).str.strip().str.lower()
+                    combined_name = first_clean + " " + last_clean
+                    
+                    other_cols = [c for c in non_unique_cols if c not in ('first_name', 'last_name')]
+                    if other_cols:
+                        combined_series = combined_name + " | " + df[other_cols].astype(str).apply(
+                            lambda row: " | ".join(row.str.strip().str.lower()), axis=1
+                        )
+                    else:
+                        combined_series = combined_name
+                else:
+                    combined_series = df[non_unique_cols].astype(str).apply(
+                        lambda row: " | ".join(row.str.strip().str.lower()), axis=1
+                    )
+                
+                # Determine non-empty rows for non-unique columns
+                cols_to_check = []
+                if has_first and has_last and ('first_name' in non_unique_cols or 'last_name' in non_unique_cols):
+                    cols_to_check.extend(['first_name', 'last_name'])
+                    cols_to_check.extend([c for c in non_unique_cols if c not in ('first_name', 'last_name')])
+                else:
+                    cols_to_check.extend(non_unique_cols)
+                    
+                non_empty_mask = df[cols_to_check].astype(str).apply(
+                    lambda row: any(val.strip() != '' for val in row), axis=1
+                )
+                
+                dup_mask = combined_series[non_empty_mask].duplicated(keep='first')
+                failed_indices.update(dup_mask[dup_mask].index)
 
         # Separate data
         invalid_rows = df.loc[list(failed_indices)]
@@ -418,7 +518,8 @@ def upload():
             df.to_excel(filepath, index=False)
             
             session.update({"current_file": str(filepath), "uploaded_file_name": uploaded_filename})
-            return render_template("choose_rules.html", columns=df.columns.tolist())
+            suggestions = {col: predict_rules_for_column(col) for col in df.columns}
+            return render_template("choose_rules.html", columns=df.columns.tolist(), suggestions=suggestions)
     return render_template("upload.html")
 
 @app.route("/clean", methods=["POST"])
@@ -523,6 +624,60 @@ def download(filename):
     if not is_safe_upload_name(filename):
         abort(404)
     return send_from_directory(UPLOADS_DIR, filename, as_attachment=True)
+
+@app.route("/fetch_columns", methods=["GET", "POST"])
+def fetch_columns():
+    if "user_id" not in session:
+        return jsonify({"error": "Unauthorized"}), 401
+    
+    if request.method == "POST":
+        payload = request.get_json() or {}
+        filename = payload.get("file")
+        columns = payload.get("columns", [])
+    else:
+        filename = request.args.get("file")
+        columns_param = request.args.get("columns", "")
+        columns = [c.strip() for c in columns_param.split(",") if c.strip()] if columns_param else []
+    
+    if not filename or not is_safe_upload_name(filename):
+        return jsonify({"error": "Invalid or missing file parameter"}), 400
+    
+    filepath = UPLOADS_DIR / filename
+    if not filepath.exists():
+        return jsonify({"error": "File not found"}), 404
+    
+    try:
+        df = pd.read_excel(filepath)
+        
+        if not columns:
+            columns = df.columns.tolist()
+            
+        valid_columns = [col for col in columns if col in df.columns]
+        missing_columns = [col for col in columns if col not in df.columns]
+        
+        if not valid_columns:
+            return jsonify({
+                "error": "None of the requested columns exist in the dataset",
+                "available_columns": df.columns.tolist()
+            }), 400
+            
+        result_df = df[valid_columns]
+        result_df = result_df.replace({pd.NA: None}).where(pd.notnull(result_df), None)
+        data = result_df.to_dict(orient="records")
+        
+        response = {
+            "file": filename,
+            "requested_columns": columns,
+            "fetched_columns": valid_columns,
+            "data": data
+        }
+        if missing_columns:
+            response["missing_columns"] = missing_columns
+            
+        return jsonify(response)
+    except Exception as e:
+        return jsonify({"error": f"Failed to fetch columns: {str(e)}"}), 500
+
 
 @app.route("/logout")
 def logout():
