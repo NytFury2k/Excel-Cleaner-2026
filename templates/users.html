@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Users — Paramantra</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <link rel="icon" href="https://paramantra.us/aldius/images/favicon.png" type="image/gif">
+  <style>
+    :root {
+      --red: #b91c1c;
+      --border: #e5e7eb;
+      --surface: #f9fafb;
+    }
+
+    body {
+      background: #f4f5f7;
+      font-family: system-ui, -apple-system, sans-serif;
+    }
+
+    .card {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+    }
+
+    .card-header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 20px;
+      font-weight: 600;
+    }
+
+    .card-body {
+      padding: 20px;
+    }
+
+    .form-label {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: #374151;
+      margin-bottom: 4px;
+    }
+
+    .form-control,
+    .form-select {
+      border-radius: 7px;
+      border-color: var(--border);
+      font-size: 0.88rem;
+    }
+
+    .form-control:focus,
+    .form-select:focus {
+      border-color: #fca5a5;
+      box-shadow: 0 0 0 3px rgba(185, 28, 28, 0.1);
+    }
+
+    .btn-danger,
+    .btn-danger:focus {
+      background: var(--red);
+      border-color: var(--red);
+    }
+
+    .btn-danger:hover {
+      background: #991b1b;
+      border-color: #991b1b;
+    }
+
+    .table thead th {
+      background: var(--surface);
+      font-weight: 600;
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #6b7280;
+      border-bottom: 2px solid var(--border);
+      white-space: nowrap;
+    }
+
+    .table td {
+      vertical-align: middle;
+      border-color: var(--border);
+      font-size: 0.88rem;
+    }
+
+    .table-hover tbody tr:hover {
+      background: #fef2f2;
+    }
+
+    .pagination .page-link {
+      color: var(--red);
+      border: 1px solid var(--border);
+      background: #fff;
+      border-radius: 6px !important;
+      margin: 0 2px;
+      font-size: 0.83rem;
+      padding: 5px 11px;
+    }
+
+    .pagination .page-link:hover {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+
+    .pagination .page-item.active .page-link {
+      background: var(--red);
+      border-color: var(--red);
+      color: #fff;
+    }
+
+    .pagination .page-item.disabled .page-link {
+      background: #f3f4f6;
+      color: #9ca3af;
+    }
+
+    .badge {
+      font-weight: 500;
+    }
+
+    .alert {
+      border-radius: 8px;
+      font-size: 0.875rem;
+    }
+
+    .page-hdr h2 {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: #111827;
+      margin-bottom: 3px;
+    }
+
+    .page-hdr p {
+      font-size: 0.875rem;
+      color: #6b7280;
+      margin: 0;
+    }
+
+    .reports-to-cell {
+      font-size: 0.8rem;
+      line-height: 1.6;
+    }
+
+    .reports-to-cell .label {
+      color: #9ca3af;
+      font-size: 0.72rem;
+      font-weight: 500;
+      margin-right: 3px;
+    }
+
+    .reports-to-cell .name {
+      font-weight: 700;
+      color: #111827;
+    }
+
+    .reports-to-cell .sub {
+      font-size: 0.72rem;
+      color: #6b7280;
+    }
+
+    @media (max-width: 767px) {
+      .col-hide-md {
+        display: none;
+      }
+
+      .container {
+        padding-left: 12px;
+        padding-right: 12px;
+      }
+    }
+
+    @media (max-width: 575px) {
+      .col-hide-xs {
+        display: none;
+      }
+
+      .page-hdr h2 {
+        font-size: 1.1rem;
+      }
+
+      .container {
+        padding-left: 6px;
+        padding-right: 6px;
+      }
+
+      .table td,
+      .table th {
+        padding-left: 6px;
+        padding-right: 6px;
+        font-size: 0.8rem;
+      }
+
+      .btn-xs {
+        font-size: 0.72rem;
+        padding: 2px 5px;
+      }
+    }
+
+    .app-layout {
+      display: flex;
+      min-height: 100vh;
+    }
+
+    .sidebar {
+      width: 260px;
+      background: #fff;
+      border-right: 1px solid #e5e7eb;
+      position: fixed;
+      top: 0;
+      left: 0;
+      bottom: 0;
+    }
+
+    .content-area {
+      flex: 1;
+      margin-left: 260px;
+      padding: 24px;
+    }
+
+    .sidebar-brand {
+      background: #b91c1c;
+      padding: 20px;
+      border-bottom: 1px solid #991b1b;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .sidebar-brand h5 {
+      margin: 0;
+      font-weight: 700;
+    }
+
+    .sidebar-brand small {
+      color: #6b7280;
+    }
+
+    .sidebar-link {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 16px;
+      color: #374151;
+      text-decoration: none;
+      border-radius: 8px;
+      margin: 4px 10px;
+    }
+
+    .sidebar-link:hover {
+      background: #fef2f2;
+      color: #b91c1c;
+    }
+
+    .sidebar-link i {
+      font-size: 1rem;
+    }
+
+    .sidebar-logo {
+      width: 42px;
+      height: 42px;
+      object-fit: contain;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="app-layout">
+
+    {% include '_sidebar.html' %}
+
+    <main class="content-area">
+
+      <div class="container my-4 my-md-5">
+        <div class="page-hdr mb-4">
+          <h2><i class="bi bi-people me-2" style="color:#b91c1c;"></i>Registered Users</h2>
+          <p>Browse and filter user accounts</p>
+        </div>
+
+        <div class="card shadow-sm mb-4">
+          <div class="card-body" style="padding:16px 20px;">
+            <form method="get" action="{{ url_for('list_users') }}" class="row g-2 align-items-end">
+              <div class="col-12 col-md-3">
+                <label class="form-label">Search</label>
+                <div class="input-group input-group-sm">
+                  <span class="input-group-text bg-white border-end-0"
+                    style="border-color:var(--border-color);border-radius:7px 0 0 7px;"><i class="bi bi-search text-muted"
+                      style="font-size:0.78rem;"></i></span>
+                  <input type="text" name="search" value="{{ search }}" class="form-control border-start-0"
+                    placeholder="Search username..." style="border-radius:0 7px 7px 0;">
+                </div>
+              </div>
+              <div class="col-6 col-sm-4 col-md-2">
+                <label class="form-label">Role</label>
+
+                <select name="role" class="form-select form-select-sm">
+                  <option value="">All Roles</option>
+                  {% if caller_role == "admin" %}
+                  <option value="admin" {% if role_filter=="admin" %}selected{% endif %}>Admin</option>
+                  <option value="manager" {% if role_filter=="manager" %}selected{% endif %}>Manager</option>
+                  <option value="team_lead" {% if role_filter=="team_lead" %}selected{% endif %}>Team Lead</option>
+                  <option value="user" {% if role_filter=="user" %}selected{% endif %}>User</option>
+                  {% elif caller_role=="manager" %}
+                  <option value="team_lead" {% if role_filter=="team_lead" %}selected{% endif %}>Team Lead</option>
+                  <option value="user" {% if role_filter=="user" %}selected{% endif %}>User</option>
+                  {% elif caller_role=="team_lead" %}
+                  <option value="user" {% if role_filter=="user" %}selected{% endif %}>User</option>
+                  {% endif %}
+                </select>
+              </div>
+              <div class="col-6 col-sm-4 col-md-2">
+                <label class="form-label">Status</label>
+                <select name="status" class="form-select form-select-sm">
+                  <option value="">All Status</option>
+                  <option value="active" {% if status_filter=="active" %}selected{% endif %}>Active</option>
+                  <option value="inactive" {% if status_filter=="inactive" %}selected{% endif %}>Inactive</option>
+                </select>
+              </div>
+              <div class="col-12 col-sm-4 col-md-3">
+                <label class="form-label">Sort By</label>
+                <select name="sort" class="form-select form-select-sm">
+                  <option value="">Username (A–Z)</option>
+                  <option value="username_desc" {% if sort=="username_desc" %}selected{% endif %}>Username (Z–A)
+                  </option>
+                  <option value="newest" {% if sort=="newest" %}selected{% endif %}>Recently Created</option>
+                  <option value="oldest" {% if sort=="oldest" %}selected{% endif %}>Oldest First</option>
+                  <option value="role" {% if sort=="role" %}selected{% endif %}>Role</option>
+                </select>
+              </div>
+              <div class="col-12 col-md-2 d-flex gap-2">
+                <button type="submit" class="btn btn-sm btn-danger w-100" style="border-radius:7px;">Apply</button>
+                {% if search or role_filter or status_filter or sort %}
+                <a href="{{ url_for('list_users') }}" class="btn btn-sm btn-outline-secondary"
+                  style="border-radius: 7px; font-size: 0.83rem;" title="Clear filters"><i class="bi bi-x"></i></a>
+                {% endif %}
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <div class="card shadow-sm">
+          <div class="card-body p-0">
+            <div class="table-responsive" style="border-radius:10px;overflow:hidden;">
+              <table class="table table-hover align-middle mb-0" style="min-width:400px;">
+                <thead>
+                  <tr>
+                    <th style="width:55px;" class="col-hide-sm">ID</th>
+                    <th>Username</th>
+                    <th style="width:120px;">Role</th>
+                    <th class="col-hide-md">Reports To</th>
+                    <th style="width:100px;" class="col-hide-sm">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% if users %}
+                  {% for user in users %}
+                  <tr class="{% if not user.is_active %}opacity-50{% endif %}">
+                    <td class="text-muted col-hide-sm" style="font-size:0.8rem;">{{ user.id }}</td>
+                    <td>
+                      <span class="fw-semibold">{{ user.username }}</span>
+                      {# Show status inline on mobile since Status column is hidden #}
+                      <div class="d-sm-none mt-1">
+                        {% if user.is_active %}
+                        <span class="badge"
+                          style="background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0;font-size:0.7rem;">Active</span>
+                        {% else %}
+                        <span class="badge"
+                          style="background:#f9fafb;color:#6b7280;border:1px solid #e5e7eb;font-size:0.7rem;">Inactive</span>
+                        {% endif %}
+                      </div>
+                    </td>
+
+                    <td>
+                      {% if user.role == "admin" %}<span class="badge"
+                        style="background:#fef2f2;color:#b91c1c;border:1px solid #fecaca;">Admin</span>
+                      {% elif user.role == "manager" %}<span class="badge"
+                        style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;">Manager</span>
+                      {% elif user.role == "team_lead" %}<span class="badge"
+                        style="background:#ecfeff;color:#0891b2;border:1px solid #a5f3fc;">Team Lead</span>
+                      {% else %}<span class="badge"
+                        style="background:#f9fafb;color:#374151;border:1px solid #e5e7eb;">User</span>{% endif %}
+                    </td>
+
+                    <td class="reports-to-cell col-hide-md">
+                      {% if user.role == "admin" %}
+                      <span style="color:#d1d5db;">—</span>
+                      {% elif user.role == "manager" %}
+                      {% set admin_name = user.manager_username or user.created_by_username %}
+                      {% if admin_name %}
+                      <div><span class="label">Admin:</span><span class="name">{{ admin_name }}</span></div>
+                      {% else %}
+                      <span style="color:#9ca3af;font-size:0.75rem;">Admin</span>
+                      {% endif %}
+                      {% elif user.role == "team_lead" %}
+                      {% if user.manager_username %}
+                      <div><span class="label">Mgr:</span><span class="name">{{ user.manager_username }}</span></div>
+                      {% else %}
+                      <span style="color:#9ca3af;font-size:0.75rem;">Not assigned</span>
+                      {% endif %}
+                      {% else %}
+                      {% if user.manager_username %}
+                      <div><span class="label">TL:</span><span class="name">{{ user.manager_username }}</span></div>
+                      {% if user.grandmanager_username %}
+                      <div class="sub"><span class="label">Mgr:</span>{{ user.grandmanager_username }}</div>
+                      {% endif %}
+                      {% else %}
+                      <span style="color:#9ca3af;font-size:0.75rem;">Not assigned</span>
+                      {% endif %}
+                      {% endif %}
+                    </td>
+
+                    <td class="col-hide-sm">
+                      {% if user.is_active %}
+                      <span class="badge"
+                        style="background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0;">Active</span>
+                      {% else %}
+                      <span class="badge"
+                        style="background:#f9fafb;color:#6b7280;border:1px solid #e5e7eb;">Inactive</span>
+                      {% endif %}
+                    </td>
+                  </tr>
+                  {% endfor %}
+                  {% else %}
+                  <tr>
+                    <td colspan="5" class="text-center py-5" style="color:#9ca3af;">
+                      <i class="bi bi-inbox" style="font-size:1.8rem;display:block;margin-bottom:8px;"></i>No users
+                      found.
+                    </td>
+                  </tr>
+                  {% endif %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="d-flex justify-content-between align-items-center mt-3 px-1">
+          <small class="text-muted" style="font-size:0.8rem;">
+            {% if total_users > 0 %}Showing {{ start }}–{{ end }} of {{ total_users }} result{{ 's' if total_users != 1
+            else '' }}{% else %}No results{% endif %}
+          </small>
+        </div>
+
+        {% if total_pages > 1 %}
+        <nav class="mt-3">
+          <ul class="pagination justify-content-center flex-wrap mb-0">
+            {% if page > 1 %}<li class="page-item"><a class="page-link"
+                href="{{ url_for('list_users', page=page-1, search=search, role=role_filter, status=status_filter, sort=sort) }}"><i
+                  class="bi bi-chevron-left" style="font-size:0.7rem;"></i></a></li>{% endif %}
+            {% if page > 3 %}<li class="page-item"><a class="page-link"
+                href="{{ url_for('list_users', page=1, search=search, role=role_filter, status=status_filter, sort=sort) }}">1</a>
+            </li>
+            <li class="page-item disabled"><span class="page-link">…</span></li>{% endif %}
+            {% for p in range(page-2, page+3) %}{% if 1<=p<=total_pages %}<li
+              class="page-item {% if p==page %}active{% endif %}"><a class="page-link"
+                href="{{ url_for('list_users', page=p, search=search, role=role_filter, status=status_filter, sort=sort) }}">{{
+                p }}</a></li>{% endif %}{% endfor %}
+              {% if page < total_pages-2 %}<li class="page-item disabled"><span class="page-link">…</span></li>
+                <li class="page-item"><a class="page-link"
+                    href="{{ url_for('list_users', page=total_pages, search=search, role=role_filter, status=status_filter, sort=sort) }}">{{
+                    total_pages }}</a></li>{% endif %}
+                {% if page < total_pages %}<li class="page-item"><a class="page-link"
+                    href="{{ url_for('list_users', page=page+1, search=search, role=role_filter, status=status_filter, sort=sort) }}"><i
+                      class="bi bi-chevron-right" style="font-size:0.7rem;"></i></a></li>{% endif %}
+          </ul>
+        </nav>
+        {% endif %}
+
+      </div>
+      <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    </main>
+  </div>
+</body>
+
+</html>

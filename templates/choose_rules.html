@@ -1,0 +1,829 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Select Cleaning Rules — Paramantra</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <link rel="icon" href="https://paramantra.us/aldius/images/favicon.png" type="image/gif">
+  <style>
+    :root {
+      --red: #b91c1c;
+      --border: #e5e7eb;
+      --surface: #f9fafb;
+    }
+
+    body {
+      background: #f4f5f7;
+      font-family: system-ui, -apple-system, sans-serif;
+    }
+
+    .card {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+    }
+
+    .card-header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 18px;
+    }
+
+    .card-body {
+      padding: 18px;
+    }
+
+    .form-control,
+    .form-select {
+      border-radius: 7px;
+      border-color: var(--border);
+      font-size: 0.88rem;
+    }
+
+    .form-control:focus,
+    .form-select:focus {
+      border-color: #fca5a5;
+      box-shadow: 0 0 0 3px rgba(185, 28, 28, 0.1);
+    }
+
+    .form-label {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: #374151;
+      margin-bottom: 4px;
+    }
+
+    .btn-danger,
+    .btn-danger:focus {
+      background: var(--red);
+      border-color: var(--red);
+    }
+
+    .btn-danger:hover {
+      background: #991b1b;
+      border-color: #991b1b;
+    }
+
+    .btn-outline-danger {
+      color: var(--red);
+      border-color: var(--red);
+    }
+
+    .btn-outline-danger:hover {
+      background: var(--red);
+      color: #fff;
+    }
+
+    .alert {
+      border-radius: 8px;
+      font-size: 0.875rem;
+    }
+
+    /* Column cards */
+    .col-card {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      margin-bottom: 14px;
+      overflow: hidden;
+      transition: box-shadow 0.15s;
+    }
+
+    .col-card:hover {
+      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.07);
+    }
+
+    .col-card-header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 11px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .col-card-header h6 {
+      font-size: 0.92rem;
+      font-weight: 600;
+      margin: 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .col-card-body {
+      padding: 16px 18px;
+    }
+
+    /* Type badge colours */
+    .badge-email {
+      background: #eff6ff;
+      color: #1d4ed8;
+      border: 1px solid #bfdbfe;
+    }
+
+    .badge-phone {
+      background: #ecfeff;
+      color: #0891b2;
+      border: 1px solid #a5f3fc;
+    }
+
+    .badge-url {
+      background: #f0fdf4;
+      color: #15803d;
+      border: 1px solid #bbf7d0;
+    }
+
+    .badge-numeric {
+      background: #fefce8;
+      color: #a16207;
+      border: 1px solid #fde68a;
+    }
+
+    .badge-date {
+      background: #f5f3ff;
+      color: #6d28d9;
+      border: 1px solid #ddd6fe;
+    }
+
+    .badge-name {
+      background: #f9fafb;
+      color: #374151;
+      border: 1px solid #e5e7eb;
+    }
+
+    .badge-company {
+      background: #f9fafb;
+      color: #374151;
+      border: 1px solid #e5e7eb;
+    }
+
+    .badge-text {
+      background: #f9fafb;
+      color: #6b7280;
+      border: 1px solid #e5e7eb;
+    }
+
+    .badge-id {
+      background: #f1f5f9;
+      color: #475569;
+      border: 1px solid #cbd5e1;
+    }
+
+    .type-badge {
+      font-size: 0.72rem;
+      font-weight: 500;
+      padding: 2px 8px;
+      border-radius: 10px;
+      letter-spacing: 0.02em;
+    }
+
+    /* Rule checkboxes */
+    .rule-check-wrap {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      background: #f9fafb;
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      padding: 7px 11px;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+    }
+
+    .rule-check-wrap:hover {
+      border-color: #fca5a5;
+      background: #fef2f2;
+    }
+
+    .rule-check-wrap input:checked+.rule-label {
+      color: #b91c1c;
+      font-weight: 600;
+    }
+
+    .rule-label {
+      font-size: 0.82rem;
+      color: #374151;
+      user-select: none;
+      cursor: pointer;
+    }
+
+    .form-check-input:checked {
+      background-color: #b91c1c;
+      border-color: #b91c1c;
+    }
+
+    .form-check-input:focus {
+      box-shadow: 0 0 0 3px rgba(185, 28, 28, 0.15);
+      border-color: #fca5a5;
+    }
+
+    /* Strategy dropdown */
+    .strategy-row {
+      display: none;
+      align-items: center;
+      gap: 12px;
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid var(--border);
+    }
+
+    .strategy-row.visible {
+      display: flex;
+    }
+
+    /* Preset bar */
+    .preset-bar {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px 18px;
+      margin-bottom: 20px;
+    }
+
+    /* Global toggle buttons */
+    .type-toggle-group .btn {
+      font-size: 0.8rem;
+      padding: 5px 12px;
+      border-radius: 6px !important;
+    }
+
+    /* Submit bar */
+    .submit-bar {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 18px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      margin-top: 8px;
+      margin-bottom: 40px;
+    }
+
+    /* Rule option wrapper — used for show/hide on type override */
+    .rule-option {
+      display: flex;
+    }
+
+    .rule-option.hidden {
+      display: none !important;
+    }
+
+    .app-layout {
+      display: flex;
+      min-height: 100vh;
+    }
+
+    .sidebar {
+      width: 260px;
+      background: #fff;
+      border-right: 1px solid #e5e7eb;
+      position: fixed;
+      top: 0;
+      left: 0;
+      bottom: 0;
+    }
+
+    .content-area {
+      flex: 1;
+      margin-left: 260px;
+      padding: 24px;
+    }
+
+    .sidebar-brand {
+      background: #b91c1c;
+      padding: 20px;
+      border-bottom: 1px solid #991b1b;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .sidebar-brand h5 {
+      margin: 0;
+      font-weight: 700;
+    }
+
+    .sidebar-brand small {
+      color: #6b7280;
+    }
+
+    .sidebar-link {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 16px;
+      color: #374151;
+      text-decoration: none;
+      border-radius: 8px;
+      margin: 4px 10px;
+    }
+
+    .sidebar-link:hover {
+      background: #fef2f2;
+      color: #b91c1c;
+    }
+
+    .sidebar-link i {
+      font-size: 1rem;
+    }
+
+    .sidebar-logo {
+      width: 42px;
+      height: 42px;
+      object-fit: contain;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="app-layout">
+
+    {% include '_sidebar.html' %}
+
+    <main class="content-area">
+
+      <div class="container mt-4 mb-5">
+
+        <!-- Page title -->
+        <div class="d-flex align-items-start justify-content-between flex-wrap gap-3 mb-4">
+          <div>
+            <h2 style="font-size:1.3rem;font-weight:700;color:#111827;margin-bottom:3px;">
+              <i class="bi bi-sliders me-2" style="color:#b91c1c;"></i>Select Cleaning Rules
+              <span class="badge ms-1"
+                style="background:#fef2f2;color:#b91c1c;border:1px solid #fecaca;font-size:0.75rem;font-weight:500;vertical-align:middle;">{{
+                columns|length }} columns</span>
+            </h2>
+            <p style="font-size:0.875rem;color:#6b7280;margin:0;">File: <strong style="color:#374151;">{{ uploaded_file
+                }}</strong></p>
+          </div>
+
+          <!-- Global type toggles -->
+          <div class="d-flex align-items-center gap-2 flex-wrap type-toggle-group">
+            <div class="d-flex flex-wrap gap-1">
+              <button type="button" class="btn btn-outline-secondary" onclick="toggleText()">Text</button>
+              <button type="button" class="btn btn-outline-primary" onclick="toggleEmail()">Email</button>
+              <button type="button" class="btn btn-outline-info" onclick="togglePhone()">Phone</button>
+              <button type="button" class="btn btn-outline-success" onclick="toggleUrl()">URL</button>
+              <button type="button" class="btn btn-outline-warning" onclick="toggleNumeric()">Numeric</button>
+              <button type="button" class="btn btn-outline-danger" onclick="toggleDuplicates()">Dupes</button>
+              <button type="button" class="btn btn-outline-dark" onclick="toggleDate()">Date</button>
+            </div>
+            <button type="button" class="btn btn-sm btn-outline-dark" onclick="clearAll()" style="border-radius:6px;">
+              <i class="bi bi-arrow-counterclockwise me-1"></i>Reset
+            </button>
+          </div>
+        </div>
+
+        <!-- Flash messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}{% for category, message in messages %}
+        <div class="alert alert-{{ category }} alert-dismissible fade show mb-3">
+          {{ message|safe }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        {% endfor %}{% endif %}{% endwith %}
+
+        <!-- Presets bar -->
+        <div class="preset-bar">
+          <div class="d-flex align-items-end gap-3 flex-wrap">
+            <!-- Save preset -->
+            <form id="savePresetForm" method="POST" action="{{ url_for('save_preset') }}"
+              class="d-flex gap-2 align-items-end">
+              <input type="hidden" name="rules_json" id="rulesJsonInput">
+              <div>
+                <label class="form-label">Save current rules as preset</label>
+                <div class="d-flex gap-2">
+                  <input type="text" name="preset_name" class="form-control form-control-sm" placeholder="Preset name…"
+                    style="width:180px;" required>
+                  <button type="submit" class="btn btn-sm btn-outline-success" onclick="return serializeRules()">
+                    <i class="bi bi-floppy me-1"></i>Save
+                  </button>
+                </div>
+              </div>
+            </form>
+
+            {% if presets %}
+            <div class="vr d-none d-md-block"></div>
+            <!-- Load preset -->
+            <div>
+              <label class="form-label">Load preset</label>
+              <div class="d-flex gap-2">
+                <select id="presetLoadSelect" class="form-select form-select-sm" style="width:200px;">
+                  <option value="">Choose preset…</option>
+                  {% for p in presets %}
+                  <option value="{{ url_for('load_preset', preset_id=p.id) }}">{{ p.name }}</option>
+                  {% endfor %}
+                </select>
+                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="loadPreset()">
+                  <i class="bi bi-upload me-1"></i>Load
+                </button>
+              </div>
+            </div>
+            <!-- Delete preset -->
+            <div>
+              <label class="form-label">Delete preset</label>
+              <form id="deletePresetForm" method="POST" action="" class="d-flex gap-2">
+                <select id="presetDeleteSelect" class="form-select form-select-sm" style="width:200px;">
+                  <option value="">Choose preset…</option>
+                  {% for p in presets %}
+                  <option value="{{ url_for('delete_preset', preset_id=p.id) }}">{{ p.name }}</option>
+                  {% endfor %}
+                </select>
+                <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirmDelete()">
+                  <i class="bi bi-trash me-1"></i>Delete
+                </button>
+              </form>
+            </div>
+            {% endif %}
+          </div>
+        </div>
+
+        <!-- Column cards form -->
+        <form method="POST" action="{{ url_for('clean_data') }}">
+          {% for column in columns %}
+          {% set col_id = column|replace(' ','_') %}
+          {% set col_type = column_type_map[column] %}
+
+          {#
+          Build a mapping of ALL rules and their allowed_types for this column,
+          so JavaScript knows what to show/hide when the override dropdown changes.
+          We pass ALL rules (not just allowed ones) so JS can show newly relevant ones.
+          #}
+
+          <div class="col-card">
+            <!-- Card header: name + type badge + type override dropdown + select-all -->
+            <div class="col-card-header">
+              <h6>
+                {{ column }}
+
+                <!-- Type badge — reflects the auto-detected type -->
+                {% if column in identifier_columns %}
+                <span class="type-badge badge-id" id="badge_{{ col_id }}">identifier</span>
+                {% elif col_type == "email" %}
+                <span class="type-badge badge-email" id="badge_{{ col_id }}">email</span>
+                {% elif col_type == "phone" %}
+                <span class="type-badge badge-phone" id="badge_{{ col_id }}">phone</span>
+                {% elif col_type == "url" %}
+                <span class="type-badge badge-url" id="badge_{{ col_id }}">url</span>
+                {% elif col_type == "numeric" %}
+                <span class="type-badge badge-numeric" id="badge_{{ col_id }}">numeric</span>
+                {% elif col_type == "date" %}
+                <span class="type-badge badge-date" id="badge_{{ col_id }}">date</span>
+                {% elif col_type == "name" %}
+                <span class="type-badge badge-name" id="badge_{{ col_id }}">name/text</span>
+                {% elif col_type == "company" %}
+                <span class="type-badge badge-company" id="badge_{{ col_id }}">company/text</span>
+                {% else %}
+                <span class="type-badge badge-text" id="badge_{{ col_id }}">text</span>
+                {% endif %}
+
+                <!-- Type override dropdown — only for non-identifier columns -->
+                {% if column not in identifier_columns %}
+                <select name="type_override_{{ col_id }}" id="type_override_{{ col_id }}"
+                  class="form-select form-select-sm d-inline-block ms-1"
+                  style="width:auto; min-width:90px; font-size:0.72rem; padding:1px 22px 1px 6px; height:auto; border-radius:6px;"
+                  data-col="{{ col_id }}" data-auto="{{ col_type }}">
+                  <option value="">Auto ({{ col_type }})</option>
+                  <option value="email" {% if col_type=='email' %}selected{% endif %}>email</option>
+                  <option value="phone" {% if col_type=='phone' %}selected{% endif %}>phone</option>
+                  <option value="url" {% if col_type=='url' %}selected{% endif %}>url</option>
+                  <option value="numeric" {% if col_type=='numeric' %}selected{% endif %}>numeric</option>
+                  <option value="date" {% if col_type=='date' %}selected{% endif %}>date</option>
+                  <option value="text" {% if col_type=='text' or col_type in ('name','company') %}selected{% endif %}>
+                    text</option>
+                </select>
+                {% endif %}
+              </h6>
+
+              {% if column not in identifier_columns %}
+              <div class="form-check mb-0 d-flex align-items-center gap-2">
+                <input type="checkbox" class="form-check-input select-all-col" data-col="{{ col_id }}"
+                  id="selectall_{{ col_id }}">
+                <label class="form-check-label" style="font-size:0.78rem;color:#6b7280;cursor:pointer;"
+                  for="selectall_{{ col_id }}">Select all</label>
+              </div>
+              {% endif %}
+            </div>
+
+            <!-- Card body -->
+            <div class="col-card-body">
+              {% if col_type == "identifier" %}
+              <div class="alert alert-info small py-2 px-3 mb-2" style="font-size:0.8rem;">
+                Identifier column — cleaning rules disabled. You may check for duplicate identifiers.
+              </div>
+              {% endif %}
+
+              <!-- Checkbox grid -->
+              <!-- For identifier columns: only show the identifier duplicate check -->
+              {% if column in identifier_columns %}
+              <div class="row g-2">
+                <div class="col-md-4">
+                  <label class="rule-check-wrap">
+                    <input type="checkbox" class="form-check-input" name="rules_{{ col_id }}[]"
+                      value="identifier_duplicate_check" id="identifier_dup_{{ col_id }}">
+                    <span class="rule-label">Check duplicates</span>
+                  </label>
+                </div>
+              </div>
+
+              {% else %}
+              <!--
+            For non-identifier columns: render ALL rules from the registry,
+            but only SHOW those compatible with the current (or overridden) type.
+            data-allowed-types is used by JS to show/hide on dropdown change.
+          -->
+              <div class="row g-2" id="rules_grid_{{ col_id }}">
+                {% for rule_key, rule_meta in RULES_REGISTRY.items() %}
+                {% set allowed = rule_meta.get('allowed_types', []) %}
+                <div class="col-md-3 col-sm-4 rule-option" id="ruleoption_{{ col_id }}_{{ rule_key }}"
+                  data-col="{{ col_id }}" data-allowed="{{ allowed|join(',') }}" {% if col_type not in allowed and
+                  col_type not in ('name','company') %}style="display:none;" {% elif col_type in ('name','company')
+                  and 'text' not in allowed %}style="display:none;" {% endif %}>
+                  <label class="rule-check-wrap" style="width:100%;">
+                    <input type="checkbox" class="form-check-input" name="rules_{{ col_id }}[]" value="{{ rule_key }}"
+                      id="{{ rule_key }}_{{ col_id }}" {% if column in selected_rule_map and rule_key in
+                      selected_rule_map[column] %}checked{% endif %}>
+                    <span class="rule-label">{{ rule_meta["label"] }}</span>
+                  </label>
+                </div>
+                {% endfor %}
+              </div>
+
+              <!-- Strategy dropdown for handle_missing -->
+              {% set is_checked = column in selected_rule_map and "handle_missing" in selected_rule_map[column] %}
+              {% set saved_strategy = selected_strategy_map.get(column, "") if selected_strategy_map is defined else ""
+              %}
+              <div class="strategy-row" id="strategy_wrapper_{{ col_id }}"
+                data-initially-visible="{{ 'true' if is_checked else 'false' }}" data-col-type="{{ col_type }}">
+                <small class="text-muted fw-semibold text-nowrap" style="font-size:0.8rem;">
+                  <i class="bi bi-funnel me-1"></i>Missing value strategy:
+                </small>
+                <select class="form-select form-select-sm" style="width:auto;min-width:210px;"
+                  name="strategy_{{ col_id }}" id="strategy_select_{{ col_id }}">
+                  <option value="flag" data-types="email, phone, url, numeric, date, text, name, company" {% if
+                    saved_strategy in ("flag","") %}selected{% endif %}>Flag as invalid (default)</option>
+                  <option value="drop" data-types="email, phone, url, numeric, date, text, name, company" {% if
+                    saved_strategy=="drop" %}selected{% endif %}>Drop row</option>
+                  <option value="mean" data-types="numeric" {% if saved_strategy=="mean" %}selected{% endif %}>Fill with
+                    mean (numeric)</option>
+                  <option value="median" data-types="numeric" {% if saved_strategy=="median" %}selected{% endif %}>Fill
+                    with median (numeric)</option>
+                  <option value="placeholder" data-types="email, phone, url, text, name, company" {% if
+                    saved_strategy=="placeholder" %}selected{% endif %}>Fill with "Unknown" (text)</option>
+                </select>
+              </div>
+              {% endif %}
+
+            </div><!-- /col-card-body -->
+          </div><!-- /col-card -->
+          {% endfor %}
+
+          <!-- Submit bar -->
+          <div class="submit-bar">
+            <button type="submit" class="btn btn-danger px-5 py-2"
+              style="border-radius:8px;font-size:0.95rem;font-weight:600;">
+              <i class="bi bi-magic me-2"></i>Clean Data
+            </button>
+            <a href="{{ url_for('upload') }}" class="btn btn-outline-secondary px-5 py-2"
+              style="border-radius:8px;font-size:0.95rem;">
+              <i class="bi bi-arrow-left me-1"></i>Back
+            </a>
+          </div>
+        </form>
+
+      </div><!-- /container -->
+
+      <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+      <script>
+
+        // Badge colour classes per type
+        var badgeClasses = {
+          email: "badge-email",
+          phone: "badge-phone",
+          url: "badge-url",
+          numeric: "badge-numeric",
+          date: "badge-date",
+          text: "badge-text",
+          name: "badge-name",
+          company: "badge-company",
+          identifier: "badge-id"
+        };
+
+        // Initialise strategy wrapper visibility
+        document.addEventListener("DOMContentLoaded", function () {
+          document.querySelectorAll("[id^='strategy_wrapper_']").forEach(function (el) {
+            if (el.dataset.initiallyVisible === "true") {
+              el.style.display = "flex";
+              el.classList.add("visible");
+            }
+          });
+          // Initialise select-all states
+          initSelectAlls();
+          // Initialize strategy dropowns to match auto-detected types
+          document.querySelectorAll("select[data-auto]").forEach(function (sel) {
+            var colId = sel.dataset.col;
+            var autoType = sel.dataset.auto;
+            updateStrategyOptions(colId, autoType);
+          });
+        });
+
+        // Type override dropdown — update visible rules on change
+        document.addEventListener("change", function (e) {
+
+          // Handle type override dropdown change
+          if (e.target && e.target.id && e.target.id.startsWith("type_override_")) {
+            var colId = e.target.dataset.col;
+            var autoType = e.target.dataset.auto;
+            var selectedType = e.target.value || autoType; // empty = revert to auto
+
+            // Normalise name/company to text for rule matching
+            var matchType = (selectedType === "name" || selectedType === "company") ? "text" : selectedType;
+
+            // Update the type badge
+            var badge = document.getElementById("badge_" + colId);
+            if (badge) {
+              // Remove all badge colour classes
+              Object.values(badgeClasses).forEach(function (cls) { badge.classList.remove(cls); });
+              // Add the new one
+              badge.classList.add(badgeClasses[matchType] || "badge-text");
+              badge.textContent = selectedType || autoType;
+            }
+
+            // Show/hide rule checkboxes
+            document.querySelectorAll(".rule-option[data-col='" + colId + "']").forEach(function (el) {
+              var allowed = el.dataset.allowed ? el.dataset.allowed.split(",") : [];
+              var visible = allowed.indexOf(matchType) !== -1;
+              el.style.display = visible ? "" : "none";
+              // Uncheck hidden rules so they don't get submitted
+              if (!visible) {
+                var cb = el.querySelector("input[type='checkbox']");
+                if (cb) cb.checked = false;
+              }
+            });
+
+            // Update strategy options to match new type
+            updateStrategyOptions(colId, selectedType || autoType);
+
+            // Re-sync the select-all checkbox for this column
+            syncSelectAllForCol(colId);
+            return;
+          }
+
+          // Handle handle_missing checkbox — show/hide strategy dropdown
+          if (e.target && e.target.value === "handle_missing") {
+            var colSuffix = e.target.name.replace("rules_", "").replace("[]", "");
+            var wrapper = document.getElementById("strategy_wrapper_" + colSuffix);
+            if (wrapper) {
+              if (e.target.checked) {
+                wrapper.style.display = "flex";
+                wrapper.classList.add("visible");
+              } else {
+                wrapper.style.display = "none";
+                wrapper.classList.remove("visible");
+              }
+            }
+          }
+        });
+
+        // Global type toggles
+        var toggles = { text: false, email: false, phone: false, url: false, numeric: false, duplicates: false, date: false };
+
+        function getVisibleCheckboxes(value) {
+          // Only target checkboxes that are currently visible (not hidden by type override)
+          return Array.from(document.querySelectorAll('input[value="' + value + '"]')).filter(function (cb) {
+            return cb.closest(".rule-option") ? cb.closest(".rule-option").style.display !== "none" : true;
+          });
+        }
+
+        function toggleText() { toggles.text = !toggles.text;["trim_whitespace", "clean_special_chars", "validate_not_empty"].forEach(function (v) { getVisibleCheckboxes(v).forEach(function (cb) { cb.checked = toggles.text; }); }); syncSelectAlls(); }
+        function toggleEmail() { toggles.email = !toggles.email;["validate_email", "validate_email_domain", "validate_not_empty"].forEach(function (v) { getVisibleCheckboxes(v).forEach(function (cb) { cb.checked = toggles.email; }); }); syncSelectAlls(); }
+        function togglePhone() { toggles.phone = !toggles.phone;["validate_phone", "validate_not_empty"].forEach(function (v) { getVisibleCheckboxes(v).forEach(function (cb) { cb.checked = toggles.phone; }); }); syncSelectAlls(); }
+        function toggleUrl() { toggles.url = !toggles.url;["validate_url", "validate_not_empty"].forEach(function (v) { getVisibleCheckboxes(v).forEach(function (cb) { cb.checked = toggles.url; }); }); syncSelectAlls(); }
+        function toggleNumeric() { toggles.numeric = !toggles.numeric;["validate_numeric", "validate_numeric_range", "validate_not_empty"].forEach(function (v) { getVisibleCheckboxes(v).forEach(function (cb) { cb.checked = toggles.numeric; }); }); syncSelectAlls(); }
+        function toggleDuplicates() { toggles.duplicates = !toggles.duplicates; getVisibleCheckboxes("drop_duplicates").forEach(function (cb) { cb.checked = toggles.duplicates; }); syncSelectAlls(); }
+        function toggleDate() { toggles.date = !toggles.date;["validate_date", "validate_not_empty"].forEach(function (v) { getVisibleCheckboxes(v).forEach(function (cb) { cb.checked = toggles.date; }); }); syncSelectAlls(); }
+
+        function clearAll() {
+          document.querySelectorAll('input[type="checkbox"]').forEach(function (cb) { cb.checked = false; });
+          document.querySelectorAll("[id^='strategy_wrapper_']").forEach(function (w) { w.style.display = "none"; w.classList.remove("visible"); });
+          toggles = { text: false, email: false, phone: false, url: false, numeric: false, duplicates: false, date: false };
+        }
+
+        // Select-all per column
+        function getVisibleRuleCheckboxesForCol(colId) {
+          return Array.from(document.querySelectorAll('input[name="rules_' + colId + '[]"]')).filter(function (cb) {
+            var opt = cb.closest(".rule-option");
+            return !opt || opt.style.display !== "none";
+          });
+        }
+
+        function syncSelectAllForCol(colId) {
+          var sa = document.querySelector('.select-all-col[data-col="' + colId + '"]');
+          var boxes = getVisibleRuleCheckboxesForCol(colId);
+          if (sa && boxes.length > 0) sa.checked = boxes.every(function (b) { return b.checked; });
+        }
+
+        function syncSelectAlls() {
+          document.querySelectorAll(".select-all-col").forEach(function (sa) {
+            syncSelectAllForCol(sa.dataset.col);
+          });
+        }
+
+        function initSelectAlls() {
+          document.querySelectorAll(".select-all-col").forEach(function (selectAll) {
+            var col = selectAll.dataset.col;
+
+            // Initial state
+            syncSelectAllForCol(col);
+
+            // Select-all checkbox clicked
+            selectAll.addEventListener("change", function () {
+              getVisibleRuleCheckboxesForCol(col).forEach(function (cb) { cb.checked = selectAll.checked; });
+            });
+
+            // Individual checkbox clicked — sync select-all
+            document.querySelectorAll('input[name="rules_' + col + '[]"]').forEach(function (cb) {
+              cb.addEventListener("change", function () { syncSelectAllForCol(col); });
+            });
+          });
+        }
+
+        // Filter strategy dropdown options based on active type
+        function updateStrategyOptions(colId, activeType) {
+          var matchType = (activeType === "name" || activeType === "company") ? "text" : activeType;
+          var sel = document.getElementById("strategy_select_" + colId);
+          if (!sel) return;
+          var currentVal = sel.value;
+
+          var options;
+          if (matchType === "numeric") {
+            options = [
+              ["flag", "Flag as invalid (default)"],
+              ["median", "Fill with median"],
+              ["mean", "Fill with mean"],
+              ["drop", "Drop row"]
+
+            ];
+          } else if (matchType === "text") {
+            options = [
+              ["flag", "Flag as invalid (default)"],
+              ["placeholder", 'Fill with "Unknown"'],
+              ["drop", "Drop row"]
+
+            ];
+          } else {
+            options = [
+              ["flag", "Flag as invalid (default)"],
+              ["drop", "Drop row"]
+            ];
+          }
+
+          sel.innerHTML = options.map(function (o) {
+            var selected = o[0] === currentVal ? "selected" : "";
+            return '<option value="' + o[0] + '"' + selected + '>' + o[1] + '</option>';
+          }).join("");
+
+        }
+
+        // Presets
+        function serializeRules() {
+          var result = {};
+          document.querySelectorAll('input[type="checkbox"]:checked').forEach(function (cb) {
+            var match = cb.name.match(/^rules_(.+)\[\]$/);
+            if (match) {
+              var col = match[1].replace(/_/g, " ");
+              if (!result[col]) result[col] = [];
+              result[col].push(cb.value);
+            }
+          });
+          document.getElementById("rulesJsonInput").value = JSON.stringify(result);
+          if (Object.keys(result).length === 0) {
+            alert("No rules selected — please select at least one rule before saving.");
+            return false;
+          }
+          return true;
+        }
+
+        function loadPreset() {
+          var sel = document.getElementById("presetLoadSelect");
+          if (sel.value) window.location.href = sel.value;
+          else alert("Please choose a preset to load.");
+        }
+
+        function confirmDelete() {
+          var sel = document.getElementById("presetDeleteSelect");
+          if (!sel.value) { alert("Please choose a preset to delete."); return false; }
+          document.getElementById("deletePresetForm").action = sel.value;
+          return confirm("Delete this preset? This cannot be undone.");
+        }
+      </script>
+    </main>
+  </div>
+</body>
+
+</html>

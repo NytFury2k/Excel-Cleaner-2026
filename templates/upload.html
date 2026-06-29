@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Upload — Paramantra</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <link rel="icon" href="https://paramantra.us/aldius/images/favicon.png" type="image/gif">
+  <style>
+    :root {
+      --red: #b91c1c;
+      --border: #e5e7eb;
+      --surface: #f9fafb;
+    }
+
+    body {
+      background: #f4f5f7;
+      font-family: system-ui, -apple-system, sans-serif;
+    }
+
+    .alert {
+      border-radius: 8px;
+      font-size: 0.875rem;
+    }
+
+    /* Upload card */
+    .upload-card {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+      padding: 32px;
+      margin-bottom: 20px;
+    }
+
+    /* Drop zone */
+    .drop-zone {
+      border: 2px dashed #d1d5db;
+      border-radius: 10px;
+      padding: 40px 24px;
+      text-align: center;
+      cursor: pointer;
+      background: #fafafa;
+      transition: border-color 0.2s, background 0.2s;
+      position: relative;
+    }
+
+    .drop-zone:hover {
+      border-color: var(--red);
+      background: #fef2f2;
+    }
+
+    .drop-zone.dragover {
+      border-color: var(--red);
+      background: #fef2f2;
+      box-shadow: 0 0 0 4px rgba(185, 28, 28, 0.08);
+    }
+
+    .drop-zone.file-ready {
+      border-color: #15803d;
+      background: #f0fdf4;
+      border-style: solid;
+    }
+
+    .drop-zone input[type="file"] {
+      display: none;
+    }
+
+    .dz-icon {
+      width: 56px;
+      height: 56px;
+      border-radius: 12px;
+      background: #fef2f2;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.6rem;
+      color: var(--red);
+      margin-bottom: 14px;
+      transition: background 0.2s;
+    }
+
+    .drop-zone.file-ready .dz-icon {
+      background: #f0fdf4;
+      color: #15803d;
+    }
+
+    .dz-title {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: #111827;
+      margin-bottom: 4px;
+    }
+
+    .dz-sub {
+      font-size: 0.8rem;
+      color: #9ca3af;
+      margin: 0;
+    }
+
+    .file-chosen-label {
+      display: none;
+      align-items: center;
+      gap: 8px;
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+      border-radius: 7px;
+      padding: 8px 14px;
+      font-size: 0.85rem;
+      color: #15803d;
+      font-weight: 500;
+      margin-top: 14px;
+    }
+
+    .file-chosen-label.visible {
+      display: inline-flex;
+    }
+
+    /* Submit button */
+    .btn-submit {
+      background: var(--red);
+      border: none;
+      border-radius: 9px;
+      color: #fff;
+      font-weight: 600;
+      font-size: 0.95rem;
+      padding: 12px;
+      width: 100%;
+      margin-top: 18px;
+      transition: background 0.15s, transform 0.1s, opacity 0.15s;
+    }
+
+    .btn-submit:not(:disabled):hover {
+      background: #991b1b;
+      transform: translateY(-1px);
+      color: #fff;
+    }
+
+    .btn-submit:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+      color: #fff;
+    }
+
+    /* How it works */
+    .how-card {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px 28px;
+    }
+
+    .how-card h6 {
+      font-size: 0.8rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: #9ca3af;
+      margin-bottom: 20px;
+    }
+
+    .steps {
+      display: flex;
+      gap: 0;
+      position: relative;
+    }
+
+    .steps::before {
+      content: '';
+      position: absolute;
+      top: 20px;
+      left: 28px;
+      right: 28px;
+      height: 2px;
+      background: linear-gradient(90deg, #fecaca 0%, #fca5a5 50%, #fecaca 100%);
+      z-index: 0;
+    }
+
+    .step {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      position: relative;
+      z-index: 1;
+      padding: 0 8px;
+    }
+
+    .step-num {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: var(--red);
+      color: #fff;
+      font-weight: 700;
+      font-size: 0.88rem;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 10px;
+      box-shadow: 0 2px 8px rgba(185, 28, 28, 0.25);
+      flex-shrink: 0;
+    }
+
+    .step-title {
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: #111827;
+      margin-bottom: 3px;
+    }
+
+    .step-desc {
+      font-size: 0.75rem;
+      color: #9ca3af;
+      line-height: 1.4;
+    }
+
+    /* Mobile: stack steps */
+    @media (max-width:576px) {
+      .steps {
+        flex-direction: column;
+        gap: 16px;
+      }
+
+      .steps::before {
+        display: none;
+      }
+
+      .step {
+        flex-direction: row;
+        text-align: left;
+        gap: 14px;
+        align-items: flex-start;
+      }
+
+      .step-num {
+        flex-shrink: 0;
+        margin-bottom: 0;
+      }
+    }
+
+    .app-layout {
+      display: flex;
+      min-height: 100vh;
+    }
+
+    .sidebar {
+      width: 260px;
+      background: #fff;
+      border-right: 1px solid #e5e7eb;
+      position: fixed;
+      top: 0;
+      left: 0;
+      bottom: 0;
+    }
+
+    .content-area {
+      flex: 1;
+      margin-left: 260px;
+      padding: 24px;
+    }
+    .sidebar-brand {
+      background: #b91c1c;
+      padding: 20px;
+      border-bottom: 1px solid #991b1b;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .sidebar-brand h5 {
+      margin: 0;
+      font-weight: 700;
+    }
+
+    .sidebar-brand small {
+      color: #6b7280;
+    }
+
+    .sidebar-link {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 16px;
+      color: #374151;
+      text-decoration: none;
+      border-radius: 8px;
+      margin: 4px 10px;
+    }
+
+    .sidebar-link:hover {
+      background: #fef2f2;
+      color: #b91c1c;
+    }
+
+    .sidebar-link i {
+      font-size: 1rem;
+    }
+
+    .sidebar-logo {
+      width: 42px;
+      height: 42px;
+      object-fit: contain;
+    }
+  </style>
+</head>
+
+<body class="d-flex flex-column min-vh-100">
+
+  <div class="app-layout">
+
+    {% include '_sidebar.html' %}
+
+    <main class="content-area">
+
+      <div class="container mt-3">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}{% for category, message in messages %}
+        <div class="alert alert-{{ category }} alert-dismissible fade show">
+          {{ message|safe }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        {% endfor %}{% endif %}{% endwith %}
+      </div>
+
+      <div class="container my-5 flex-grow-1">
+        <div class="row justify-content-left">
+          <div class="col-lg-6 col-md-8">
+
+            <!-- Header -->
+            <div class="mb-4">
+              <h3 style="font-size:1.35rem;font-weight:700;color:var(--text-main);margin-bottom:4px;">
+                <i class="bi bi-cloud-upload me-2" style="color:var(--red);"></i>Upload Excel or CSV File
+              </h3>
+              <p class="text-muted mb-0" style="font-size:0.875rem;">Upload your CRM data file to begin cleaning.</p>
+            </div>
+
+            <!-- Upload card -->
+            <div class="upload-card">
+              <form method="post" enctype="multipart/form-data" id="uploadForm">
+
+                <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+                  <div class="dz-icon" id="dzIcon">
+                    <i class="bi bi-file-earmark-spreadsheet" id="dzIconI"></i>
+                  </div>
+                  <p class="dz-title" id="dzTitle">Click to browse or drag &amp; drop</p>
+                  <p class="dz-sub">.xlsx, .xls, .csv &nbsp;·&nbsp; Max 10 MB</p>
+                  <input type="file" id="fileInput" name="file" accept=".xlsx,.xls,.csv" required>
+                </div>
+
+                <!-- File confirmation pill (appears after selection) -->
+                <div class="d-flex justify-content-center mt-3">
+                  <div class="file-chosen-label" id="fileChosenLabel">
+                    <i class="bi bi-check-circle-fill"></i>
+                    <span id="fileChosenName"></span>
+                    <button type="button" onclick="clearFile(event)"
+                      style="background:none;border:none;padding:0;margin-left:4px;color:#6b7280;line-height:1;font-size:0.9rem;"
+                      title="Remove file">
+                      <i class="bi bi-x-lg"></i>
+                    </button>
+                  </div>
+                </div>
+
+                <button type="submit" class="btn-submit" id="submitBtn" disabled>
+                  <i class="bi bi-gear-fill me-2"></i>Analyse &amp; Select Rules
+                </button>
+
+              </form>
+            </div>
+
+            <!-- How it works -->
+            <div class="how-card">
+              <h6><i class="bi bi-info-circle me-2"></i>How it works</h6>
+              <div class="steps">
+                <div class="step">
+                  <div class="step-num">1</div>
+                  <div>
+                    <div class="step-title">Upload file</div>
+                    <div class="step-desc">Your Excel or CSV CRM data file</div>
+                  </div>
+                </div>
+                <div class="step">
+                  <div class="step-num">2</div>
+                  <div>
+                    <div class="step-title">Choose rules</div>
+                    <div class="step-desc">Validation per column</div>
+                  </div>
+                </div>
+                <div class="step">
+                  <div class="step-num">3</div>
+                  <div>
+                    <div class="step-title">Download</div>
+                    <div class="step-desc">Clean, invalid &amp; removed files</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+      <script>
+        const fileInput = document.getElementById("fileInput");
+        const submitBtn = document.getElementById("submitBtn");
+        const fileChosenLabel = document.getElementById("fileChosenLabel");
+        const chosenName = document.getElementById("fileChosenName");
+        const dropZone = document.getElementById("dropZone");
+        const dzTitle = document.getElementById("dzTitle");
+        const dzIconI = document.getElementById("dzIconI");
+
+        function handleFile(file) {
+          if (!file) return;
+          chosenName.textContent = file.name;
+          fileChosenLabel.classList.add("visible");
+          submitBtn.disabled = false;
+          dropZone.classList.add("file-ready");
+          dzTitle.textContent = "File ready — click to change";
+          dzIconI.className = "bi bi-check-circle-fill";
+        }
+
+        function clearFile(e) {
+          e.stopPropagation();
+          fileInput.value = "";
+          fileChosenLabel.classList.remove("visible");
+          submitBtn.disabled = true;
+          dropZone.classList.remove("file-ready");
+          dzTitle.textContent = "Click to browse or drag & drop";
+          dzIconI.className = "bi bi-file-earmark-spreadsheet";
+        }
+
+        fileInput.addEventListener("change", function () { handleFile(this.files[0]); });
+
+        dropZone.addEventListener("dragover", function (e) { e.preventDefault(); dropZone.classList.add("dragover"); });
+        dropZone.addEventListener("dragleave", function () { dropZone.classList.remove("dragover"); });
+        dropZone.addEventListener("drop", function (e) {
+          e.preventDefault();
+          dropZone.classList.remove("dragover");
+          const file = e.dataTransfer.files[0];
+          if (file) {
+            const dt = new DataTransfer();
+            dt.items.add(file);
+            fileInput.files = dt.files;
+            handleFile(file);
+          }
+        });
+      </script>
+    </main>
+  </div>
+</body>
+
+</html>

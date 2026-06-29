@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard — Paramantra</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="icon" href="https://paramantra.us/aldius/images/favicon.png" type="image/gif">
+  <style>
+    :root {
+      --red: #b91c1c;
+      --border: #e5e7eb;
+      --surface: #f9fafb;
+    }
+
+    body {
+      background: #f4f5f7;
+      font-family: system-ui, -apple-system, sans-serif;
+    }
+
+    .card {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+    }
+
+    .card-header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 20px;
+      font-weight: 600;
+    }
+
+    .alert {
+      border-radius: 8px;
+      font-size: 0.875rem;
+    }
+
+    .form-control:focus,
+    .form-select:focus {
+      border-color: #fca5a5;
+      box-shadow: 0 0 0 3px rgba(185, 28, 28, 0.1);
+    }
+
+    .welcome-strip {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px 28px;
+      margin-bottom: 24px;
+    }
+
+    .welcome-strip h2 {
+      font-size: 1.35rem;
+      font-weight: 700;
+      color: #111827;
+      margin-bottom: 4px;
+    }
+
+    .action-card {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 18px 16px;
+      text-decoration: none;
+      color: #111827;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      transition: box-shadow 0.18s, transform 0.18s, border-color 0.18s;
+    }
+
+    .action-card:hover {
+      box-shadow: 0 4px 16px rgba(185, 28, 28, 0.1);
+      transform: translateY(-2px);
+      border-color: #fca5a5;
+      color: #111827;
+      text-decoration: none;
+    }
+
+    .action-card .icon-box {
+      width: 40px;
+      height: 40px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      font-size: 1.1rem;
+    }
+
+    .action-card .action-label {
+      font-size: 0.9rem;
+      font-weight: 600;
+      margin-bottom: 1px;
+    }
+
+    .action-card .action-desc {
+      font-size: 0.75rem;
+      color: #6b7280;
+    }
+
+    .table thead th {
+      background: var(--surface);
+      font-weight: 600;
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #6b7280;
+      border-bottom: 2px solid var(--border);
+      white-space: nowrap;
+    }
+
+    .table td {
+      vertical-align: middle;
+      border-color: var(--border);
+      font-size: 0.88rem;
+    }
+
+    .table-hover tbody tr:hover {
+      background: #fef2f2;
+    }
+
+    .pagination .page-link {
+      color: var(--red);
+      border: 1px solid var(--border);
+      background: #fff;
+      border-radius: 6px !important;
+      margin: 0 2px;
+      font-size: 0.83rem;
+    }
+
+    .pagination .page-link:hover {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+
+    .pagination .page-item.active .page-link {
+      background: var(--red);
+      border-color: var(--red);
+      color: #fff;
+    }
+
+    .pagination .page-item.disabled .page-link {
+      background: #f3f4f6;
+      color: #9ca3af;
+    }
+
+    .badge {
+      font-weight: 500;
+    }
+
+    .form-label {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: #374151;
+      margin-bottom: 4px;
+    }
+
+    .form-control,
+    .form-select {
+      border-radius: 7px;
+      border-color: var(--border);
+      font-size: 0.88rem;
+    }
+
+    .btn-danger,
+    .btn-danger:focus {
+      background: var(--red);
+      border-color: var(--red);
+    }
+
+    .btn-danger:hover {
+      background: #991b1b;
+      border-color: #991b1b;
+    }
+
+    .btn-outline-danger {
+      color: var(--red);
+      border-color: var(--red);
+    }
+
+    .btn-outline-danger:hover {
+      background: var(--red);
+      color: #fff;
+    }
+
+    .metric-card {
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 16px 20px;
+    }
+
+    .metric-label {
+      font-size: .72rem;
+      color: #6b7280;
+      font-weight: 600;
+      letter-spacing: .08em;
+    }
+
+    .metric-value {
+      font-size: 2rem;
+      font-weight: 700;
+      color: #111827;
+      margin-top: 6px;
+    }
+
+    .metric-icon {
+      width: 42px;
+      height: 42px;
+      border-radius: 10px;
+      background: #fef2f2;
+      color: #b91c1c;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.1rem;
+    }
+
+    .metric-trend {
+      font-size: .75rem;
+      margin-top: 10px;
+      color: #6b7280;
+    }
+
+    @media (max-width: 575px) {
+      .welcome-strip {
+        padding: 18px 16px;
+      }
+
+      .welcome-strip h2 {
+        font-size: 1.15rem;
+      }
+
+      .action-card {
+        padding: 14px 12px;
+        gap: 10px;
+      }
+
+      .action-card .icon-box {
+        width: 34px;
+        height: 34px;
+        font-size: 0.95rem;
+      }
+    }
+
+    .app-layout {
+      display: flex;
+      min-height: 100vh;
+    }
+
+    .sidebar {
+      width: 260px;
+      background: #fff;
+      border-right: 1px solid #e5e7eb;
+      position: fixed;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      overflow-y: auto;
+      z-index: 1000;
+    }
+
+    .content-area {
+      flex: 1;
+      margin-left: 260px;
+      padding: 24px;
+    }
+
+    .sidebar-brand {
+      background: #b91c1c;
+      padding: 20px;
+      border-bottom: 1px solid #991b1b;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .sidebar-brand h5 {
+      margin: 0;
+      font-weight: 700;
+    }
+
+    .sidebar-brand small {
+      color: #6b7280;
+    }
+
+    .sidebar-link {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 16px;
+      color: #374151;
+      text-decoration: none;
+      border-radius: 8px;
+      margin: 4px 10px;
+    }
+
+    .sidebar-link:hover {
+      background: #fef2f2;
+      color: #b91c1c;
+    }
+
+    .sidebar-link i {
+      font-size: 1rem;
+    }
+
+    .sidebar-logo {
+      width: 42px;
+      height: 42px;
+      object-fit: contain;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="app-layout">
+
+    <!-- Sidebar -->
+    {% include '_sidebar.html' %}
+
+    <!-- Main Content -->
+    <main class="content-area">
+
+      <div class="container-fluid">
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        {% for category, message in messages %}
+        <div class="alert alert-{{ category }} alert-dismissible fade show">
+          {{ message|safe }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        {% endfor %}
+        {% endif %}
+        {% endwith %}
+
+        <div class="mb-4">
+          <h2 class="fw-bold">Dashboard</h2>
+          <p class="text-muted">
+            Excel Cleaning & Data Processing Platform
+          </p>
+        </div>
+
+        <div class="row g-3 mb-4">
+
+          <div class="col-md-4">
+            <div class="metric-card">
+              <div class="d-flex justify-content-between align-items-start">
+                <div>
+                  <div class="metric-label">FILES PROCESSED</div>
+                  <div class="metric-value">{{ total_files }}</div>
+                </div>
+
+                <div class="metric-icon">
+                  <i class="bi bi-file-earmark-spreadsheet"></i>
+                </div>
+              </div>
+
+              <div class="metric-trend text-muted">
+                <i class="bi bi-check-circle"></i>
+                Successfully processed files
+              </div>
+            </div>
+          </div>
+
+          <div class="col-md-4">
+            <div class="metric-card">
+              <div class="d-flex justify-content-between align-items-start">
+                <div>
+                  <div class="metric-label">ROWS CLEANED</div>
+                  <div class="metric-value">{{ total_rows }}</div>
+                </div>
+
+                <div class="metric-icon">
+                  <i class="bi bi-table"></i>
+                </div>
+              </div>
+
+              <div class="metric-trend text-muted">
+                Cleaned records
+              </div>
+            </div>
+          </div>
+
+          <div class="col-md-4">
+            <div class="metric-card">
+              <div class="d-flex justify-content-between align-items-start">
+                <div>
+                  <div class="metric-label">ACTIVE USERS</div>
+                  <div class="metric-value">{{ active_users }}</div>
+                </div>
+
+                <div class="metric-icon">
+                  <i class="bi bi-people"></i>
+                </div>
+              </div>
+
+              <div class="metric-trend text-muted">
+                Current active accounts
+              </div>
+            </div>
+          </div>
+
+          <div class="col-md-4">
+            <div class="metric-card">
+              <div class="d-flex justify-content-between align-items-start">
+                <div>
+                  <div class="metric-label">UPLOADS TODAY</div>
+                  <div class="metric-value">{{ uploads_today }}</div>
+                </div>
+
+                <div class="metric-icon">
+                  <i class="bi bi-cloud-upload"></i>
+                </div>
+              </div>
+
+              <div class="metric-trend text-muted">
+                Files uploaded today
+              </div>
+            </div>
+          </div>
+
+          <div class="col-md-4">
+            <div class="metric-card">
+              <div class="d-flex justify-content-between align-items-start">
+                <div>
+                  <div class="metric-label">DATA QUALITY SCORE</div>
+                  <div class="metric-value">87%</div>
+                </div>
+
+                <div class="metric-icon">
+                  <i class="bi bi-patch-check-fill"></i>
+                </div>
+              </div>
+
+              <div class="metric-trend text-muted">
+                <i class="bi bi-exclamation-triangle-fill text-warning me-1"></i>
+                12k fields need attention
+              </div>
+            </div>
+          </div>
+
+          <div class="col-md-4">
+            <div class="metric-card">
+              <div class="d-flex justify-content-between align-items-start">
+                <div>
+                  <div class="metric-label">API CALLS TODAY</div>
+                  <div class="metric-value">94.2k</div>
+                </div>
+
+                <div class="metric-icon">
+                  <i class="bi bi-cpu-fill"></i>
+                </div>
+              </div>
+
+              <div class="metric-trend text-muted">
+                <i class="bi bi-arrow-up-short text-success fw-bold" style="font-size: 1rem;"></i>
+                6.4% vs yesterday
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <div class="row g-3">
+
+          <div class="col-lg-9">
+            <div class="card shadow-sm">
+              <div class="card-header">
+                Recent Activity
+              </div>
+
+              <div class="card-body">
+                {% include "_logs_table.html" %}
+              </div>
+            </div>
+          </div>
+
+          <div class="col-lg-3">
+            <div class="card shadow-sm">
+              <div class="card-header">
+                System Overview
+              </div>
+
+              <div class="card-body">
+
+                <div class="mb-3">
+                  <small class="text-muted">Role</small>
+                  <div>{{ session.role|title }}</div>
+                </div>
+
+                <div class="mb-3">
+                  <small class="text-muted">Last Upload</small>
+                  <div>{{ last_upload }}</div>
+                </div>
+
+                <div>
+                  <small class="text-muted">Active Users</small>
+                  <div>{{ active_users }}</div>
+                </div>
+
+              </div>
+            </div>
+
+            <!-- Active Integrations widget -->
+            <div class="card shadow-sm mt-3">
+              <div class="card-header d-flex justify-content-between align-items-center">
+                <span>Active integrations</span>
+                <a href="#" class="btn btn-sm btn-outline-danger py-0 px-2"
+                  style="font-size: 0.75rem; border-radius: 5px;">Manage</a>
+              </div>
+              <div class="card-body p-0">
+                <table class="table table-hover align-middle mb-0" style="font-size: 0.85rem;">
+                  <tbody>
+                    <tr>
+                      <td>
+                        <i class="bi bi-circle-fill text-success me-2" style="font-size: 0.65rem;"></i>
+                        ERP — SAP Business One
+                      </td>
+                      <td class="text-end text-muted font-monospace" style="font-size: 0.78rem;">live</td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <i class="bi bi-circle-fill text-success me-2" style="font-size: 0.65rem;"></i>
+                        Tally Prime (Accounts)
+                      </td>
+                      <td class="text-end text-muted font-monospace" style="font-size: 0.78rem;">live</td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <i class="bi bi-circle-fill text-warning me-2" style="font-size: 0.65rem;"></i>
+                        WhatsApp Business API
+                      </td>
+                      <td class="text-end text-muted font-monospace" style="font-size: 0.78rem;">lag 4m</td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <i class="bi bi-circle-fill text-success me-2" style="font-size: 0.65rem;"></i>
+                        Email (SMTP outbound)
+                      </td>
+                      <td class="text-end text-muted font-monospace" style="font-size: 0.78rem;">live</td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <i class="bi bi-circle-fill text-warning me-2" style="font-size: 0.65rem;"></i>
+                        3rd-party Marketplace API
+                      </td>
+                      <td class="text-end text-muted font-monospace" style="font-size: 0.78rem;">lag 12m</td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <i class="bi bi-circle-fill text-secondary me-2" style="font-size: 0.65rem;"></i>
+                        IoT Sensor feed
+                      </td>
+                      <td class="text-end text-muted font-monospace" style="font-size: 0.78rem;">paused</td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <i class="bi bi-circle-fill text-success me-2" style="font-size: 0.65rem;"></i>
+                        Razorpay (Payments)
+                      </td>
+                      <td class="text-end text-muted font-monospace" style="font-size: 0.78rem;">live</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+      <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+  </div>
+
+  </main>
+
+  </div>
+</body>
+
+</html>

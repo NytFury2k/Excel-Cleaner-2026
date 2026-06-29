@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cleaning Results — Paramantra</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <link rel="icon" href="https://paramantra.us/aldius/images/favicon.png" type="image/gif">
+  <style>
+    :root {
+      --red: #b91c1c;
+      --border: #e5e7eb;
+      --surface: #f9fafb;
+    }
+
+    body {
+      background: #f4f5f7;
+      font-family: system-ui, -apple-system, sans-serif;
+    }
+
+    .card {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+    }
+
+    .card-header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 20px;
+      font-weight: 600;
+    }
+
+    .alert {
+      border-radius: 8px;
+      font-size: 0.875rem;
+    }
+
+    .form-control:focus,
+    .form-select:focus {
+      border-color: #fca5a5;
+      box-shadow: 0 0 0 3px rgba(185, 28, 28, 0.1);
+    }
+
+    .btn-danger,
+    .btn-danger:focus {
+      background: var(--red);
+      border-color: var(--red);
+    }
+
+    .btn-danger:hover {
+      background: #991b1b;
+      border-color: #991b1b;
+    }
+
+    .btn-outline-danger {
+      color: var(--red);
+      border-color: var(--red);
+    }
+
+    .btn-outline-danger:hover {
+      background: var(--red);
+      color: #fff;
+    }
+
+    .stat-card {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 18px 16px;
+      border-left: 4px solid transparent;
+      transition: transform 0.18s, box-shadow 0.18s;
+    }
+
+    .stat-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+    }
+
+    .stat-card .stat-num {
+      font-size: 1.9rem;
+      font-weight: 700;
+      line-height: 1;
+      margin: 8px 0 4px;
+    }
+
+    .stat-card .stat-lbl {
+      font-size: 0.78rem;
+      color: #6b7280;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .stat-card .stat-icon {
+      font-size: 1.2rem;
+    }
+
+    /* Preview table — horizontal scroll on small screens */
+    .preview-wrap {
+      max-height: 480px;
+      overflow-y: auto;
+      overflow-x: auto;
+      border-radius: 0 0 10px 10px;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .preview-wrap table {
+      width: 100%;
+      margin: 0;
+      font-size: 0.875rem;
+      border-collapse: collapse;
+      min-width: 400px;
+    }
+
+    .preview-wrap thead th {
+      background: var(--surface);
+      font-weight: 600;
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: #6b7280;
+      border-bottom: 2px solid var(--border);
+      padding: 10px 12px;
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      white-space: nowrap;
+    }
+
+    .preview-wrap td {
+      padding: 9px 12px;
+      border-bottom: 1px solid #f3f4f6;
+      vertical-align: middle;
+      max-width: 220px;
+      word-break: break-word;
+    }
+
+    .preview-wrap tbody tr:hover {
+      background: #fef2f2;
+    }
+
+    .preview-nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      border-top: 1px solid var(--border);
+      background: #fff;
+      border-radius: 0 0 10px 10px;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .accordion-item {
+      border: 1px solid var(--border);
+      border-radius: 8px !important;
+      margin-bottom: 8px;
+      overflow: hidden;
+    }
+
+    .accordion-button {
+      font-size: 0.9rem;
+      font-weight: 600;
+      background: var(--surface);
+    }
+
+    .accordion-button:not(.collapsed) {
+      background: var(--surface);
+      color: #111827;
+      box-shadow: none;
+    }
+
+    .accordion-button::after {
+      filter: none;
+    }
+
+    .filter-pill {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 5px 11px;
+      font-size: 0.8rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .filter-pill strong {
+      color: #111827;
+    }
+
+    @media (max-width: 575px) {
+      .stat-card .stat-num {
+        font-size: 1.5rem;
+      }
+
+      .stat-card {
+        padding: 14px 12px;
+      }
+
+      .preview-nav {
+        justify-content: center;
+      }
+    }
+
+    .app-layout {
+      display: flex;
+      min-height: 100vh;
+    }
+
+    .sidebar {
+      width: 260px;
+      background: #fff;
+      border-right: 1px solid #e5e7eb;
+      position: fixed;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      overflow-y: auto;
+      z-index: 1000;
+    }
+
+    .content-area {
+      flex: 1;
+      margin-left: 260px;
+      padding: 24px;
+    }
+
+    .sidebar-brand {
+      background: #b91c1c;
+      padding: 20px;
+      border-bottom: 1px solid #991b1b;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .sidebar-link {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 16px;
+      color: #374151;
+      text-decoration: none;
+      border-radius: 8px;
+      margin: 4px 10px;
+    }
+
+    .sidebar-link:hover {
+      background: #fef2f2;
+      color: #b91c1c;
+    }
+
+    .sidebar-link i {
+      font-size: 1rem;
+    }
+  </style>
+</head>
+
+<body class="d-flex flex-column min-vh-100">
+
+  <div class="app-layout">
+
+    {% include '_sidebar.html' %}
+
+    <main class="content-area">
+
+      <div class="container mt-3">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}{% for category, message in messages %}
+        <div class="alert alert-{{ category }} alert-dismissible fade show">
+          {{ message|safe }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        {% endfor %}{% endif %}{% endwith %}
+      </div>
+
+      <div class="container my-4 flex-grow-1">
+
+        <div class="mb-4">
+          <h2 style="font-size:1.35rem;font-weight:700;color:#111827;margin-bottom:4px;">
+            <i class="bi bi-check2-circle me-2" style="color:#b91c1c;"></i>Cleaning Summary
+          </h2>
+          <p style="font-size:0.875rem;color:#6b7280;margin:0;">Overview of your processed dataset</p>
+          <p style="font-size:0.875rem;color:#6b7280;margin:0;">File: <strong style="color:#374151;">{{ uploaded_file
+              }}</strong></p>
+        </div>
+      </div>
+
+      {% if system_warnings %}
+      <div class="alert alert-warning d-flex align-items-center gap-2 py-2 mb-4" style="font-size:0.85rem;">
+        <i class="bi bi-exclamation-triangle-fill"></i>
+        {{ system_warnings|length }} incompatible rule application(s) were blocked.
+      </div>
+      {% endif %}
+
+      {% if selected_filters %}
+      <div class="card shadow-sm mb-4">
+        <div class="card-header d-flex align-items-center gap-2">
+          <i class="bi bi-funnel" style="color:#b91c1c;"></i>
+          Filters Applied <span class="badge ms-1"
+            style="background:#fef2f2;color:#b91c1c;border:1px solid #fecaca;font-size:0.75rem;">{{ filters_count
+            }}</span>
+        </div>
+        <div class="card-body" style="padding:16px 20px;">
+          <div class="d-flex flex-wrap gap-2">
+            {% for item in selected_filters %}
+            <span class="filter-pill"><strong>{{ item.column }}</strong><i class="bi bi-arrow-right"
+                style="color:#9ca3af;font-size:0.7rem;"></i>{{ item.rule }}</span>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Stats row — col-6 on mobile so 2 per row, col-md-3 on desktop for 4 per row -->
+      <div class="row g-3 mb-4">
+        <div class="col-6 col-md-3">
+          <div class="stat-card" style="border-left-color:#15803d;">
+            <div class="stat-icon text-success"><i class="bi bi-check-circle-fill"></i></div>
+            <div class="stat-num" style="color:#15803d;">{{ valid }}</div>
+            <div class="stat-lbl">Valid Rows</div>
+          </div>
+        </div>
+        <div class="col-6 col-md-3">
+          <div class="stat-card" style="border-left-color:#d97706;">
+            <div class="stat-icon" style="color:#d97706;"><i class="bi bi-exclamation-triangle-fill"></i></div>
+            <div class="stat-num" style="color:#d97706;">{{ invalid }}</div>
+            <div class="stat-lbl">Invalid Rows</div>
+          </div>
+        </div>
+        <div class="col-6 col-md-3">
+          <div class="stat-card" style="border-left-color:#1d4ed8;">
+            <div class="stat-icon" style="color:#1d4ed8;"><i class="bi bi-file-earmark-spreadsheet-fill"></i></div>
+            <div class="stat-num" style="color:#1d4ed8;">{{ total }}</div>
+            <div class="stat-lbl">Total Rows</div>
+          </div>
+        </div>
+        <div class="col-6 col-md-3">
+          <div class="stat-card" style="border-left-color:#b91c1c;">
+            <div class="stat-icon" style="color:#b91c1c;"><i class="bi bi-arrow-repeat"></i></div>
+            <div class="stat-num" style="color:#b91c1c;">{{ removed }}</div>
+            <div class="stat-lbl">Duplicates Removed</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Download / action bar -->
+      <div class="card shadow-sm mb-4">
+        <div class="card-body d-flex flex-wrap justify-content-between align-items-center gap-3"
+          style="padding:16px 20px;">
+          <div class="d-flex flex-wrap gap-2">
+            {% if valid > 0 %}
+            <a href="{{ url_for('download', filename=file) }}" class="btn btn-success btn-sm px-3">
+              <i class="bi bi-download me-1"></i>Cleaned ({{ valid }})
+            </a>
+            {% endif %}
+            {% if invalid > 0 %}
+            <a href="{{ url_for('download', filename=invalid_file) }}" class="btn btn-sm btn-outline-warning px-3">
+              <i class="bi bi-download me-1"></i>Invalid ({{ invalid }})
+            </a>
+            {% endif %}
+            {% if removed_file %}
+            <a href="{{ url_for('download', filename=removed_file) }}" class="btn btn-sm btn-outline-secondary px-3">
+              <i class="bi bi-download me-1"></i>Removed ({{ removed }})
+            </a>
+            {% endif %}
+          </div>
+          <div class="d-flex flex-wrap gap-2">
+            <a href="{{ url_for('choose_rules') }}" class="btn btn-sm btn-outline-danger px-3">
+              <i class="bi bi-sliders me-1"></i>Modify Rules
+            </a>
+            <a href="{{ url_for('upload') }}" class="btn btn-sm btn-outline-secondary px-3">
+              <i class="bi bi-arrow-left-circle me-1"></i>New Cleaning
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Preview tabs -->
+      <div class="card shadow-sm mb-4">
+        <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2"
+          style="padding:0 20px;">
+          <!-- Tabs -->
+          <ul class="nav nav-tabs border-0 pt-2" id="previewTabs">
+            <li class="nav-item">
+              <button class="nav-link active px-3 py-2" id="tab-cleaned" onclick="switchTab('cleaned')"
+                style="font-size:0.85rem;">
+                <i class="bi bi-check-circle me-1" style="color:#15803d;"></i>
+                Cleaned <span class="badge ms-1" id="badge-cleaned"
+                  style="background:#dcfce7;color:#166534;font-size:0.72rem;">{{ valid }}</span>
+              </button>
+            </li>
+            <li class="nav-item">
+              <button class="nav-link px-3 py-2" id="tab-invalid" onclick="switchTab('invalid')"
+                style="font-size:0.85rem;" {% if invalid==0 %}disabled title="No invalid rows" {% endif %}>
+                <i class="bi bi-exclamation-triangle me-1" style="color:#d97706;"></i>
+                Invalid <span class="badge ms-1" id="badge-invalid"
+                  style="background:#fef3c7;color:#92400e;font-size:0.72rem;">{{ invalid }}</span>
+              </button>
+            </li>
+            <li class="nav-item">
+              <button class="nav-link px-3 py-2" id="tab-removed" onclick="switchTab('removed')"
+                style="font-size:0.85rem;" {% if removed==0 %}disabled title="No removed rows" {% endif %}>
+                <i class="bi bi-arrow-repeat me-1" style="color:#b91c1c;"></i>
+                Removed <span class="badge ms-1" id="badge-removed"
+                  style="background:#fef2f2;color:#b91c1c;font-size:0.72rem;">{{ removed }}</span>
+              </button>
+            </li>
+          </ul>
+          <small class="text-muted fw-normal" id="previewMeta" style="font-size:0.8rem;padding-bottom:8px;"></small>
+        </div>
+
+        <div class="preview-wrap">
+          <table>
+            <thead id="previewHead"></thead>
+            <tbody id="previewBody">
+              <tr>
+                <td class="text-center text-muted py-5" colspan="100">
+                  <i class="bi bi-hourglass-split"
+                    style="font-size:1.4rem;display:block;margin-bottom:8px;color:#9ca3af;"></i>Loading preview…
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="preview-nav">
+          <button class="btn btn-sm btn-outline-secondary" id="prevBtn" onclick="changePage(-1)" disabled
+            style="border-radius:7px;font-size:0.82rem;">
+            <i class="bi bi-chevron-left me-1" style="font-size:0.7rem;"></i>Previous
+          </button>
+          <span id="pageIndicator" class="text-muted" style="font-size:0.82rem;"></span>
+          <button class="btn btn-sm btn-outline-secondary" id="nextBtn" onclick="changePage(1)" disabled
+            style="border-radius:7px;font-size:0.82rem;">
+            Next<i class="bi bi-chevron-right ms-1" style="font-size:0.7rem;"></i>
+          </button>
+        </div>
+      </div>
+
+
+      <!-- Issues accordion -->
+      {% if grouped_errors %}
+      <div class="card shadow-sm">
+        <div class="card-header d-flex align-items-center gap-2">
+          <i class="bi bi-bug" style="color:#b91c1c;"></i>
+          <span>Validation Issues</span>
+          <span class="badge ms-1" style="background:#fef2f2;color:#b91c1c;border:1px solid #fecaca;">{{
+            grouped_errors|length }} type{{ 's' if grouped_errors|length != 1 else '' }}</span>
+        </div>
+        <div class="card-body">
+          <div class="accordion" id="issuesAccordion">
+            {% for rule, errors in grouped_errors.items() %}
+            {% set color_map = {
+            "validate_email":"primary","validate_phone":"info",
+            "validate_url":"success","validate_numeric":"warning",
+            "validate_date":"dark","drop_duplicates":"danger",
+            "duplicate_identifier":"danger"
+            } %}
+            {% set color = color_map.get(rule, "secondary") %}
+            <div class="accordion-item">
+              <h2 class="accordion-header" id="heading{{ loop.index }}">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                  data-bs-target="#collapse{{ loop.index }}" aria-expanded="false">
+                  <span class="badge bg-{{ color }} me-2" style="font-size:0.72rem;">{{ errors|length }}</span>
+                  {{ rule.replace('validate_', '').replace('_',' ').title() }}
+                </button>
+              </h2>
+              <div id="collapse{{ loop.index }}" class="accordion-collapse collapse" data-bs-parent="#issuesAccordion">
+                <div class="accordion-body p-0">
+                  <div class="table-responsive">
+                    <table class="table table-sm mb-0" style="font-size:0.83rem;">
+                      <thead>
+                        <tr>
+                          <th
+                            style="background:#f9fafb;padding:8px 14px;font-size:0.75rem;text-transform:uppercase;letter-spacing:0.04em;color:#6b7280;">
+                            Row / Issue</th>
+                          <th
+                            style="background:#f9fafb;padding:8px 14px;font-size:0.75rem;text-transform:uppercase;letter-spacing:0.04em;color:#6b7280;text-align:right;">
+                            Column</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {% for error in errors %}
+                        <tr>
+                          <td style="padding:8px 14px;border-bottom:1px solid #f3f4f6;">
+                            {% if error.row_index is not none %}
+                            <span class="fw-semibold">Row {{ error.row_index + 2 }}</span> — {{ error.message }}
+                            {% else %}
+                            <span class="fw-semibold">System</span> — {{ error.message }}
+                            {% endif %}
+                          </td>
+                          <td style="padding:8px 14px;border-bottom:1px solid #f3f4f6;text-align:right;color:#6b7280;">
+                            {{
+                            error.column if error.column else "" }}</td>
+                        </tr>
+                        {% endfor %}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+      {% else %}
+      <div class="alert alert-success d-flex align-items-center gap-2 mt-2">
+        <i class="bi bi-check-circle-fill fs-5"></i>
+        <span><strong>All clear!</strong> No validation issues found — all rows passed cleanly.</span>
+      </div>
+      {% endif %}
+    </main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    let _currentPage = 1, _totalPages = 1, _currentTab = 'cleaned';
+
+    const TAB_COLORS = {
+      cleaned: { row: '#f0fdf4', head: '#dcfce7' },
+      invalid: { row: '#fffbeb', head: '#fef3c7' },
+      removed: { row: '#fef2f2', head: '#fee2e2' },
+    };
+
+    function switchTab(tab) {
+      _currentTab = tab;
+      _currentPage = 1;
+
+      // Update active tab styling
+      ['cleaned', 'invalid', 'removed'].forEach(t => {
+        const btn = document.getElementById('tab-' + t);
+        if (btn) btn.classList.toggle('active', t === tab);
+      });
+
+      loadPreviewPage(1, tab);
+    }
+
+    function loadPreviewPage(page, tab) {
+      tab = tab || _currentTab;
+      const colors = TAB_COLORS[tab] || TAB_COLORS.cleaned;
+
+      // Update hover style on table rows
+      document.querySelector('.preview-wrap tbody') &&
+        document.querySelector('.preview-wrap').style.setProperty('--hover', colors.row);
+
+      fetch(`/preview/page?page=${page}&type=${tab}`)
+        .then(r => r.json())
+        .then(data => {
+          _currentPage = data.page || 1;
+          _totalPages = data.total_pages || 0;
+
+          if (data.empty || data.total === 0) {
+            document.getElementById('previewHead').innerHTML = '';
+            document.getElementById('previewBody').innerHTML =
+              `<tr><td class="text-center text-muted py-5" colspan="100">
+               <i class="bi bi-inbox" style="font-size:1.5rem;display:block;margin-bottom:8px;"></i>
+               No ${tab} rows.
+             </td></tr>`;
+            document.getElementById('previewMeta').textContent = '';
+            document.getElementById('pageIndicator').textContent = '';
+            document.getElementById('prevBtn').disabled = true;
+            document.getElementById('nextBtn').disabled = true;
+            return;
+          }
+
+          document.getElementById('previewHead').innerHTML =
+            `<tr style="background:${colors.head};">` +
+            data.columns.map(c => `<th>${c}</th>`).join('') + '</tr>';
+
+          document.getElementById('previewBody').innerHTML = data.rows
+            .map(row => `<tr>` + data.columns.map(c => `<td>${row[c] ?? ''}</td>`).join('') + `</tr>`)
+            .join('');
+
+          const start = (data.page - 1) * data.per_page + 1;
+          const end = Math.min(data.page * data.per_page, data.total);
+          document.getElementById('previewMeta').textContent = `Rows ${start}–${end} of ${data.total}`;
+          document.getElementById('pageIndicator').textContent = `Page ${data.page} of ${data.total_pages}`;
+          document.getElementById('prevBtn').disabled = data.page <= 1;
+          document.getElementById('nextBtn').disabled = data.page >= data.total_pages;
+        })
+        .catch(() => {
+          document.getElementById('previewBody').innerHTML =
+            `<tr><td class="text-center text-danger py-4">
+             <i class="bi bi-exclamation-triangle me-2"></i>Failed to load preview.
+           </td></tr>`;
+        });
+    }
+
+    function changePage(delta) {
+      const next = _currentPage + delta;
+      if (next >= 1 && next <= _totalPages) {
+        _currentPage = next;
+        loadPreviewPage(next, _currentTab);
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => loadPreviewPage(1, 'cleaned'));
+  </script>
+
+</body>
+
+</html>

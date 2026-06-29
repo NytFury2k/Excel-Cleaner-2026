@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Logs — Paramantra</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <link rel="icon" href="https://paramantra.us/aldius/images/favicon.png" type="image/gif">
+  <style>
+    :root {
+      --red: #b91c1c;
+      --border: #e5e7eb;
+      --surface: #f9fafb;
+    }
+
+    body {
+      background: #f4f5f7;
+      font-family: system-ui, -apple-system, sans-serif;
+    }
+
+    .card {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+    }
+
+    .card-header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 20px;
+      font-weight: 600;
+    }
+
+    .card-body {
+      padding: 20px;
+    }
+
+    .form-label {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: #374151;
+      margin-bottom: 4px;
+    }
+
+    .form-control,
+    .form-select {
+      border-radius: 7px;
+      border-color: var(--border);
+      font-size: 0.88rem;
+    }
+
+    .form-control:focus,
+    .form-select:focus {
+      border-color: #fca5a5;
+      box-shadow: 0 0 0 3px rgba(185, 28, 28, 0.1);
+    }
+
+    .btn-danger,
+    .btn-danger:focus {
+      background: var(--red);
+      border-color: var(--red);
+    }
+
+    .btn-danger:hover {
+      background: #991b1b;
+      border-color: #991b1b;
+    }
+
+    .btn-outline-danger {
+      color: var(--red);
+      border-color: var(--red);
+    }
+
+    .btn-outline-danger:hover {
+      background: var(--red);
+      color: #fff;
+    }
+
+    .table thead th {
+      background: var(--surface);
+      font-weight: 600;
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #6b7280;
+      border-bottom: 2px solid var(--border);
+      white-space: nowrap;
+    }
+
+    .table td {
+      vertical-align: middle;
+      border-color: var(--border);
+      font-size: 0.88rem;
+    }
+
+    .table-hover tbody tr:hover {
+      background: #fef2f2;
+    }
+
+    .pagination .page-link {
+      color: var(--red);
+      border: 1px solid var(--border);
+      background: #fff;
+      border-radius: 6px !important;
+      margin: 0 2px;
+      font-size: 0.83rem;
+      padding: 5px 11px;
+    }
+
+    .pagination .page-link:hover {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+
+    .pagination .page-item.active .page-link {
+      background: var(--red);
+      border-color: var(--red);
+      color: #fff;
+    }
+
+    .pagination .page-item.disabled .page-link {
+      background: #f3f4f6;
+      color: #9ca3af;
+    }
+
+    .badge {
+      font-weight: 500;
+    }
+
+    .alert {
+      border-radius: 8px;
+      font-size: 0.875rem;
+    }
+
+    .page-hdr h2 {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: #111827;
+      margin-bottom: 3px;
+    }
+
+    .page-hdr p {
+      font-size: 0.875rem;
+      color: #6b7280;
+      margin: 0;
+    }
+
+    @media (max-width: 575px) {
+      .page-hdr h2 {
+        font-size: 1.1rem;
+      }
+
+      .container {
+        padding-left: 12px;
+        padding-right: 12px;
+      }
+    }
+
+    .app-layout {
+      display: flex;
+      min-height: 100vh;
+    }
+
+    .sidebar {
+      width: 260px;
+      background: #fff;
+      border-right: 1px solid #e5e7eb;
+      position: fixed;
+      top: 0;
+      left: 0;
+      bottom: 0;
+    }
+
+    .content-area {
+      flex: 1;
+      margin-left: 260px;
+      padding: 24px;
+    }
+
+    .sidebar-brand {
+      background: #b91c1c;
+      padding: 20px;
+      border-bottom: 1px solid #991b1b;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .sidebar-brand h5 {
+      margin: 0;
+      font-weight: 700;
+    }
+
+    .sidebar-brand small {
+      color: #6b7280;
+    }
+
+    .sidebar-link {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 16px;
+      color: #374151;
+      text-decoration: none;
+      border-radius: 8px;
+      margin: 4px 10px;
+    }
+
+    .sidebar-link:hover {
+      background: #fef2f2;
+      color: #b91c1c;
+    }
+
+    .sidebar-link i {
+      font-size: 1rem;
+    }
+
+    .sidebar-logo {
+      width: 42px;
+      height: 42px;
+      object-fit: contain;
+    }
+
+    #logTabs .nav-link {
+      color: #4b5563;
+      font-weight: 600;
+      border-radius: 8px;
+      padding: 14px 18px;
+      transition: all 0.2s ease;
+    }
+
+    #logTabs .nav-link:hover {
+      background: #f3f4f6;
+    }
+
+    #logTabs .nav-link.active {
+      background: #e8eefc;
+      color: #2563eb;
+    }
+
+    #logTabs {
+      gap: 10px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="app-layout">
+
+    {% include '_sidebar.html' %}
+
+    <main class="content-area">
+
+      <div class="container my-4 my-md-5">
+
+        <!-- Header -->
+
+        <div class="card shadow-sm mb-3">
+          <div class="card-body d-flex justify-content-between align-items-center">
+            <div>
+              <h4 class="mb-1">
+                <i class="bi bi-journal-text text-danger"></i>
+                System Activity Logs
+              </h4>
+              <small class="text-muted">
+                Audit trail for all platform activity
+              </small>
+            </div>
+
+            <span class="badge bg-danger">
+              {{ total_logs }} Records
+            </span>
+          </div>
+        </div>
+
+        <div class="card shadow-sm mb-3">
+          <div class="card-body p-2">
+            <ul class="nav nav-pills nav-fill" id="logTabs">
+
+              <li class="nav-item">
+                <a class="nav-link {% if log_type == 'login' %}active{% endif %}" href="{{ url_for('admin_logs',
+                       log_type='login',
+                       search=search,
+                       from_date=from_date,
+                       to_date=to_date) }}">
+                  Login / Logout Sessions
+                </a>
+              </li>
+
+              <li class="nav-item">
+                <a class="nav-link {% if log_type == 'cleaning' %}active{% endif %}" href="{{ url_for('admin_logs',
+                       log_type='cleaning',
+                       search=search,
+                       from_date=from_date,
+                       to_date=to_date) }}">
+                  File Ingestion & Cleaning
+                </a>
+              </li>
+
+              <li class="nav-item">
+                <a class="nav-link {% if log_type == 'search' %}active{% endif %}" href="{{ url_for('admin_logs',
+                       log_type='search',
+                       search=search,
+                       from_date=from_date,
+                       to_date=to_date) }}">
+                  Search Query Activity
+                </a>
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- Filters -->
+
+        <form method="GET" action="{{ form_action }}">
+          <div class="card shadow-sm mb-3">
+            <div class="card-body">
+              <div class="row g-3 align-items-end">
+
+                <div class="col-md-6">
+                  <label class="form-label">Search Activity</label>
+                  <input type="text" name="search" value="{{ search }}" class="form-control"
+                    placeholder="Search username or action...">
+                </div>
+
+                <div class="col-md-2">
+                  <label class="form-label">From Date</label>
+                  <input type="date" name="from_date" value="{{ from_date }}" class="form-control">
+                </div>
+
+                <div class="col-md-2">
+                  <label class="form-label">To Date</label>
+                  <input type="date" name="to_date" value="{{ to_date }}" class="form-control">
+                </div>
+
+                <div class="col-md-2">
+                  <input type="hidden" name="log_type" value="{{ log_type }}">
+                  <button type="submit" class="btn btn-danger w-100">
+                    <i class="bi bi-search"></i>
+                    Filter
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </form>
+
+        <!-- Results Summary -->
+
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <small class="text-muted">
+            Showing {{ start }} - {{ end }} of {{ total_logs }} records
+          </small>
+
+          <a href="{{ export_url }}" class="btn btn-outline-danger btn-sm">
+            <i class="bi bi-download"></i>
+            Export Logs
+          </a>
+        </div>
+
+        <!-- Logs Table -->
+
+        <div class="card shadow-sm">
+          <div class="card-body p-0">
+            <div class="table-responsive" style="border-radius:10px;overflow:hidden;">
+
+              <table class="table table-hover align-middle mb-0">
+
+                <thead>
+                  <tr>
+                    <th style="width:55px;" class="col-hide-xs">ID</th>
+                    <th style="min-width:100px;">User</th>
+                    <th>Action</th>
+                    <th style="width:160px;" class="col-hide-xs">Date</th>
+                    <th style="width:110px;">Details</th>
+                  </tr>
+                </thead>
+
+                <tbody>
+
+                  {% for log in logs %}
+
+                  <tr>
+                    <td class="col-hide-xs text-muted">
+                      {{ log.id }}
+                    </td>
+
+                    <td class="fw-semibold">
+                      {{ log.username }}
+                    </td>
+
+                    <td style="max-width:450px;word-break:break-word;">
+                      {{ log.action }}
+
+                      <div class="d-sm-none mt-1 text-muted small">
+                        {{ log.created_at }}
+                      </div>
+                    </td>
+
+                    <td class="col-hide-xs text-muted">
+                      {{ log.created_at }}
+                    </td>
+
+                    <td>
+                      <button class="btn btn-sm btn-outline-danger" data-bs-toggle="collapse"
+                        data-bs-target="#log{{ log.id }}">
+                        Details
+                      </button>
+                    </td>
+                  </tr>
+
+                  <tr>
+                    <td colspan="5" class="p-0 border-0">
+
+                      <div class="collapse" id="log{{ log.id }}">
+                        <div class="p-3 bg-light border-top">
+                          <div class="row">
+                            <div class="col-md-4 mb-2">
+                              <strong>Log ID</strong><br>
+                              {{ log.id }}
+                            </div>
+
+                            <div class="col-md-4 mb-2">
+                              <strong>User</strong><br>
+                              {{ log.username }}
+                            </div>
+
+                            <div class="col-md-4 mb-2">
+                              <strong>Timestamp</strong><br>
+                              {{ log.created_at }}
+                            </div>
+                          </div>
+
+                          <hr>
+
+                          <div>
+                            <strong>Action Details</strong>
+
+                            <div class="mt-2 text-muted">
+                              {{ log.action }}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+      <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    </main>
+  </div>
+</body>
+
+</html>

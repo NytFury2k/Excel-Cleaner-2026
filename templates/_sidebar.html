@@ -1,0 +1,678 @@
+<!-- templates/_sidebar.html -->
+<script>
+  // Immediate execution script to prevent theme flash on load
+  (function() {
+    const currentTheme = localStorage.getItem('theme') || 'light';
+    document.documentElement.setAttribute('data-theme', currentTheme);
+    
+    const savedWidth = localStorage.getItem('sidebar-width') || '260px';
+    const isCollapsed = localStorage.getItem('sidebar-collapsed') === 'true';
+    document.documentElement.style.setProperty('--sidebar-width', isCollapsed ? '64px' : savedWidth);
+  })();
+</script>
+
+<style>
+  /* Layout custom variables */
+  :root {
+    --sidebar-width: 260px;
+    --header-height: 60px;
+    
+    /* Light Mode colors */
+    --bg-primary: #f4f5f7;
+    --bg-card: #ffffff;
+    --bg-sidebar: #ffffff;
+    --text-main: #111827;
+    --text-muted: #6b7280;
+    --border-color: #e5e7eb;
+    --hover-bg: #fef2f2;
+    --red-accent: #b91c1c;
+    --red-hover: #991b1b;
+    --red-light: #fee2e2;
+    --input-bg: #ffffff;
+    --input-text: #111827;
+  }
+
+  [data-theme="dark"] {
+    /* Dark Mode colors */
+    --bg-primary: #0f0f12;
+    --bg-card: #18181c;
+    --bg-sidebar: #121215;
+    --text-main: #f3f4f6;
+    --text-muted: #9ca3af;
+    --border-color: #2d2d34;
+    --hover-bg: #2d2020;
+    --red-accent: #ef4444;
+    --red-hover: #dc2626;
+    --red-light: #451a1a;
+    --input-bg: #222227;
+    --input-text: #f3f4f6;
+
+    /* Overrides for local/inline elements */
+    --surface: #18181c !important;
+    --border: #2d2d34 !important;
+  }
+
+  /* Structural Rules overrides */
+  .sidebar {
+    width: var(--sidebar-width) !important;
+    background: var(--bg-sidebar) !important;
+    border-right: 1px solid var(--border-color) !important;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    bottom: 0 !important;
+    overflow: visible !important; /* Allow the mini toggle to overhang */
+    z-index: 1000 !important;
+    transition: width 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .content-area {
+    margin-left: var(--sidebar-width) !important;
+    padding-top: calc(var(--header-height) + 24px) !important;
+    transition: margin-left 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* Resizer handle styling */
+  .sidebar-resizer {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 6px;
+    cursor: col-resize;
+    z-index: 1010;
+    background: transparent;
+    transition: background-color 0.2s;
+  }
+
+  .sidebar-resizer:hover,
+  .sidebar-resizer.resizing {
+    background-color: var(--red-accent) !important;
+  }
+
+  .sidebar.collapsed .sidebar-resizer {
+    pointer-events: none; /* Disable resizing when collapsed */
+  }
+
+  /* Mini Sidebar toggle button (Tab style, centered vertically, flush with edge) */
+  .btn-toggle-sidebar-mini {
+    position: absolute;
+    top: 50%;
+    margin-top: -20px; /* Centers the 40px height button */
+    left: 100%; /* Sits exactly flush on the right edge of sidebar */
+    width: 18px;
+    height: 40px;
+    background-color: var(--red-accent);
+    color: #fff !important;
+    border: 1px solid var(--border-color);
+    border-left: none; /* Merges cleanly into sidebar edge */
+    border-top-left-radius: 0 !important;
+    border-bottom-left-radius: 0 !important;
+    border-top-right-radius: 6px !important;
+    border-bottom-right-radius: 6px !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 1020;
+    font-size: 0.7rem;
+    box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
+    transition: width 0.15s, background-color 0.2s;
+    padding: 0;
+  }
+
+  .btn-toggle-sidebar-mini:hover {
+    background-color: var(--red-hover);
+    width: 22px; /* Expands outwards on hover */
+  }
+
+  /* Link & Brand style overrides */
+  .sidebar-link {
+    color: var(--text-main) !important;
+    transition: background-color 0.15s, color 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    text-decoration: none;
+    border-radius: 8px;
+    margin: 4px 10px;
+  }
+
+  .sidebar-link:hover {
+    background: var(--hover-bg) !important;
+    color: var(--red-accent) !important;
+  }
+
+  .sidebar-brand {
+    background: var(--red-accent) !important;
+    border-bottom: 1px solid var(--border-color) !important;
+    padding: 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transition: padding 0.15s;
+  }
+
+  /* Collapsed sidebar adjustments */
+  .sidebar.collapsed {
+    width: 64px !important;
+  }
+
+  .sidebar.collapsed .sidebar-text {
+    display: none !important;
+  }
+
+  .sidebar.collapsed .sidebar-link {
+    justify-content: center !important;
+    padding: 12px 0 !important;
+    margin: 4px 5px !important;
+  }
+
+  .sidebar.collapsed .sidebar-link i {
+    font-size: 1.25rem !important;
+  }
+
+  .sidebar.collapsed .sidebar-logo-full {
+    display: none !important;
+  }
+
+  .sidebar.collapsed .sidebar-logo-collapsed {
+    display: block !important;
+  }
+
+  .sidebar-logo-collapsed {
+    display: none;
+    max-width: 32px;
+    height: auto;
+    margin: 0 auto;
+  }
+
+  /* Top Header styling */
+  .top-header {
+    position: fixed;
+    top: 0;
+    right: 0;
+    left: var(--sidebar-width);
+    height: var(--header-height);
+    background: var(--bg-card);
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 24px;
+    z-index: 999;
+    transition: left 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .header-left, .header-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .btn-theme-toggle {
+    background: none;
+    border: 1px solid var(--border-color);
+    color: var(--text-main);
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background-color 0.2s, border-color 0.2s, color 0.2s;
+  }
+
+  .btn-theme-toggle:hover {
+    background-color: var(--hover-bg);
+    border-color: var(--red-accent);
+    color: var(--red-accent);
+  }
+
+  .btn-logout-top {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    border-radius: 20px;
+    background-color: var(--red-accent);
+    color: #fff !important;
+    text-decoration: none !important;
+    font-size: 0.88rem;
+    font-weight: 600;
+    transition: background-color 0.2s, transform 0.1s, box-shadow 0.2s;
+    border: none;
+  }
+
+  .btn-logout-top:hover {
+    background-color: var(--red-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(185, 28, 28, 0.2);
+  }
+
+  .btn-logout-top:active {
+    transform: translateY(0);
+  }
+
+  /* Global Theme Stylesheets Overrides (High Specificity) */
+  body {
+    background-color: var(--bg-primary) !important;
+    color: var(--text-main) !important;
+  }
+
+  /* Target headings globally for a consistent color mode experience */
+  h1, h2, h3, h4, h5, h6 {
+    color: var(--text-main) !important;
+  }
+
+  /* Specific elements text overrides */
+  .reports-to-cell .name, .rt-name, .dz-title, .step-title {
+    color: var(--text-main) !important;
+  }
+
+  /* Cards and UI boxes, including those on upload and register pages */
+  .card, .welcome-strip, .metric-card, .stat-card, .login-card, .upload-card, .how-card, .reg-card {
+    background-color: var(--bg-card) !important;
+    border-color: var(--border-color) !important;
+    color: var(--text-main) !important;
+  }
+
+  /* uniform height removed */
+
+  .card-header {
+    background-color: var(--bg-primary) !important;
+    border-bottom: 1px solid var(--border-color) !important;
+    color: var(--text-main) !important;
+  }
+
+  /* Drop zone on the upload page */
+  .drop-zone {
+    background-color: var(--bg-primary) !important;
+    border-color: var(--border-color) !important;
+    color: var(--text-main) !important;
+  }
+
+  .drop-zone:hover, .drop-zone.dragover {
+    background-color: var(--hover-bg) !important;
+    border-color: var(--red-accent) !important;
+  }
+
+  /* Tables: overrides for dashboard, activity logs, users, manage users, choose rules, preview, etc. */
+  .table {
+    --bs-table-bg: var(--bg-card) !important;
+    --bs-table-color: var(--text-main) !important;
+    --bs-table-border-color: var(--border-color) !important;
+    --bs-table-striped-bg: var(--bg-primary) !important;
+    --bs-table-striped-color: var(--text-main) !important;
+    --bs-table-hover-bg: var(--hover-bg) !important;
+    --bs-table-hover-color: var(--text-main) !important;
+    color: var(--text-main) !important;
+    background-color: var(--bg-card) !important;
+  }
+
+  .table thead th {
+    background-color: var(--bg-primary) !important;
+    color: var(--text-muted) !important;
+    border-bottom: 2px solid var(--border-color) !important;
+  }
+
+  .table td, .table th {
+    background-color: var(--bg-card) !important;
+    border-color: var(--border-color) !important;
+    color: var(--text-main) !important;
+  }
+
+  .table-hover tbody tr:hover {
+    background-color: var(--hover-bg) !important;
+  }
+
+  /* Form controls and input groups */
+  .form-control, .form-select, .input-group-text, .input-group-text.bg-white {
+    background-color: var(--input-bg) !important;
+    color: var(--input-text) !important;
+    border-color: var(--border-color) !important;
+  }
+
+  .form-control:focus, .form-select:focus {
+    border-color: var(--red-accent) !important;
+    background-color: var(--input-bg) !important;
+    color: var(--input-text) !important;
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15) !important;
+  }
+
+  .text-muted, small.text-muted, p.text-muted {
+    color: var(--text-muted) !important;
+  }
+
+  /* Password components on register/create user page */
+  .pw-hint {
+    background-color: var(--bg-primary) !important;
+    border-color: var(--border-color) !important;
+    color: var(--text-muted) !important;
+  }
+
+  .pw-eye {
+    background-color: var(--input-bg) !important;
+    color: var(--text-muted) !important;
+    border-color: var(--border-color) !important;
+  }
+
+  /* Badges overrides for dark mode */
+  /* 1. Light count badge */
+  [data-theme="dark"] .badge.bg-light.text-dark.border {
+    background-color: var(--bg-primary) !important;
+    color: var(--text-muted) !important;
+    border-color: var(--border-color) !important;
+  }
+
+  /* 2. Green / Active status / Valid rows badge */
+  [data-theme="dark"] .badge[style*="background:#f0fdf4"],
+  [data-theme="dark"] .badge[style*="background: #f0fdf4"],
+  [data-theme="dark"] .badge[style*="background:#dcfce7"],
+  [data-theme="dark"] .badge[style*="background: #dcfce7"] {
+    background-color: #143522 !important;
+    color: #4ade80 !important;
+    border-color: #1b4d32 !important;
+  }
+
+  /* 3. Red / Admin status / Invalid rows badge */
+  [data-theme="dark"] .badge[style*="background:#fef2f2"],
+  [data-theme="dark"] .badge[style*="background: #fef2f2"],
+  [data-theme="dark"] .badge[style*="background:#fee2e2"],
+  [data-theme="dark"] .badge[style*="background: #fee2e2"] {
+    background-color: #3c1e1e !important;
+    color: #f87171 !important;
+    border-color: #582424 !important;
+  }
+
+  /* 4. Blue / Manager status badge */
+  [data-theme="dark"] .badge[style*="background:#eff6ff"],
+  [data-theme="dark"] .badge[style*="background: #eff6ff"] {
+    background-color: #1e293b !important;
+    color: #60a5fa !important;
+    border-color: #2563eb !important;
+  }
+
+  /* 5. Cyan / Team Lead status badge */
+  [data-theme="dark"] .badge[style*="background:#ecfeff"],
+  [data-theme="dark"] .badge[style*="background: #ecfeff"] {
+    background-color: #163035 !important;
+    color: #22d3ee !important;
+    border-color: #155e75 !important;
+  }
+
+  /* 6. User / Inactive status badge */
+  [data-theme="dark"] .badge[style*="background:#f9fafb"],
+  [data-theme="dark"] .badge[style*="background: #f9fafb"] {
+    background-color: #27272a !important;
+    color: #e4e4e7 !important;
+    border-color: #3f3f46 !important;
+  }
+
+  .perm-pill {
+    background: var(--bg-primary) !important;
+    border-color: var(--border-color) !important;
+    color: var(--text-main) !important;
+  }
+
+  .preview-wrap {
+    border-color: var(--border-color) !important;
+  }
+
+  .preview-wrap thead th {
+    background-color: var(--bg-primary) !important;
+    color: var(--text-muted) !important;
+    border-color: var(--border-color) !important;
+  }
+
+  .preview-wrap td {
+    border-color: var(--border-color) !important;
+    color: var(--text-main) !important;
+  }
+
+  .preview-wrap tbody tr:hover {
+    background-color: var(--hover-bg) !important;
+  }
+
+  .preview-nav {
+    background-color: var(--bg-card) !important;
+    border-color: var(--border-color) !important;
+  }
+
+  .modal-content {
+    background-color: var(--bg-card) !important;
+    border-color: var(--border-color) !important;
+    color: var(--text-main) !important;
+  }
+
+  .modal-header, .modal-footer {
+    border-color: var(--border-color) !important;
+  }
+
+  .pagination .page-link {
+    background-color: var(--bg-card) !important;
+    border-color: var(--border-color) !important;
+    color: var(--red-accent) !important;
+  }
+
+  .pagination .page-link:hover {
+    background-color: var(--hover-bg) !important;
+    color: var(--red-hover) !important;
+  }
+
+  .pagination .page-item.active .page-link {
+    background-color: var(--red-accent) !important;
+    border-color: var(--red-accent) !important;
+    color: #fff !important;
+  }
+
+  .pagination .page-item.disabled .page-link {
+    background-color: var(--bg-primary) !important;
+    color: var(--text-muted) !important;
+    border-color: var(--border-color) !important;
+  }
+</style>
+
+<aside class="sidebar">
+  <div class="sidebar-brand text-center">
+    <img
+      src="https://paramantra.com/wp-content/uploads/2022/04/Paramantra-Logo-white-PNG-431X88.webp"
+      alt="Paramantra"
+      class="sidebar-logo-full"
+      style="max-width:180px;height:auto;">
+    <img
+      src="https://paramantra.us/aldius/images/favicon.png"
+      alt="Paramantra"
+      class="sidebar-logo-collapsed">
+  </div>
+
+  <div class="py-2">
+    <a href="{{ url_for('dashboard') }}" class="sidebar-link">
+      <i class="bi bi-grid"></i>
+      <span class="sidebar-text">Dashboard</span>
+    </a>
+
+    <a href="{{ url_for('upload') }}" class="sidebar-link">
+      <i class="bi bi-cloud-upload"></i>
+      <span class="sidebar-text">Upload File</span>
+    </a>
+
+    <a href="{{ url_for('admin_logs') }}" class="sidebar-link">
+      <i class="bi bi-clock-history"></i>
+      <span class="sidebar-text">Activity Logs</span>
+    </a>
+
+    {% if session.role in ["admin","manager","team_lead"] %}
+    <a href="{{ url_for('list_users') }}" class="sidebar-link">
+      <i class="bi bi-people"></i>
+      <span class="sidebar-text">Users</span>
+    </a>
+    {% endif %}
+
+    {% if session.role in ["admin","manager"] %}
+    <a href="{{ url_for('admin_create_user') }}" class="sidebar-link">
+      <i class="bi bi-person-plus"></i>
+      <span class="sidebar-text">Create User</span>
+    </a>
+
+    <a href="{{ url_for('manage_users') }}" class="sidebar-link">
+      <i class="bi bi-person-gear"></i>
+      <span class="sidebar-text">Manage Users</span>
+    </a>
+    {% endif %}
+
+    {% if session.role == "admin" %}
+    <a href="{{ url_for('access_control') }}" class="sidebar-link">
+      <i class="bi bi-shield-lock"></i>
+      <span class="sidebar-text">Permissions</span>
+    </a>
+    {% endif %}
+  </div>
+
+  <!-- Tab-style Collapse mini button centered on vertical axis, flush with edge -->
+  <button class="btn-toggle-sidebar-mini" id="btnToggleSidebar" title="Toggle Sidebar">
+    <i class="bi bi-chevron-left" id="toggleChevron"></i>
+  </button>
+
+  <!-- Resizer Handle -->
+  <div class="sidebar-resizer" id="sidebarResizer"></div>
+</aside>
+
+<script>
+  (function() {
+    // 1. Inject Top Header Bar (No collapse button on the left)
+    if (!document.querySelector('.top-header')) {
+      const header = document.createElement('header');
+      header.className = 'top-header';
+      header.innerHTML = `
+        <div class="header-left"></div>
+        <div class="header-right">
+          <button class="btn-theme-toggle" id="btnThemeToggle" title="Toggle Theme">
+            <i class="bi bi-sun" id="themeIconSun"></i>
+            <i class="bi bi-moon" id="themeIconMoon" style="display:none;"></i>
+          </button>
+          <a href="{{ url_for('logout') }}" class="btn-logout-top" title="Logout">
+            <i class="bi bi-box-arrow-right"></i>
+            <span>Logout</span>
+          </a>
+        </div>
+      `;
+      
+      const layout = document.querySelector('.app-layout');
+      if (layout) {
+        layout.parentNode.insertBefore(header, layout);
+      } else {
+        document.body.insertBefore(header, document.body.firstChild);
+      }
+    }
+
+    // 2. Setup theme toggle
+    const currentTheme = localStorage.getItem('theme') || 'light';
+    document.documentElement.setAttribute('data-theme', currentTheme);
+    
+    function updateThemeUI(theme) {
+      const sunIcon = document.getElementById('themeIconSun');
+      const moonIcon = document.getElementById('themeIconMoon');
+      if (sunIcon && moonIcon) {
+        if (theme === 'dark') {
+          sunIcon.style.display = 'none';
+          moonIcon.style.display = 'inline-block';
+        } else {
+          sunIcon.style.display = 'inline-block';
+          moonIcon.style.display = 'none';
+        }
+      }
+    }
+    
+    updateThemeUI(currentTheme);
+    
+    const btnThemeToggle = document.getElementById('btnThemeToggle');
+    if (btnThemeToggle) {
+      btnThemeToggle.addEventListener('click', function() {
+        const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+        document.documentElement.setAttribute('data-theme', theme);
+        localStorage.setItem('theme', theme);
+        updateThemeUI(theme);
+      });
+    }
+
+    // 3. Setup collapsible sidebar
+    const sidebar = document.querySelector('.sidebar');
+    const btnToggleSidebar = document.getElementById('btnToggleSidebar');
+    const toggleChevron = document.getElementById('toggleChevron');
+
+    function applyCollapseState(isColl) {
+      if (isColl) {
+        sidebar.classList.add('collapsed');
+        if (toggleChevron) {
+          toggleChevron.classList.remove('bi-chevron-left');
+          toggleChevron.classList.add('bi-chevron-right');
+        }
+        document.documentElement.style.setProperty('--sidebar-width', '64px');
+      } else {
+        sidebar.classList.remove('collapsed');
+        if (toggleChevron) {
+          toggleChevron.classList.remove('bi-chevron-right');
+          toggleChevron.classList.add('bi-chevron-left');
+        }
+        const savedWidth = localStorage.getItem('sidebar-width') || '260px';
+        document.documentElement.style.setProperty('--sidebar-width', savedWidth);
+      }
+    }
+
+    const startCollapsed = localStorage.getItem('sidebar-collapsed') === 'true';
+    applyCollapseState(startCollapsed);
+
+    if (btnToggleSidebar) {
+      btnToggleSidebar.addEventListener('click', function() {
+        const currentlyCollapsed = sidebar.classList.contains('collapsed');
+        const nextCollapsed = !currentlyCollapsed;
+        localStorage.setItem('sidebar-collapsed', nextCollapsed);
+        applyCollapseState(nextCollapsed);
+      });
+    }
+
+    // 4. Setup resizable sidebar
+    const resizer = document.getElementById('sidebarResizer');
+    let isResizing = false;
+
+    if (resizer) {
+      resizer.addEventListener('mousedown', function(e) {
+        // Only resize if not collapsed
+        if (sidebar.classList.contains('collapsed')) return;
+        
+        isResizing = true;
+        resizer.classList.add('resizing');
+        document.body.style.cursor = 'col-resize';
+        document.body.style.userSelect = 'none'; // Prevent text selection
+        
+        e.preventDefault();
+      });
+
+      document.addEventListener('mousemove', function(e) {
+        if (!isResizing) return;
+        
+        // Calculate width based on mouse horizontal position
+        let newWidth = e.clientX;
+        
+        // Boundaries
+        if (newWidth < 200) newWidth = 200;
+        if (newWidth > 450) newWidth = 450;
+        
+        const widthStr = newWidth + 'px';
+        document.documentElement.style.setProperty('--sidebar-width', widthStr);
+        localStorage.setItem('sidebar-width', widthStr);
+      });
+
+      document.addEventListener('mouseup', function() {
+        if (!isResizing) return;
+        isResizing = false;
+        resizer.classList.remove('resizing');
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+      });
+    }
+  })();
+</script>
