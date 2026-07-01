@@ -262,6 +262,7 @@
       margin-left: 260px;
       padding: 24px;
     }
+
     .sidebar-brand {
       background: #b91c1c;
       padding: 20px;
@@ -316,7 +317,7 @@
 
     <main class="content-area">
 
-      <div class="container mt-3">
+      <div class="container">
         {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}{% for category, message in messages %}
         <div class="alert alert-{{ category }} alert-dismissible fade show">
@@ -325,17 +326,19 @@
         {% endfor %}{% endif %}{% endwith %}
       </div>
 
-      <div class="container my-5 flex-grow-1">
-        <div class="row justify-content-left">
-          <div class="col-lg-6 col-md-8">
+      <div class="container flex-grow-1">
 
-            <!-- Header -->
-            <div class="mb-4">
-              <h3 style="font-size:1.35rem;font-weight:700;color:var(--text-main);margin-bottom:4px;">
-                <i class="bi bi-cloud-upload me-2" style="color:var(--red);"></i>Upload Excel or CSV File
-              </h3>
-              <p class="text-muted mb-0" style="font-size:0.875rem;">Upload your CRM data file to begin cleaning.</p>
-            </div>
+        <!-- Page header (full width, above both cards) -->
+        <div class="mb-4">
+          <h3 style="font-size:1.35rem;font-weight:700;color:var(--text-main);margin-bottom:4px;">Upload Excel or CSV
+            File</h3>
+          <p class="text-muted mb-0" style="font-size:0.875rem;">Upload your CRM data file to begin cleaning.</p>
+        </div>
+
+        <div class="row g-4 align-items-start">
+
+          <!-- Left: Upload card -->
+          <div class="col-lg-6 col-md-7">
 
             <!-- Upload card -->
             <div class="upload-card">
@@ -369,9 +372,11 @@
 
               </form>
             </div>
+          </div>
 
-            <!-- How it works -->
-            <div class="how-card">
+          <!-- Right: How it works -->
+          <div class="col-lg-6 col-md-5 d-flex align-items-start">
+            <div class="how-card w-100">
               <h6><i class="bi bi-info-circle me-2"></i>How it works</h6>
               <div class="steps">
                 <div class="step">
@@ -397,58 +402,59 @@
                 </div>
               </div>
             </div>
-
           </div>
+
         </div>
       </div>
+  </div>
 
-      <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-      <script>
-        const fileInput = document.getElementById("fileInput");
-        const submitBtn = document.getElementById("submitBtn");
-        const fileChosenLabel = document.getElementById("fileChosenLabel");
-        const chosenName = document.getElementById("fileChosenName");
-        const dropZone = document.getElementById("dropZone");
-        const dzTitle = document.getElementById("dzTitle");
-        const dzIconI = document.getElementById("dzIconI");
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    const fileInput = document.getElementById("fileInput");
+    const submitBtn = document.getElementById("submitBtn");
+    const fileChosenLabel = document.getElementById("fileChosenLabel");
+    const chosenName = document.getElementById("fileChosenName");
+    const dropZone = document.getElementById("dropZone");
+    const dzTitle = document.getElementById("dzTitle");
+    const dzIconI = document.getElementById("dzIconI");
 
-        function handleFile(file) {
-          if (!file) return;
-          chosenName.textContent = file.name;
-          fileChosenLabel.classList.add("visible");
-          submitBtn.disabled = false;
-          dropZone.classList.add("file-ready");
-          dzTitle.textContent = "File ready — click to change";
-          dzIconI.className = "bi bi-check-circle-fill";
-        }
+    function handleFile(file) {
+      if (!file) return;
+      chosenName.textContent = file.name;
+      fileChosenLabel.classList.add("visible");
+      submitBtn.disabled = false;
+      dropZone.classList.add("file-ready");
+      dzTitle.textContent = "File ready — click to change";
+      dzIconI.className = "bi bi-check-circle-fill";
+    }
 
-        function clearFile(e) {
-          e.stopPropagation();
-          fileInput.value = "";
-          fileChosenLabel.classList.remove("visible");
-          submitBtn.disabled = true;
-          dropZone.classList.remove("file-ready");
-          dzTitle.textContent = "Click to browse or drag & drop";
-          dzIconI.className = "bi bi-file-earmark-spreadsheet";
-        }
+    function clearFile(e) {
+      e.stopPropagation();
+      fileInput.value = "";
+      fileChosenLabel.classList.remove("visible");
+      submitBtn.disabled = true;
+      dropZone.classList.remove("file-ready");
+      dzTitle.textContent = "Click to browse or drag & drop";
+      dzIconI.className = "bi bi-file-earmark-spreadsheet";
+    }
 
-        fileInput.addEventListener("change", function () { handleFile(this.files[0]); });
+    fileInput.addEventListener("change", function () { handleFile(this.files[0]); });
 
-        dropZone.addEventListener("dragover", function (e) { e.preventDefault(); dropZone.classList.add("dragover"); });
-        dropZone.addEventListener("dragleave", function () { dropZone.classList.remove("dragover"); });
-        dropZone.addEventListener("drop", function (e) {
-          e.preventDefault();
-          dropZone.classList.remove("dragover");
-          const file = e.dataTransfer.files[0];
-          if (file) {
-            const dt = new DataTransfer();
-            dt.items.add(file);
-            fileInput.files = dt.files;
-            handleFile(file);
-          }
-        });
-      </script>
-    </main>
+    dropZone.addEventListener("dragover", function (e) { e.preventDefault(); dropZone.classList.add("dragover"); });
+    dropZone.addEventListener("dragleave", function () { dropZone.classList.remove("dragover"); });
+    dropZone.addEventListener("drop", function (e) {
+      e.preventDefault();
+      dropZone.classList.remove("dragover");
+      const file = e.dataTransfer.files[0];
+      if (file) {
+        const dt = new DataTransfer();
+        dt.items.add(file);
+        fileInput.files = dt.files;
+        handleFile(file);
+      }
+    });
+  </script>
+  </main>
   </div>
 </body>
 
