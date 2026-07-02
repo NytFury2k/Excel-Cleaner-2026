@@ -25,11 +25,12 @@ def test_admin_create_user_get_renders(monkeypatch):
     monkeypatch.setattr(app_module, "get_db_connection", lambda: FakeConnection())
 
     client = app_module.app.test_client()
+    from datetime import datetime
     with client.session_transaction() as session:
         session["user_id"] = 1
         session["role"] = "admin"
         session["username"] = "admin"
-        session["last_active"] = "2026-06-25T00:00:00"
+        session["last_active"] = datetime.utcnow().isoformat()
 
     response = client.get("/admin/create-user", follow_redirects=False)
 

@@ -1,0 +1,46 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Unit test / coverage reports
+.pytest_cache/
+.coverage
+.coverage.*
+.cache
+htmlcov/
+
+# Logs and databases
+*.log
+logs/
+*.sql
+
+# OS metadata
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Project generated output files
+Generated_Files/
+*.xlsx
+*.xls
+*.csv
+
+# Exceptions (keep these test/temp files for the application if needed, or exclude them)
+# If you want to keep specific template or test CSV files in git, uncomment them:
+# !test_upload.csv
+# !temp_1.csv
+# !temp_30.csv
+# !temp_api_30.csv
