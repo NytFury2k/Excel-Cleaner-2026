@@ -338,11 +338,18 @@
         {% endif %}
         {% endwith %}
 
-        <div class="mb-4">
-          <h2 class="fw-bold">Dashboard</h2>
-          <p class="text-muted">
-            Excel Cleaning & Data Processing Platform
-          </p>
+        <div class="d-flex justify-content-between align-items-center mb-4">
+          <div>
+            <h2 class="fw-bold m-0">Dashboard</h2>
+            <p class="text-muted m-0">
+              Excel Cleaning & Data Processing Platform
+            </p>
+          </div>
+          <div>
+            <button class="btn btn-danger px-4 py-2 fw-semibold" data-bs-toggle="modal" data-bs-target="#uploadModal">
+              <i class="bi bi-cloud-arrow-up me-2"></i> Upload Sheet
+            </button>
+          </div>
         </div>
 
         <div class="row g-3 mb-4">
@@ -466,48 +473,163 @@
 
         </div>
 
-        <div class="row g-3">
-
-          <div class="col-lg-9">
+        <!-- Search & Filtering Engine Console (Full Width & Compact) -->
+        <div class="row g-3 mb-4">
+          <div class="col-12">
             <div class="card shadow-sm">
-              <div class="card-header">
-                Recent Activity
+              <div class="card-header d-flex justify-content-between align-items-center py-2">
+                <span class="small fw-bold"><i class="bi bi-sliders me-2 text-danger"></i>Search & Filtering Engine</span>
               </div>
+              <div class="card-body p-3">
+                <form id="filterForm" class="row g-2">
+                  <div class="col-md-2">
+                    <label class="form-label small mb-1">Full Name</label>
+                    <input type="text" class="form-control form-control-sm" id="filterName" placeholder="Name...">
+                  </div>
+                  <div class="col-md-2">
+                    <label class="form-label small mb-1">Email Address</label>
+                    <input type="text" class="form-control form-control-sm" id="filterEmail" placeholder="Email...">
+                  </div>
+                  <div class="col-md-2">
+                    <label class="form-label small mb-1">Primary Phone</label>
+                    <input type="text" class="form-control form-control-sm" id="filterPhone" placeholder="Phone...">
+                  </div>
+                  <div class="col-md-2">
+                    <label class="form-label small mb-1">Company Name</label>
+                    <input type="text" class="form-control form-control-sm" id="filterCompany" placeholder="Company...">
+                  </div>
+                  <div class="col-md-2">
+                    <label class="form-label small mb-1">City</label>
+                    <input type="text" class="form-control form-control-sm" id="filterCity" placeholder="City...">
+                  </div>
+                  <div class="col-md-2">
+                    <label class="form-label small mb-1">Custom Field</label>
+                    <select class="form-select form-select-sm" id="filterCustomField">
+                      <option value="">-- Custom Field --</option>
+                      {% for field in custom_fields %}
+                      <option value="{{ field.id }}">{{ field.field_name }}</option>
+                      {% endfor %}
+                    </select>
+                  </div>
+                  <div class="col-md-10 col-sm-9">
+                    <label class="form-label small mb-1">Custom Attribute Query Value</label>
+                    <input type="text" class="form-control form-control-sm" id="filterCustomValue" placeholder="Select an attribute first..." disabled>
+                  </div>
+                  <div class="col-md-2 col-sm-3 d-flex align-items-end">
+                    <button type="submit" class="btn btn-danger btn-sm w-100 py-1 fw-semibold">
+                      <i class="bi bi-search me-2"></i>Query Records
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+        </div>
 
-              <div class="card-body">
-                {% include "_logs_table.html" %}
+        <!-- Data Quality & Completeness Stats Widget -->
+        <div class="row g-3 mb-4 d-none" id="missingStatsCard">
+          <div class="col-12">
+            <div class="card shadow-sm">
+              <div class="card-header d-flex justify-content-between align-items-center py-2 bg-light-subtle">
+                <span class="small fw-bold text-danger"><i class="bi bi-shield-exclamation me-2"></i>Result Set Completeness (Click card to filter records with missing values)</span>
+                <button type="button" class="btn btn-sm btn-outline-danger py-0 px-2" id="clearMissingFilterBtn" style="display: none; font-size: 0.75rem;">
+                  <i class="bi bi-x-circle me-1"></i>Clear Missing Filter
+                </button>
+              </div>
+              <div class="card-body p-3">
+                <div class="row g-2" id="missingStatsContainer">
+                  <!-- Dynamic boxes injected here via JS -->
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="row g-3 mb-4">
+          
+          <!-- Master Records Column (Full Width) -->
+          <div class="col-12">
+            <!-- Master Records Table -->
+            <div class="card shadow-sm">
+              <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-database me-2 text-danger"></i>Master Records</span>
+              </div>
+              <div class="card-body p-0">
+                <div class="table-responsive">
+                  <table class="table table-hover align-middle mb-0" id="recordsTable">
+                    <thead>
+                      <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Phone</th>
+                        <th>Company</th>
+                        <th>Location</th>
+                        <th class="text-center">Custom Fields</th>
+                        <th class="text-center">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody id="recordsTableBody">
+                      <tr>
+                        <td colspan="8" class="text-center py-5">
+                          <div class="spinner-border text-danger" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                          </div>
+                          <p class="text-muted mt-2 mb-0">Querying database records...</p>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+                <!-- Pagination -->
+                <div class="d-flex flex-wrap justify-content-between align-items-center p-3" id="paginationControls"></div>
               </div>
             </div>
           </div>
 
-          <div class="col-lg-3">
+        </div>
+
+        <!-- Bottom Info & Activity Layer -->
+        <div class="row g-3">
+          
+          <!-- Recent Activity Column -->
+          <div class="col-lg-8">
             <div class="card shadow-sm">
+              <div class="card-header">
+                Recent Activity
+              </div>
+              <div class="card-body p-0">
+                {% include "_logs_table.html" %}
+              </div>
+            </div>
+          </div>
+          
+          <!-- System Overview & Integrations Column -->
+          <div class="col-lg-4">
+            
+            <!-- System Overview Widget -->
+            <div class="card shadow-sm mb-3">
               <div class="card-header">
                 System Overview
               </div>
-
               <div class="card-body">
-
                 <div class="mb-3">
                   <small class="text-muted">Role</small>
                   <div>{{ session.role|title }}</div>
                 </div>
-
                 <div class="mb-3">
                   <small class="text-muted">Last Upload</small>
                   <div>{{ last_upload }}</div>
                 </div>
-
                 <div>
                   <small class="text-muted">Active Users</small>
                   <div>{{ active_users }}</div>
                 </div>
-
               </div>
             </div>
 
             <!-- Active Integrations widget -->
-            <div class="card shadow-sm mt-3">
+            <div class="card shadow-sm">
               <div class="card-header d-flex justify-content-between align-items-center">
                 <span>Active integrations</span>
                 <a href="#" class="btn btn-sm btn-outline-danger py-0 px-2"
@@ -569,8 +691,9 @@
                 </table>
               </div>
             </div>
+            
           </div>
-
+          
         </div>
 
       </div>
@@ -581,6 +704,512 @@
   </main>
 
   </div>
+
+  <!-- Upload Excel Modal -->
+  <div class="modal fade" id="uploadModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title fw-bold">Upload spreadsheet</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <form id="uploadForm">
+          <div class="modal-body p-4">
+            <div class="text-center p-4 border border-dashed rounded-3 mb-3" style="border: 2px dashed #b91c1c; background: #fef2f2;">
+              <i class="bi bi-file-earmark-excel fs-1 text-danger mb-3 d-block"></i>
+              <h6 class="fw-bold">Select spreadsheet file</h6>
+              <p class="text-muted small">Supports standard Excel formats (.xlsx, .xls) and CSV (.csv)</p>
+              <input type="file" id="excelFile" class="form-control mt-3" accept=".xlsx, .xls, .csv" required>
+            </div>
+            <div id="uploadStatus" class="alert d-none"></div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            <button type="submit" class="btn btn-danger px-4" id="uploadSubmitBtn">
+              Start Ingestion
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- View Custom Details Modal -->
+  <div class="modal fade" id="detailsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="detailsModalTitle">Custom Attributes</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body" id="detailsModalBody">
+          <!-- Populated dynamically via AJAX -->
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", function() {
+        window.selectedMissingField = "";
+        let currentPage = 1;
+        const perPage = 15;
+
+        const filterForm = document.getElementById("filterForm");
+        const recordsTableBody = document.getElementById("recordsTableBody");
+        const paginationControls = document.getElementById("paginationControls");
+        const filterCustomField = document.getElementById("filterCustomField");
+        const filterCustomValue = document.getElementById("filterCustomValue");
+
+        // 1. Enable/disable custom value field based on dropdown selection
+        if (filterCustomField) {
+            filterCustomField.addEventListener("change", function() {
+                if (this.value) {
+                    filterCustomValue.disabled = false;
+                    filterCustomValue.placeholder = `Search within selected field...`;
+                    filterCustomValue.required = true;
+                } else {
+                    filterCustomValue.disabled = true;
+                    filterCustomValue.placeholder = "Select an attribute first...";
+                    filterCustomValue.value = "";
+                    filterCustomValue.required = false;
+                }
+            });
+        }
+
+        // 2. Fetch and render records
+        function fetchRecords(page = 1) {
+            currentPage = page;
+            if (!recordsTableBody) return;
+            recordsTableBody.innerHTML = `
+                <tr>
+                    <td colspan="8" class="text-center py-5">
+                        <div class="spinner-border text-danger" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="text-muted mt-2 mb-0">Querying database records...</p>
+                    </td>
+                </tr>
+            `;
+
+            // Gather filters
+            const name = document.getElementById("filterName").value.trim();
+            const email = document.getElementById("filterEmail").value.trim();
+            const phone = document.getElementById("filterPhone").value.trim();
+            const company = document.getElementById("filterCompany").value.trim();
+            const city = document.getElementById("filterCity").value.trim();
+            const customFieldId = filterCustomField ? filterCustomField.value : "";
+            const customFieldValue = filterCustomValue ? filterCustomValue.value.trim() : "";
+
+            // Construct query string
+            const params = new URLSearchParams({
+                page: page,
+                per_page: perPage,
+                name: name,
+                email: email,
+                phone: phone,
+                company: company,
+                city: city,
+                custom_field_id: customFieldId,
+                custom_field_value: customFieldValue
+            });
+
+            if (window.selectedMissingField) {
+                params.set("missing_field", window.selectedMissingField);
+            }
+
+            fetch(`/api/records?${params.toString()}`)
+                .then(res => {
+                    if (!res.ok) throw new Error("Network response was not ok");
+                    return res.json();
+                })
+                .then(data => {
+                    renderTable(data.records);
+                    renderPagination(data.total, data.page, data.pages);
+                    renderMissingStats(data.missing_stats);
+                })
+                .catch(err => {
+                    console.error(err);
+                    recordsTableBody.innerHTML = `
+                        <tr>
+                            <td colspan="8" class="text-center py-5 text-danger">
+                                <i class="bi bi-exclamation-triangle-fill fs-3 mb-2 d-block"></i>
+                                An error occurred while fetching database records. Please try again.
+                            </td>
+                        </tr>
+                    `;
+                });
+        }
+
+        function renderTable(records) {
+            if (!records || records.length === 0) {
+                recordsTableBody.innerHTML = `
+                    <tr>
+                        <td colspan="8" class="text-center py-5 text-muted">
+                            <i class="bi bi-folder2-open fs-2 mb-3 d-block"></i>
+                            No matching records found. Try adjusting your query parameters.
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            let html = "";
+            records.forEach(r => {
+                const hasCustom = r.custom_fields && Object.keys(r.custom_fields).length > 0;
+                const location = [r.city, r.state, r.country].filter(Boolean).join(", ") || "--";
+                
+                html += `
+                    <tr>
+                        <td><span class="badge bg-secondary">#${r.id}</span></td>
+                        <td><strong class="text-dark">${r.name || "--"}</strong></td>
+                        <td><span class="text-muted">${r.email || "--"}</span></td>
+                        <td><span class="text-muted">${r.phone || "--"}</span></td>
+                        <td><span class="text-muted">${r.company || "--"}</span></td>
+                        <td><span class="text-muted small">${location}</span></td>
+                        <td class="text-center">
+                            ${hasCustom ? 
+                                `<span class="badge bg-danger-subtle text-danger px-3 py-1">${Object.keys(r.custom_fields).length} attributes</span>` : 
+                                `<span class="text-muted small">none</span>`
+                            }
+                        </td>
+                        <td class="text-center">
+                            <button class="btn btn-sm btn-outline-danger btn-view-details" data-id="${r.id}">
+                                <i class="bi bi-zoom-in"></i> View Details
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            });
+            recordsTableBody.innerHTML = html;
+
+            // Attach listeners to View Details buttons
+            document.querySelectorAll(".btn-view-details").forEach(btn => {
+                btn.addEventListener("click", function() {
+                    const recordId = this.getAttribute("data-id");
+                    showRecordDetails(recordId);
+                });
+            });
+        }
+
+        function renderPagination(total, page, pages) {
+            if (total === 0 || !paginationControls) {
+                paginationControls.innerHTML = "";
+                return;
+            }
+
+            const startIdx = (page - 1) * perPage + 1;
+            const endIdx = Math.min(page * perPage, total);
+            
+            let html = `
+                <div class="text-muted small mb-2 mb-md-0">
+                    Showing <strong class="text-dark">${startIdx}</strong> to <strong class="text-dark">${endIdx}</strong> of <strong class="text-dark">${total}</strong> records
+                </div>
+                <nav>
+                    <ul class="pagination pagination-sm mb-0">
+                        <li class="page-item ${page === 1 ? 'disabled' : ''}">
+                            <button class="page-link page-btn" data-page="${page - 1}">
+                                <i class="bi bi-chevron-left"></i>
+                            </button>
+                        </li>
+            `;
+
+            let startPage = Math.max(1, page - 2);
+            let endPage = Math.min(pages, page + 2);
+
+            if (startPage > 1) {
+                html += `<li class="page-item"><button class="page-link page-btn" data-page="1">1</button></li>`;
+                if (startPage > 2) {
+                    html += `<li class="page-item disabled"><span class="page-link text-muted">...</span></li>`;
+                }
+            }
+
+            for (let i = startPage; i <= endPage; i++) {
+                html += `
+                    <li class="page-item ${i === page ? 'active' : ''}">
+                        <button class="page-link page-btn" data-page="${i}">
+                            ${i}
+                        </button>
+                    </li>
+                `;
+            }
+
+            if (endPage < pages) {
+                if (endPage < pages - 1) {
+                    html += `<li class="page-item disabled"><span class="page-link text-muted">...</span></li>`;
+                }
+                html += `<li class="page-item"><button class="page-link page-btn" data-page="${pages}">${pages}</button></li>`;
+            }
+
+            html += `
+                        <li class="page-item ${page === pages ? 'disabled' : ''}">
+                            <button class="page-link page-btn" data-page="${page + 1}">
+                                <i class="bi bi-chevron-right"></i>
+                            </button>
+                        </li>
+                    </ul>
+                </nav>
+            `;
+
+            paginationControls.innerHTML = html;
+
+            // Attach listeners to page buttons
+            document.querySelectorAll(".page-btn").forEach(btn => {
+                btn.addEventListener("click", function() {
+                    const targetPage = parseInt(this.getAttribute("data-page"));
+                    fetchRecords(targetPage);
+                });
+            });
+        }
+
+        // 3. Search Form Submission
+        if (filterForm) {
+            filterForm.addEventListener("submit", function(e) {
+                e.preventDefault();
+                fetchRecords(1);
+            });
+        }
+
+        // 4. View Custom Details Modal Resolver
+        const detailsModalEl = document.getElementById('detailsModal');
+        const detailsModal = detailsModalEl ? new bootstrap.Modal(detailsModalEl) : null;
+        const detailsModalBody = document.getElementById("detailsModalBody");
+        const detailsModalTitle = document.getElementById("detailsModalTitle");
+
+        function showRecordDetails(id) {
+            if (!detailsModal || !detailsModalTitle || !detailsModalBody) return;
+            detailsModalTitle.innerText = `Record Details (ID: #${id})`;
+            detailsModalBody.innerHTML = `
+                <div class="text-center py-4">
+                    <div class="spinner-border text-danger" role="status">
+                        <span class="visually-hidden">Loading details...</span>
+                    </div>
+                </div>
+            `;
+            detailsModal.show();
+
+            fetch(`/api/records/${id}/custom`)
+                .then(res => {
+                    if (!res.ok) throw new Error("Could not resolve details");
+                    return res.json();
+                })
+                .then(data => {
+                    if (!data || Object.keys(data).length === 0) {
+                        detailsModalBody.innerHTML = `
+                            <div class="alert alert-secondary mb-0">
+                                <i class="bi bi-info-circle me-2"></i> No custom JSON attributes registered for this record.
+                            </div>
+                        `;
+                        return;
+                    }
+
+                    let html = `<ul class="list-group list-group-flush bg-transparent">`;
+                    for (const [key, val] of Object.entries(data)) {
+                        html += `
+                            <li class="list-group-item bg-transparent text-dark border-light-subtle px-0 py-2 d-flex justify-content-between align-items-center">
+                                <div class="fw-semibold text-muted">${key}</div>
+                                <div class="text-danger text-end ms-2 font-monospace">${val}</div>
+                            </li>
+                        `;
+                    }
+                    html += `</ul>`;
+                    detailsModalBody.innerHTML = html;
+                })
+                .catch(err => {
+                    console.error(err);
+                    detailsModalBody.innerHTML = `
+                        <div class="alert alert-danger mb-0">
+                            <i class="bi bi-exclamation-octagon me-2"></i> Failed to resolve custom JSON details.
+                        </div>
+                    `;
+                });
+        }
+
+        // 5. Upload Sheet AJAX Form submission
+        const uploadForm = document.getElementById("uploadForm");
+        const uploadStatus = document.getElementById("uploadStatus");
+        const uploadSubmitBtn = document.getElementById("uploadSubmitBtn");
+
+        if (uploadForm) {
+            uploadForm.addEventListener("submit", function(e) {
+                e.preventDefault();
+                
+                const fileInput = document.getElementById("excelFile");
+                if (!fileInput.files || fileInput.files.length === 0) {
+                    alert("Please select a file to upload.");
+                    return;
+                }
+
+                const file = fileInput.files[0];
+                const formData = new FormData();
+                formData.append("file", file);
+
+                uploadSubmitBtn.disabled = true;
+                uploadSubmitBtn.innerHTML = `<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Uploading...`;
+                
+                uploadStatus.className = "alert alert-info";
+                uploadStatus.innerHTML = `<i class="bi bi-info-circle me-2"></i>Uploading spreadsheet file, please wait...`;
+                uploadStatus.classList.remove("d-none");
+
+                fetch("/api/browser/upload", {
+                    method: "POST",
+                    body: formData
+                })
+                .then(res => {
+                    if (!res.ok) {
+                        return res.json().then(data => { throw new Error(data.error || "Upload failed"); });
+                    }
+                    return res.json();
+                })
+                .then(data => {
+                    uploadStatus.className = "alert alert-success";
+                    uploadStatus.innerHTML = `<i class="bi bi-check-circle me-2"></i> ${data.message}`;
+                    
+                    // Reload records table after 1.5s
+                    setTimeout(() => {
+                        const modalEl = document.getElementById('uploadModal');
+                        const modal = bootstrap.Modal.getInstance(modalEl);
+                        if (modal) modal.hide();
+                        
+                        // Reset form
+                        uploadForm.reset();
+                        uploadStatus.classList.add("d-none");
+                        uploadSubmitBtn.disabled = false;
+                        uploadSubmitBtn.innerText = "Start Ingestion";
+                        
+                        fetchRecords(1);
+                    }, 1500);
+                })
+                .catch(err => {
+                    console.error(err);
+                    uploadStatus.className = "alert alert-danger";
+                    uploadStatus.innerHTML = `<i class="bi bi-exclamation-triangle-fill me-2"></i> Error: ${err.message}`;
+                    uploadSubmitBtn.disabled = false;
+                    uploadSubmitBtn.innerText = "Start Ingestion";
+                });
+            });
+        }
+
+        // 6. Data Quality & Completeness Stats Renderer
+        let lastStats = null;
+        let showAllStats = false;
+        const missingStatsCard = document.getElementById("missingStatsCard");
+        const missingStatsContainer = document.getElementById("missingStatsContainer");
+        const clearMissingFilterBtn = document.getElementById("clearMissingFilterBtn");
+
+        // Format column name to human-readable title
+        function formatFieldName(col) {
+            return col.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+        }
+
+        function renderMissingStats(stats) {
+            if (!missingStatsCard || !missingStatsContainer) return;
+            if (!stats || Object.keys(stats).length === 0) {
+                missingStatsCard.classList.add("d-none");
+                return;
+            }
+
+            lastStats = stats;
+            missingStatsCard.classList.remove("d-none");
+
+            // Convert stats object to an array of entries
+            let entries = Object.entries(stats);
+
+            // Sort by percentage in descending order
+            entries.sort((a, b) => b[1].percentage - a[1].percentage);
+
+            // Filter out 0% missing items if showAllStats is false, or slice to first 5 items
+            let visibleEntries = entries;
+            let showMoreBox = false;
+
+            if (!showAllStats) {
+                visibleEntries = entries.slice(0, 5);
+                showMoreBox = true;
+            }
+
+            let html = "";
+            visibleEntries.forEach(([col, info]) => {
+                const pct = info.percentage;
+                const count = info.count;
+                const label = formatFieldName(col);
+                
+                // Color card according to completeness level - all styled in red theme matching user request
+                let badgeClass = "bg-danger-subtle text-danger border-danger-subtle";
+                const activeClass = window.selectedMissingField === col ? "border border-danger border-3 bg-white text-danger shadow" : "border-1";
+                
+                html += `
+                    <div class="col-6 col-sm-4 col-md-3 col-lg-2">
+                        <div class="card h-100 ${badgeClass} ${activeClass} text-center p-3 d-flex flex-column justify-content-center align-items-center"
+                             onclick="filterByMissingField('${col}')" style="cursor: pointer; min-height: 95px; transition: transform 0.2s;">
+                            <span class="small fw-bold text-truncate w-100 mb-1" style="font-size: 0.8rem;">${label}</span>
+                            <span class="fs-6 fw-bold" style="font-size: 1rem;">${pct}% missing</span>
+                            <span class="text-muted small" style="font-size: 0.72rem;">(${count} rows)</span>
+                        </div>
+                    </div>
+                `;
+            });
+
+            if (showMoreBox && entries.length > 5) {
+                // 6th box is "Show More" card
+                html += `
+                    <div class="col-6 col-sm-4 col-md-3 col-lg-2">
+                        <div class="card h-100 bg-danger-subtle text-danger border border-danger text-center p-3 d-flex flex-column justify-content-center align-items-center"
+                             onclick="toggleStatsExpansion(true)" style="cursor: pointer; min-height: 95px; font-weight: bold; background-color: #fee2e2 !important;">
+                            <i class="bi bi-plus-circle-fill fs-4 mb-1"></i>
+                            <span style="font-size: 0.9rem;">Show More</span>
+                            <span class="text-muted small" style="font-size: 0.7rem;">(${entries.length - 5} columns)</span>
+                        </div>
+                    </div>
+                `;
+            } else if (showAllStats && entries.length > 5) {
+                // Inline "Show Less" box at the end when expanded
+                html += `
+                    <div class="col-6 col-sm-4 col-md-3 col-lg-2">
+                        <div class="card h-100 bg-danger-subtle text-danger border border-danger text-center p-3 d-flex flex-column justify-content-center align-items-center"
+                             onclick="toggleStatsExpansion(false)" style="cursor: pointer; min-height: 95px; font-weight: bold; background-color: #fee2e2 !important;">
+                            <i class="bi bi-dash-circle-fill fs-4 mb-1"></i>
+                            <span style="font-size: 0.9rem;">Show Less</span>
+                            <span class="text-muted small" style="font-size: 0.7rem;">(Collapse grid)</span>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            missingStatsContainer.innerHTML = html;
+        }
+
+        window.filterByMissingField = function(col) {
+            window.selectedMissingField = col;
+            if (clearMissingFilterBtn) {
+                clearMissingFilterBtn.style.display = "inline-block";
+            }
+            fetchRecords(1);
+        };
+
+        if (clearMissingFilterBtn) {
+            clearMissingFilterBtn.addEventListener("click", function() {
+                window.selectedMissingField = "";
+                this.style.display = "none";
+                fetchRecords(1);
+            });
+        }
+
+        window.toggleStatsExpansion = function(expand) {
+            showAllStats = expand;
+            if (lastStats) {
+                renderMissingStats(lastStats);
+            }
+        };
+
+        // Load initial records list
+        if (recordsTableBody) {
+            fetchRecords(1);
+        }
+    });
+  </script>
 </body>
 
 </html>

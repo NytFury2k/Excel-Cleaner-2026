@@ -11,6 +11,7 @@ import secrets
 from rbac import has_permission, ROLE_PERMISSIONS
 from functools import wraps
 from datetime import datetime, timedelta
+import json
 
 from collections import Counter
 import time
@@ -747,6 +748,9 @@ def dashboard():
     else:
         last_upload = "No recent uploads"
 
+    cursor.execute("SELECT id, field_name FROM field_registry WHERE is_active = 1")
+    custom_fields = cursor.fetchall()
+
     conn.close()
 
     total_pages = (total_logs + per_page -1 )//per_page # ceiling division
@@ -785,7 +789,8 @@ def dashboard():
                            total_rows=total_rows,
                            active_users=active_users,
                            uploads_today=uploads_today,
-                           last_upload=last_upload
+                           last_upload=last_upload,
+                           custom_fields=custom_fields
                            )
 
 
@@ -833,6 +838,41 @@ def upload():
             session["uploaded_file"] = safe_filename
             session.pop("selected_rules", None)  # Clear old rules
            
+            # Create a row in uploaded_files and start ingestion pipeline
+            try:
+                conn_upload = get_db_connection()
+                cursor_upload = conn_upload.cursor()
+                cursor_upload.execute(
+                    "INSERT INTO uploaded_files (user_id, filename, original_filename, total_rows, status, uploaded_at) VALUES (%s, %s, %s, %s, %s, %s)",
+                    (session["user_id"], temp_path, safe_filename, len(df), 'processing', datetime.utcnow())
+                )
+                file_id = cursor_upload.lastrowid
+                conn_upload.commit()
+                conn_upload.close()
+
+                # Get user name
+                conn_user = get_db_connection()
+                cursor_user = conn_user.cursor(dictionary=True)
+                cursor_user.execute("SELECT username FROM users WHERE id = %s", (session["user_id"],))
+                u_row = cursor_user.fetchone()
+                username = u_row["username"] if u_row else "unknown"
+                conn_user.close()
+
+                import threading
+                from helpers import ingest_uploaded_file
+                
+                def run_background_ingestion(fid, fpath, uname):
+                    try:
+                        ingest_uploaded_file(fid, fpath, uname)
+                    except Exception:
+                        pass
+
+                t = threading.Thread(target=run_background_ingestion, args=(file_id, temp_path, username))
+                t.daemon = True
+                t.start()
+            except Exception as e:
+                app.logger.error(f"Failed to kick off background ingestion: {e}")
+
             log_action(session["user_id"], f"Uploaded file {session['uploaded_file']} ({len(df)} rows)")
             return redirect(url_for("choose_rules"))
         else:
@@ -2100,6 +2140,479 @@ def test_mail():
         return "Email sent sucessfully"
     except Exception as e:
         return f"Failed: {e}"
+
+# ── REST API Endpoints for Hybrid Database ─────────────────────────────────────
+
+@app.route('/api/records', methods=['GET'])
+@login_required()
+def get_records():
+    try:
+        page = int(request.args.get('page', 1))
+        per_page = int(request.args.get('per_page', 25))
+    except ValueError:
+        page = 1
+        per_page = 25
+        
+    offset = (page - 1) * per_page
+    
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    
+    # Dynamically resolve columns of master_records
+    cursor.execute("DESCRIBE master_records")
+    cols = [row['Field'] for row in cursor.fetchall()]
+    
+    query_parts = ["1=1"]
+    params = []
+    
+    # Support basic mappings
+    search_mappings = {
+        'name': 'full_name',
+        'email': 'email_address',
+        'phone': 'primary_phone_number',
+        'company': 'company_name',
+        'city': 'city'
+    }
+    for arg_name, col_name in search_mappings.items():
+        val = request.args.get(arg_name, '').strip()
+        if val and col_name in cols:
+            query_parts.append(f"`{col_name}` LIKE %s")
+            params.append(f"%{val}%")
+            
+    # Support dynamic search on other master columns
+    for c in cols:
+        if c in ('id', 'file_id', 'custom_fields', 'created_at', 'updated_at', 'imported_by') or c in search_mappings.values():
+            continue
+        val = request.args.get(c, '').strip()
+        if val:
+            query_parts.append(f"`{c}` LIKE %s")
+            params.append(f"%{val}%")
+            
+    # Support dynamic search on custom JSON field values
+    custom_field_id = request.args.get('custom_field_id', '').strip()
+    custom_field_value = request.args.get('custom_field_value', '').strip()
+    if custom_field_id and custom_field_value:
+        query_parts.append("JSON_UNQUOTE(JSON_EXTRACT(custom_fields, %s)) LIKE %s")
+        params.append(f"$.\"{custom_field_id}\"")
+        params.append(f"%{custom_field_value}%")
+        
+    # Support missing_field filter
+    missing_field = request.args.get('missing_field', '').strip()
+    if missing_field and missing_field in cols:
+        query_parts.append(f"({missing_field} IS NULL OR {missing_field} = '')")
+
+    where_clause = " AND ".join(query_parts)
+    
+    # Query total matching records
+    count_query = f"SELECT COUNT(*) as total FROM master_records WHERE {where_clause}"
+    cursor.execute(count_query, params)
+    total_row = cursor.fetchone()
+    total = total_row['total'] if total_row else 0
+    
+    # Query paginated rows
+    select_query = f"SELECT {', '.join([f'`{c}`' for c in cols])} FROM master_records WHERE {where_clause} ORDER BY id DESC LIMIT %s OFFSET %s"
+    cursor.execute(select_query, params + [per_page, offset])
+    items = cursor.fetchall()
+    
+    # Serialize records list
+    records_list = []
+    for item in items:
+        cfields = item['custom_fields']
+        if isinstance(cfields, str):
+            try:
+                cfields = json.loads(cfields)
+            except Exception:
+                cfields = {}
+        elif not cfields:
+            cfields = {}
+            
+        record_data = {}
+        for c in cols:
+            val = item[c]
+            if c == 'custom_fields':
+                record_data[c] = cfields
+            elif isinstance(val, datetime):
+                record_data[c] = val.isoformat()
+            else:
+                record_data[c] = val
+                
+        # Compatibility mapping properties for UI rendering
+        record_data["name"] = item.get("full_name") or "--"
+        record_data["email"] = item.get("email_address") or "--"
+        record_data["phone"] = item.get("primary_phone_number") or "--"
+        record_data["company"] = item.get("company_name") or "--"
+        record_data["state"] = item.get("state_province") or "--"
+        
+        records_list.append(record_data)
+        
+    pages = (total + per_page - 1) // per_page
+    
+    # Calculate missing stats over matching records dynamically
+    missing_stats = {}
+    if total > 0:
+        missing_cols = [c for c in cols if c not in ('id', 'file_id', 'custom_fields', 'created_at', 'updated_at', 'imported_by')]
+        cases = ", ".join([f"COUNT(CASE WHEN `{col}` IS NULL OR `{col}` = '' THEN 1 END) AS `{col}`" for col in missing_cols])
+        stats_query = f"SELECT {cases} FROM master_records WHERE {where_clause}"
+        
+        cursor.execute(stats_query, params)
+        stats_row = cursor.fetchone()
+        if stats_row:
+            for col in missing_cols:
+                missing_count = stats_row[col] or 0
+                pct = round((missing_count / total) * 100, 1)
+                missing_stats[col] = {
+                    "count": missing_count,
+                    "percentage": pct
+                }
+
+    conn.close()
+    
+    return jsonify({
+        "records": records_list,
+        "total": total,
+        "page": page,
+        "pages": pages,
+        "per_page": per_page,
+        "missing_stats": missing_stats
+    })
+
+@app.route('/api/custom-fields', methods=['GET'])
+@login_required()
+def get_custom_fields():
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT id, field_name, normalized_name, data_type, is_active, searchable, filterable FROM field_registry WHERE is_active = 1")
+    fields = cursor.fetchall()
+    conn.close()
+    return jsonify(fields)
+
+@app.route('/api/records/<int:record_id>/custom', methods=['GET'])
+@login_required()
+def get_record_custom_fields(record_id):
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT * FROM master_records WHERE id = %s", (record_id,))
+    row = cursor.fetchone()
+    
+    if not row:
+        conn.close()
+        return jsonify({"error": "Record not found"}), 404
+        
+    cfields = row['custom_fields']
+    if isinstance(cfields, str):
+        try:
+            cfields = json.loads(cfields)
+        except Exception:
+            cfields = {}
+    elif not cfields:
+        cfields = {}
+        
+    resolved_data = {}
+    
+    # 1. Resolve JSON custom fields
+    for key_id_str, val in cfields.items():
+        try:
+            cursor.execute("SELECT field_name FROM field_registry WHERE id = %s", (int(key_id_str),))
+            f_row = cursor.fetchone()
+            if f_row:
+                resolved_data[f_row['field_name']] = val
+            else:
+                resolved_data[f"Unregistered Field #{key_id_str}"] = val
+        except (ValueError, TypeError):
+            resolved_data[key_id_str] = val
+            
+    # 2. Add other populated columns that aren't metadata or main table columns
+    for col, val in row.items():
+        if col in ('id', 'file_id', 'custom_fields', 'created_at', 'updated_at', 'imported_by',
+                   'full_name', 'email_address', 'primary_phone_number', 'company_name', 'city', 'state_province'):
+            continue
+        if val is not None and str(val).strip() != '':
+            label = " ".join([w.capitalize() for w in col.split("_")])
+            resolved_data[label] = val
+            
+    conn.close()
+    return jsonify(resolved_data)
+
+# ── Registry, Aliases, and Ingestion Routes ───────────────────────────────────
+
+@app.route('/registry')
+@login_required()
+def registry():
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT id, field_name, normalized_name, data_type, is_active, searchable, usage_count, created_at FROM field_registry ORDER BY id ASC")
+    fields = cursor.fetchall()
+    
+    # Calculate usage count dynamically from master_records JSON
+    for f in fields:
+        field_id = f['id']
+        cursor.execute("SELECT COUNT(*) as count FROM master_records WHERE JSON_EXTRACT(custom_fields, %s) IS NOT NULL", (f'$."{field_id}"',))
+        cnt_row = cursor.fetchone()
+        f['usage_count'] = cnt_row['count'] if cnt_row else 0
+        
+        if f['created_at'] and isinstance(f['created_at'], datetime):
+            f['created_at'] = f['created_at'].strftime('%Y-%m-%d %H:%M')
+            
+    conn.close()
+    return render_template('registry.html', fields=fields)
+
+@app.route('/aliases')
+@login_required()
+def aliases_view():
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT id, alias, target_type, target_identifier FROM field_aliases ORDER BY id ASC")
+    aliases = cursor.fetchall()
+    
+    cursor.execute("SELECT id, field_name FROM field_registry WHERE is_active = 1")
+    custom_fields = cursor.fetchall()
+    
+    conn.close()
+    return render_template('aliases.html', aliases=aliases, custom_fields=custom_fields)
+
+@app.route('/history')
+@login_required()
+def history_view():
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT id, user_id, filename, original_filename, uploaded_at, total_rows, status FROM uploaded_files ORDER BY id DESC")
+    uploads = cursor.fetchall()
+    
+    for u in uploads:
+        if u['uploaded_at'] and isinstance(u['uploaded_at'], datetime):
+            u['uploaded_at'] = u['uploaded_at'].strftime('%Y-%m-%d %H:%M:%S')
+            
+    conn.close()
+    return render_template('history.html', uploads=uploads)
+
+@app.route('/api/browser/upload', methods=['POST'])
+@login_required()
+def api_upload_file():
+    if 'file' not in request.files:
+        return jsonify({"error": "No file part in request"}), 400
+        
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({"error": "No file selected for upload"}), 400
+        
+    ext = os.path.splitext(file.filename)[1].lower()
+    if ext not in ('.xlsx', '.xls', '.csv'):
+        return jsonify({"error": "Only Excel files (.xlsx, .xls) and CSV (.csv) are allowed"}), 400
+        
+    try:
+        # Save file securely with UUID to prevent overlaps
+        safe_filename = os.path.basename(file.filename)
+        unique_filename = f"{uuid.uuid4().hex}_{safe_filename}"
+        
+        # Ensure upload folder exists
+        upload_folder = "Generated_Files/Uploaded"
+        os.makedirs(upload_folder, exist_ok=True)
+        
+        file_path = os.path.join(upload_folder, unique_filename)
+        file.save(file_path)
+        
+        # Log database row for upload history
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        
+        # Check size or length (quick load to check length)
+        try:
+            if ext == '.csv':
+                df = pd.read_csv(file_path)
+            else:
+                df = pd.read_excel(file_path)
+            row_count = len(df)
+        except Exception:
+            row_count = 0
+            
+        cursor.execute(
+            "INSERT INTO uploaded_files (user_id, filename, original_filename, total_rows, status, uploaded_at) VALUES (%s, %s, %s, %s, %s, %s)",
+            (session['user_id'], unique_filename, safe_filename, row_count, 'processing', datetime.utcnow())
+        )
+        file_id = cursor.lastrowid
+        conn.commit()
+        
+        # Get username
+        cursor.execute("SELECT username FROM users WHERE id = %s", (session["user_id"],))
+        u_row = cursor.fetchone()
+        username = u_row["username"] if u_row else "unknown"
+        conn.close()
+        
+        # Execute parsing pipeline in a background thread to prevent gateway timeout
+        import threading
+        from helpers import ingest_uploaded_file
+        
+        def process_upload():
+            try:
+                ingest_uploaded_file(file_id, file_path, username)
+            except Exception:
+                pass
+                
+        thread = threading.Thread(target=process_upload)
+        thread.daemon = True
+        thread.start()
+        
+        return jsonify({
+            "message": "Upload successful! Ingestion pipeline started.",
+            "file": {
+                "id": file_id,
+                "user_id": session['user_id'],
+                "filename": unique_filename,
+                "original_filename": safe_filename,
+                "total_rows": row_count,
+                "status": "processing"
+            }
+        }), 202
+        
+    except Exception as e:
+        return jsonify({"error": f"Failed to upload file: {str(e)}"}), 500
+
+@app.route('/api/aliases', methods=['POST'])
+@login_required()
+def api_create_alias():
+    alias = request.form.get('alias', '').strip()
+    target_type = request.form.get('target_type', '').strip()
+    target_identifier = request.form.get('target_identifier', '').strip()
+    
+    if not alias:
+        return jsonify({"error": "Alias string cannot be empty"}), 400
+    if target_type not in ('master', 'custom'):
+        return jsonify({"error": "Target type must be 'master' or 'custom'"}), 400
+    if not target_identifier:
+        return jsonify({"error": "Target identifier cannot be empty"}), 400
+        
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        
+        # Check if alias already exists
+        cursor.execute("SELECT id FROM field_aliases WHERE alias = %s", (alias,))
+        if cursor.fetchone():
+            conn.close()
+            return jsonify({"error": f"Alias '{alias}' is already mapped."}), 400
+            
+        norm_alias = alias.strip().lower().replace(" ", "_")
+        cursor.execute(
+            "INSERT INTO field_aliases (alias, normalized_alias, target_type, target_identifier) VALUES (%s, %s, %s, %s)",
+            (alias, norm_alias, target_type, target_identifier)
+        )
+        conn.commit()
+        conn.close()
+        
+        return jsonify({"message": "Alias mapped successfully!"}), 201
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/aliases/<int:alias_id>/delete', methods=['POST'])
+@login_required()
+def api_delete_alias(alias_id):
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM field_aliases WHERE id = %s", (alias_id,))
+        conn.commit()
+        conn.close()
+        return jsonify({"message": "Alias mapping deleted"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/fields/<int:field_id>/status', methods=['POST'])
+@login_required()
+def api_update_field_status(field_id):
+    data = request.json or {}
+    
+    is_active = data.get('is_active')
+    searchable = data.get('searchable')
+    filterable = data.get('filterable')
+    
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    try:
+        if is_active is not None:
+            cursor.execute("UPDATE field_registry SET is_active = %s WHERE id = %s", (1 if is_active else 0, field_id))
+        if searchable is not None:
+            cursor.execute("UPDATE field_registry SET searchable = %s WHERE id = %s", (1 if searchable else 0, field_id))
+        if filterable is not None:
+            cursor.execute("UPDATE field_registry SET filterable = %s WHERE id = %s", (1 if filterable else 0, field_id))
+            
+        conn.commit()
+        conn.close()
+        return jsonify({"message": "Field status updated successfully"}), 200
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/fields/<int:field_id>/convert-to-master', methods=['POST'])
+@login_required()
+def api_convert_to_master(field_id):
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        
+        # 1. Fetch registry field info
+        cursor.execute("SELECT field_name, normalized_name FROM field_registry WHERE id = %s", (field_id,))
+        field = cursor.fetchone()
+        if not field:
+            conn.close()
+            return jsonify({"error": "Registry field not found"}), 404
+            
+        c_name = field['normalized_name']
+        f_name = field['field_name']
+        
+        # 2. Add column to master_records table
+        try:
+            cursor.execute(f"ALTER TABLE master_records ADD COLUMN `{c_name}` VARCHAR(255) NULL")
+            conn.commit()
+        except Exception as alter_err:
+            # Column might already exist, log warning and proceed
+            app.logger.warning(f"ALTER TABLE column warning: {alter_err}")
+            
+        # 3. Migrate data from custom_fields JSON to the new column
+        json_path = f'$."{field_id}"'
+        
+        # Select all records having this custom field
+        cursor.execute("SELECT id, custom_fields FROM master_records WHERE JSON_EXTRACT(custom_fields, %s) IS NOT NULL", (json_path,))
+        records = cursor.fetchall()
+        
+        for r in records:
+            cfields = r['custom_fields']
+            if isinstance(cfields, str):
+                try:
+                    cfields = json.loads(cfields)
+                except Exception:
+                    cfields = {}
+            elif not cfields:
+                cfields = {}
+                
+            val = cfields.pop(str(field_id), None)
+            new_json = json.dumps(cfields) if cfields else None
+            
+            cursor.execute(
+                f"UPDATE master_records SET `{c_name}` = %s, custom_fields = %s WHERE id = %s",
+                (val, new_json, r['id'])
+            )
+            
+        # 4. Update field_aliases target
+        cursor.execute(
+            "UPDATE field_aliases SET target_type = 'master', target_identifier = %s WHERE target_type = 'custom' AND target_identifier = %s",
+            (c_name, str(field_id))
+        )
+        
+        # 5. Delete from field_registry
+        cursor.execute("DELETE FROM field_registry WHERE id = %s", (field_id,))
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({"message": f"Successfully converted '{f_name}' custom field to a Master Column!"}), 200
+        
+    except Exception as e:
+        if 'conn' in locals() and conn:
+            conn.rollback()
+            conn.close()
+        return jsonify({"error": f"Migration failed: {str(e)}"}), 500
 
 if __name__ == "__main__":
     app.run(debug=True)

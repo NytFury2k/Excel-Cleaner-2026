@@ -499,8 +499,23 @@
       <span class="sidebar-text">Upload File</span>
     </a>
 
-    <a href="{{ url_for('admin_logs') }}" class="sidebar-link">
+    <a href="{{ url_for('registry') }}" class="sidebar-link">
+      <i class="bi bi-tags"></i>
+      <span class="sidebar-text">Field Registry</span>
+    </a>
+
+    <a href="{{ url_for('aliases_view') }}" class="sidebar-link">
+      <i class="bi bi-link-45deg"></i>
+      <span class="sidebar-text">Alias Manager</span>
+    </a>
+
+    <a href="{{ url_for('history_view') }}" class="sidebar-link">
       <i class="bi bi-clock-history"></i>
+      <span class="sidebar-text">Import History</span>
+    </a>
+
+    <a href="{{ url_for('admin_logs') }}" class="sidebar-link">
+      <i class="bi bi-file-earmark-text"></i>
       <span class="sidebar-text">Activity Logs</span>
     </a>
 

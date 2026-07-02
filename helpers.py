@@ -676,3 +676,188 @@ def log_search(user_id, username, search_term):
     finally:
         if conn is not None:
             conn.close()
+
+# ── Hybrid Database Ingestion ──────────────────────────────────────────────────
+
+MASTER_COLUMNS = {
+    'full_name', 'email_address', 'primary_phone_number', 'alternate_phone_number',
+    'company_name', 'job_title', 'department', 'website_url', 'address_line_1', 'address_line_2',
+    'city', 'state_province', 'postal_zip_code', 'country', 'linkedin_profile_url', 'industry',
+    'lead_source', 'record_status', 'date_of_birth', 'gender', 'company_size', 'annual_revenue',
+    'imported_by'
+}
+
+def normalize_header(header_name):
+    name = str(header_name).strip().lower()
+    name = re.sub(r'[^a-z0-9\s_\-]', '', name)
+    name = re.sub(r'[\s_\-]+', '_', name)
+    return name.strip('_')
+
+def ingest_uploaded_file(file_id, file_path, username):
+    import pandas as pd
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    
+    try:
+        # Read file headers
+        if file_path.endswith('.csv'):
+            try:
+                df = pd.read_csv(file_path)
+            except Exception:
+                df = pd.read_csv(file_path, sep=None, engine='python')
+        else:
+            df = pd.read_excel(file_path)
+            
+        headers = df.columns.tolist()
+        if not headers:
+            return
+            
+        # 1. Fetch existing aliases & registry fields
+        cursor.execute("SELECT alias, target_type, target_identifier FROM field_aliases")
+        aliases = {row['alias'].strip().lower().replace(" ", "_"): row for row in cursor.fetchall()}
+        
+        cursor.execute("SELECT id, normalized_name FROM field_registry")
+        registry = {row['normalized_name']: row['id'] for row in cursor.fetchall()}
+        
+        header_mapping = {}
+        for header in headers:
+            norm = normalize_header(header)
+            if not norm:
+                continue
+                
+            # Check 1: Direct Master Column match
+            if norm in MASTER_COLUMNS:
+                header_mapping[header] = {'type': 'master', 'target': norm}
+                continue
+                
+            # Check 2: Match aliases
+            if norm in aliases:
+                alias = aliases[norm]
+                header_mapping[header] = {
+                    'type': alias['target_type'],
+                    'target': alias['target_identifier']
+                }
+                if alias['target_type'] == 'custom':
+                    cursor.execute(
+                        "UPDATE field_registry SET usage_count = usage_count + 1 WHERE id = %s",
+                        (int(alias['target_identifier']),)
+                    )
+                continue
+                
+            # Check 3: Check Registry
+            if norm in registry:
+                reg_id = registry[norm]
+                header_mapping[header] = {'type': 'custom', 'target': str(reg_id)}
+                cursor.execute(
+                    "UPDATE field_registry SET usage_count = usage_count + 1 WHERE id = %s",
+                    (reg_id,)
+                )
+                continue
+                
+            # Check 4: Create new registry field
+            cursor.execute(
+                "INSERT INTO field_registry (field_name, normalized_name, data_type, usage_count) VALUES (%s, %s, %s, %s)",
+                (header, norm, 'VARCHAR', 1)
+            )
+            new_id = cursor.lastrowid
+            registry[norm] = new_id
+            header_mapping[header] = {'type': 'custom', 'target': str(new_id)}
+            
+        conn.commit()
+        
+        # 2. Ingest Rows
+        records_to_insert = []
+        for _, row in df.iterrows():
+            record_dict = {
+                'file_id': file_id,
+                'full_name': None,
+                'email_address': None,
+                'primary_phone_number': None,
+                'alternate_phone_number': None,
+                'company_name': None,
+                'job_title': None,
+                'department': None,
+                'website_url': None,
+                'address_line_1': None,
+                'address_line_2': None,
+                'city': None,
+                'state_province': None,
+                'postal_zip_code': None,
+                'country': None,
+                'linkedin_profile_url': None,
+                'industry': None,
+                'lead_source': None,
+                'record_status': None,
+                'date_of_birth': None,
+                'gender': None,
+                'company_size': None,
+                'annual_revenue': None,
+                'imported_by': username,
+                'custom_fields': {}
+            }
+            
+            for header, val in row.items():
+                if header not in header_mapping:
+                    continue
+                    
+                if pd.isnull(val) or str(val).strip().lower() in ('nan', 'nat', 'null'):
+                    cleaned_val = None
+                else:
+                    cleaned_val = val
+                    
+                if cleaned_val is None:
+                    continue
+                    
+                mapping = header_mapping[header]
+                if mapping['type'] == 'master':
+                    record_dict[mapping['target']] = str(cleaned_val)
+                else:
+                    record_dict['custom_fields'][mapping['target']] = str(cleaned_val)
+                    
+            if record_dict['custom_fields']:
+                record_dict['custom_fields'] = json.dumps(record_dict['custom_fields'])
+            else:
+                record_dict['custom_fields'] = None
+                
+            records_to_insert.append(record_dict)
+            
+        # Bulk insert records
+        if records_to_insert:
+            columns_list = [
+                'file_id', 'full_name', 'email_address', 'primary_phone_number', 'alternate_phone_number',
+                'company_name', 'job_title', 'department', 'website_url', 'address_line_1', 'address_line_2',
+                'city', 'state_province', 'postal_zip_code', 'country', 'linkedin_profile_url', 'industry',
+                'lead_source', 'record_status', 'date_of_birth', 'gender', 'company_size', 'annual_revenue',
+                'imported_by', 'custom_fields'
+            ]
+            insert_query = f"""
+                INSERT INTO master_records ({', '.join(columns_list)})
+                VALUES ({', '.join(['%s'] * len(columns_list))})
+            """
+            
+            insert_data = [
+                tuple(r[col] for col in columns_list)
+                for r in records_to_insert
+            ]
+            
+            cursor.executemany(insert_query, insert_data)
+            
+            # Update file status and row count
+            cursor.execute(
+                "UPDATE uploaded_files SET total_rows = %s, status = 'completed' WHERE id = %s",
+                (len(records_to_insert), file_id)
+            )
+            conn.commit()
+            
+    except Exception as e:
+        conn.rollback()
+        try:
+            cursor.execute("UPDATE uploaded_files SET status = 'failed' WHERE id = %s", (file_id,))
+            conn.commit()
+        except Exception:
+            pass
+        _logger.exception("Error ingesting file ID %s:", file_id)
+        raise e
+    finally:
+        cursor.close()
+        conn.close()
