@@ -796,6 +796,69 @@ def dashboard():
 
 #Data cleaning
 
+@app.route('/api/clean-existing-data', methods=['GET'])
+@login_required()
+def api_clean_existing_data():
+    if "user_id" not in session or session.get("role") not in ROLE_PERMISSIONS:
+        return redirect(url_for("login"))
+        
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        
+        # Get physical columns dynamically
+        cursor.execute("DESCRIBE master_records")
+        cols = [row['Field'] for row in cursor.fetchall() if row['Field'] not in ('id', 'file_id', 'created_at', 'updated_at')]
+        
+        # Fetch rows
+        cursor.execute("SELECT * FROM master_records")
+        rows = cursor.fetchall()
+        
+        if not rows:
+            flash("No existing database records found to clean.", "warning")
+            return redirect(url_for("upload"))
+            
+        cursor.execute("SELECT id, field_name FROM field_registry WHERE is_active = 1")
+        custom_registry = {str(r['id']): r['field_name'] for r in cursor.fetchall()}
+        
+        flat_rows = []
+        for r in rows:
+            flat_r = {}
+            for col in cols:
+                if col == 'custom_fields':
+                    continue
+                # Map to human-readable names for master fields so automapping works
+                master_pretty = col.replace('_', ' ').title()
+                flat_r[master_pretty] = r[col]
+            if r['custom_fields']:
+                try:
+                    cf_dict = json.loads(r['custom_fields']) if isinstance(r['custom_fields'], str) else r['custom_fields']
+                    for fid, val in cf_dict.items():
+                        header_name = custom_registry.get(str(fid), f"Custom Field {fid}")
+                        flat_r[header_name] = val
+                except Exception:
+                    pass
+            flat_rows.append(flat_r)
+            
+        df = pd.DataFrame(flat_rows)
+        
+        # Save temp file as CSV for high speed (Excel export is very slow for large datasets)
+        unique_filename = f"existing_db_{uuid.uuid4().hex}.csv"
+        upload_folder = "Generated_Files/Uploaded"
+        os.makedirs(upload_folder, exist_ok=True)
+        file_path = os.path.join(upload_folder, unique_filename)
+        df.to_csv(file_path, index=False)
+        
+        session["temp_file"] = file_path
+        session["uploaded_file"] = "Existing Database Records"
+        
+        conn.close()
+        return redirect(url_for("choose_rules"))
+        
+    except Exception as e:
+        flash(f"Failed to load existing database data: {str(e)}", "danger")
+        return redirect(url_for("upload"))
+
 #Step 1: Upload & Show Columns
 @app.route("/upload", methods=["GET", "POST"])
 @login_required()
@@ -890,7 +953,6 @@ def choose_rules():
     if "user_id" not in session or session.get("role") not in ROLE_PERMISSIONS:
         return redirect(url_for("login"))
    
-
     temp_path = session.get("temp_file")
     selected_rules = session.get("selected_rules", [])
 
@@ -931,6 +993,34 @@ def choose_rules():
 
     identifier_columns = detect_identifier_columns(df)
     presets = []
+    custom_fields_registry = []
+    suggestions = {}
+    
+    master_fields = [
+        {"name": "Full Name", "identifier": "full_name", "type": "text"},
+        {"name": "Email Address", "identifier": "email_address", "type": "email"},
+        {"name": "Primary Phone Number", "identifier": "primary_phone_number", "type": "phone"},
+        {"name": "Alternate Phone Number", "identifier": "alternate_phone_number", "type": "phone"},
+        {"name": "Company Name", "identifier": "company_name", "type": "text"},
+        {"name": "Job Title", "identifier": "job_title", "type": "text"},
+        {"name": "Department", "identifier": "department", "type": "text"},
+        {"name": "Website URL", "identifier": "website_url", "type": "url"},
+        {"name": "Address Line 1", "identifier": "address_line_1", "type": "text"},
+        {"name": "Address Line 2", "identifier": "address_line_2", "type": "text"},
+        {"name": "City", "identifier": "city", "type": "text"},
+        {"name": "State / Province", "identifier": "state_province", "type": "text"},
+        {"name": "Postal / ZIP Code", "identifier": "postal_zip_code", "type": "text"},
+        {"name": "Country", "identifier": "country", "type": "text"},
+        {"name": "LinkedIn Profile URL", "identifier": "linkedin_profile_url", "type": "url"},
+        {"name": "Industry", "identifier": "industry", "type": "text"},
+        {"name": "Lead Source", "identifier": "lead_source", "type": "text"},
+        {"name": "Record Status", "identifier": "record_status", "type": "text"},
+        {"name": "Date of Birth", "identifier": "date_of_birth", "type": "date"},
+        {"name": "Gender", "identifier": "gender", "type": "text"},
+        {"name": "Company Size", "identifier": "company_size", "type": "text"},
+        {"name": "Annual Revenue", "identifier": "annual_revenue", "type": "numeric"}
+    ]
+
     conn = None
     try:
         conn = get_db_connection()
@@ -940,6 +1030,14 @@ def choose_rules():
             (session["user_id"],)
         )
         presets = cursor.fetchall()
+        
+        # Load active custom fields
+        cursor.execute("SELECT id, field_name FROM field_registry WHERE is_active = 1")
+        custom_fields_registry = cursor.fetchall()
+        
+        # Compute column mappings suggestions
+        suggestions = suggest_column_mapping(columns, cursor)
+        
     except Exception:
         app.logger.warning(
             "Unable to load rule presets for user %s; continuing without presets.",
@@ -961,7 +1059,10 @@ def choose_rules():
                          RULES_REGISTRY=RULES_REGISTRY,
                          presets=presets,
                          column_type_map=column_type_map,
-                         identifier_columns=identifier_columns)
+                         identifier_columns=identifier_columns,
+                         master_fields=master_fields,
+                         custom_fields_registry=custom_fields_registry,
+                         suggestions=suggestions)
 
 import os
 import glob
@@ -1002,24 +1103,61 @@ def clean_data():
             type_overrides[column] = override
     session["type_overrides"] = type_overrides
 
-    #STEP 1: Store selected rules in session
+    # Read custom rules by field id
+    custom_rules_by_field_id = {}
+    for x in range(100):
+        target_cf = request.form.get(f"custom_field_target_{x}")
+        if target_cf:
+            rules = request.form.getlist(f"rules_custom_{x}[]")
+            strategy = request.form.get(f"strategy_custom_{x}", "flag")
+            custom_rules_by_field_id[target_cf] = {"rules": rules, "strategy": strategy}
+
+    # STEP 1: Store selected rules in session mapping file columns to rule selections
     selected_rules = []
+    master_rules_saved = {}
+    
+    master_fields_ids = [
+        "full_name", "email_address", "primary_phone_number", "alternate_phone_number",
+        "company_name", "job_title", "department", "website_url", "address_line_1",
+        "address_line_2", "city", "state_province", "postal_zip_code", "country",
+        "linkedin_profile_url", "industry", "lead_source", "record_status", "date_of_birth",
+        "gender", "company_size", "annual_revenue"
+    ]
+    for col_name in master_fields_ids:
+        rules_list = request.form.getlist(f"rules_master_{col_name}[]")
+        strategy = request.form.get(f"strategy_master_{col_name}", "flag")
+        if rules_list:
+            master_rules_saved[col_name] = {"rules": rules_list, "strategy": strategy}
 
     for column in df.columns:
-        safe_col = column.replace(" ","_")
-        rules = request.form.getlist(f"rules_{safe_col}[]")
-
-        for rule_name in rules:
+        safe_col = column.replace(" ", "_")
+        target = request.form.get(f"map_col_{safe_col}")
+        
+        if not target or target == 'ignore':
+            continue
+            
+        rules_list = []
+        strategy = "flag"
+        
+        if target.startswith("master:"):
+            col_name = target.split("master:")[1]
+            rules_list = master_rules_saved.get(col_name, {}).get("rules", [])
+            strategy = master_rules_saved.get(col_name, {}).get("strategy", "flag")
+        elif target.startswith("custom:"):
+            fid = target.split("custom:")[1]
+            rules_list = custom_rules_by_field_id.get(fid, {}).get("rules", [])
+            strategy = custom_rules_by_field_id.get(fid, {}).get("strategy", "flag")
+            
+        for rule_name in rules_list:
             rule_name = rule_name.strip()
             if rule_name == "handle_missing":
-                strategy = request.form.get(f"strategy_{column.replace(' ','_')}","flag")
                 selected_rules.append((rule_name, column, strategy))
             else:
                 selected_rules.append((rule_name, column))
-
-    # print("PARSED SELECTED RULES: ", selected_rules)    #debug statement
-        
+                
     session["selected_rules"] = selected_rules
+    session["master_rules_saved"] = master_rules_saved
+    session["custom_rules_saved"] = custom_rules_by_field_id
 
 
     #STEP 2: Build Engine Rule List
@@ -2188,13 +2326,19 @@ def get_records():
             query_parts.append(f"`{c}` LIKE %s")
             params.append(f"%{val}%")
             
-    # Support dynamic search on custom JSON field values
-    custom_field_id = request.args.get('custom_field_id', '').strip()
-    custom_field_value = request.args.get('custom_field_value', '').strip()
-    if custom_field_id and custom_field_value:
-        query_parts.append("JSON_UNQUOTE(JSON_EXTRACT(custom_fields, %s)) LIKE %s")
-        params.append(f"$.\"{custom_field_id}\"")
-        params.append(f"%{custom_field_value}%")
+    # Support dynamic search on multiple custom JSON field values
+    custom_filters_str = request.args.get('custom_filters', '[]')
+    try:
+        custom_filters = json.loads(custom_filters_str)
+        for f in custom_filters:
+            fid = str(f.get('id', '')).strip()
+            fval = str(f.get('val', '')).strip()
+            if fid and fval:
+                query_parts.append("JSON_UNQUOTE(JSON_EXTRACT(custom_fields, %s)) LIKE %s")
+                params.append(f"$.\"{fid}\"")
+                params.append(f"%{fval}%")
+    except Exception as e:
+        app.logger.warning(f"Error parsing custom_filters: {e}")
         
     # Support missing_field filter
     missing_field = request.args.get('missing_field', '').strip()
@@ -2375,7 +2519,7 @@ def aliases_view():
 def history_view():
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT id, user_id, filename, original_filename, uploaded_at, total_rows, status FROM uploaded_files ORDER BY id DESC")
+    cursor.execute("SELECT id, user_id, filename, original_filename, uploaded_at, total_rows, rows_imported, rows_rejected, status FROM uploaded_files ORDER BY id DESC")
     uploads = cursor.fetchall()
     
     for u in uploads:
@@ -2384,6 +2528,193 @@ def history_view():
             
     conn.close()
     return render_template('history.html', uploads=uploads)
+
+def suggest_column_mapping(columns, cursor):
+    master_cols = [
+        ("full_name", "Full Name"),
+        ("email_address", "Email Address"),
+        ("primary_phone_number", "Primary Phone Number"),
+        ("alternate_phone_number", "Alternate Phone Number"),
+        ("company_name", "Company Name"),
+        ("job_title", "Job Title"),
+        ("department", "Department"),
+        ("website_url", "Website URL"),
+        ("address_line_1", "Address Line 1"),
+        ("address_line_2", "Address Line 2"),
+        ("city", "City"),
+        ("state_province", "State / Province"),
+        ("postal_zip_code", "Postal / ZIP Code"),
+        ("country", "Country"),
+        ("linkedin_profile_url", "LinkedIn Profile URL"),
+        ("industry", "Industry"),
+        ("lead_source", "Lead Source"),
+        ("record_status", "Record Status"),
+        ("date_of_birth", "Date of Birth"),
+        ("gender", "Gender"),
+        ("company_size", "Company Size"),
+        ("annual_revenue", "Annual Revenue")
+    ]
+    
+    cursor.execute("SELECT id, field_name, normalized_name FROM field_registry WHERE is_active = 1")
+    custom_fields = cursor.fetchall()
+    
+    cursor.execute("SELECT alias, target_type, target_identifier FROM field_aliases")
+    aliases = cursor.fetchall()
+    
+    suggestions = {}
+    
+    for col in columns:
+        from helpers import normalize_header
+        col_norm = normalize_header(col)
+        matched = False
+        
+        # 1. Aliases check
+        for a in aliases:
+            if a['alias'].lower().strip() == col.lower().strip() or normalize_header(a['alias']) == col_norm:
+                suggestions[col] = f"{a['target_type']}:{a['target_identifier']}"
+                matched = True
+                break
+        if matched:
+            continue
+            
+        # 2. Master columns check
+        for mc_norm, mc_name in master_cols:
+            if mc_norm == col_norm or mc_name.lower().strip() == col.lower().strip() or normalize_header(mc_name) == col_norm:
+                suggestions[col] = f"master:{mc_norm}"
+                matched = True
+                break
+        if matched:
+            continue
+            
+        # 3. Custom fields check
+        for cf in custom_fields:
+            if cf['normalized_name'] == col_norm or cf['field_name'].lower().strip() == col.lower().strip() or normalize_header(cf['field_name']) == col_norm:
+                suggestions[col] = f"custom:{cf['id']}"
+                matched = True
+                break
+        if matched:
+            continue
+            
+        suggestions[col] = "create_new"
+        
+    return suggestions
+
+@app.route('/api/upload-draft', methods=['POST'])
+@login_required()
+def api_upload_draft():
+    if 'file' not in request.files:
+        return jsonify({"error": "No file uploaded"}), 400
+        
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({"error": "No file selected"}), 400
+        
+    ext = os.path.splitext(file.filename)[1].lower()
+    if ext not in ('.xlsx', '.xls', '.csv'):
+        return jsonify({"error": "Only Excel and CSV files are allowed"}), 400
+        
+    try:
+        # Save temp file securely
+        safe_filename = os.path.basename(file.filename)
+        unique_filename = f"{uuid.uuid4().hex}_{safe_filename}"
+        upload_folder = "Generated_Files/Uploaded"
+        os.makedirs(upload_folder, exist_ok=True)
+        file_path = os.path.join(upload_folder, unique_filename)
+        file.save(file_path)
+        
+        # Read columns
+        if ext == '.csv':
+            try:
+                df = pd.read_csv(file_path, nrows=5)
+            except Exception:
+                df = pd.read_csv(file_path, sep=None, engine='python', nrows=5)
+        else:
+            df = pd.read_excel(file_path, nrows=5)
+            
+        columns = df.columns.tolist()
+        
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        suggestions = suggest_column_mapping(columns, cursor)
+        
+        cursor.execute("SELECT id, field_name FROM field_registry WHERE is_active = 1")
+        custom_fields = cursor.fetchall()
+        conn.close()
+        
+        return jsonify({
+            "filename": unique_filename,
+            "original_filename": safe_filename,
+            "columns": columns,
+            "suggestions": suggestions,
+            "custom_fields": custom_fields
+        }), 200
+        
+    except Exception as e:
+        return jsonify({"error": f"Failed to parse file: {str(e)}"}), 500
+
+@app.route('/api/browser/proceed-ingestion', methods=['POST'])
+@login_required()
+def api_proceed_ingestion():
+    data = request.get_json() or {}
+    filename = data.get('filename')
+    original_filename = data.get('original_filename')
+    mapping = data.get('mapping')
+    
+    if not filename or not mapping:
+        return jsonify({"error": "Missing filename or mapping details"}), 400
+        
+    file_path = os.path.join("Generated_Files/Uploaded", filename)
+    if not os.path.exists(file_path):
+        return jsonify({"error": "Temp file not found on server"}), 404
+        
+    try:
+        # Determine total rows
+        ext = os.path.splitext(filename)[1].lower()
+        if ext == '.csv':
+            try:
+                df = pd.read_csv(file_path)
+            except Exception:
+                df = pd.read_csv(file_path, sep=None, engine='python')
+        else:
+            df = pd.read_excel(file_path)
+        row_count = len(df)
+        
+        # Log database row for upload history
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute(
+            "INSERT INTO uploaded_files (user_id, filename, original_filename, total_rows, status, uploaded_at) VALUES (%s, %s, %s, %s, %s, %s)",
+            (session['user_id'], filename, original_filename, row_count, 'processing', datetime.utcnow())
+        )
+        file_id = cursor.lastrowid
+        conn.commit()
+        
+        cursor.execute("SELECT username FROM users WHERE id = %s", (session["user_id"],))
+        u_row = cursor.fetchone()
+        username = u_row["username"] if u_row else "unknown"
+        conn.close()
+        
+        # Run mapping ingestion in background
+        import threading
+        from helpers import ingest_uploaded_file_with_mapping
+        
+        def process_upload_with_mapping():
+            try:
+                ingest_uploaded_file_with_mapping(file_id, file_path, username, mapping)
+            except Exception:
+                pass
+                
+        thread = threading.Thread(target=process_upload_with_mapping)
+        thread.daemon = True
+        thread.start()
+        
+        return jsonify({
+            "message": "Ingestion initiated successfully!",
+            "file_id": file_id
+        }), 200
+        
+    except Exception as e:
+        return jsonify({"error": f"Failed to proceed with ingestion: {str(e)}"}), 500
 
 @app.route('/api/browser/upload', methods=['POST'])
 @login_required()

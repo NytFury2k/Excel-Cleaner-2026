@@ -62,6 +62,8 @@ sql_statements = [
         original_filename VARCHAR(255) NOT NULL,
         uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         total_rows INT DEFAULT 0,
+        rows_imported INT DEFAULT 0,
+        rows_rejected INT DEFAULT 0,
         status VARCHAR(50) NOT NULL DEFAULT 'pending',
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     )

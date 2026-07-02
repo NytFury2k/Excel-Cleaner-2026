@@ -342,6 +342,7 @@
 </head>
 
 <body>
+  <div id="chooseRulesData" data-custom-fields='{{ custom_fields_registry|tojson }}' data-saved-custom-rules='{{ session.get("custom_rules_saved", {})|tojson }}' style="display:none;"></div>
   <div class="app-layout">
 
     {% include '_sidebar.html' %}
@@ -445,109 +446,65 @@
 
         <!-- Column cards form -->
         <form method="POST" action="{{ url_for('clean_data') }}">
-          {% for column in columns %}
-          {% set col_id = column|replace(' ','_') %}
-          {% set col_type = column_type_map[column] %}
+          <!-- 1. Column Alignment -->
+          <div class="card shadow-sm mb-4">
+            <div class="card-header bg-danger-subtle text-danger fw-bold py-2">
+              <i class="bi bi-shuffle me-2"></i>1. Match Spreadsheet Columns to System Schema
+            </div>
+            <div class="card-body">
+              <p class="text-muted small">Align each column in the uploaded file to either a Master column or a Custom field to apply its cleaning rules.</p>
+              <div class="row g-3">
+                {% for col in columns %}
+                <div class="col-md-4">
+                  <label class="form-label small fw-bold">{{ col }}</label>
+                  <select class="form-select form-select-sm" name="map_col_{{ col|replace(' ', '_') }}">
+                    <option value="ignore">[Ignore / Keep As Is]</option>
+                    <optgroup label="Master Columns">
+                      {% for m in master_fields %}
+                      <option value="master:{{ m.identifier }}" {% if suggestions[col] == 'master:' ~ m.identifier %}selected{% endif %}>{{ m.name }}</option>
+                      {% endfor %}
+                    </optgroup>
+                    <optgroup label="Custom Fields">
+                      {% for c in custom_fields_registry %}
+                      <option value="custom:{{ c.id }}" {% if suggestions[col] == 'custom:' ~ c.id %}selected{% endif %}>{{ c.field_name }}</option>
+                      {% endfor %}
+                    </optgroup>
+                  </select>
+                </div>
+                {% endfor %}
+              </div>
+            </div>
+          </div>
 
-          {#
-          Build a mapping of ALL rules and their allowed_types for this column,
-          so JavaScript knows what to show/hide when the override dropdown changes.
-          We pass ALL rules (not just allowed ones) so JS can show newly relevant ones.
-          #}
+          <h5 class="fw-bold mb-3 text-dark mt-4"><i class="bi bi-shield-check me-2 text-danger"></i>2. Configure Master Column Rules</h5>
 
+          <!-- 2. Master columns rule list -->
+          {% for m in master_fields %}
           <div class="col-card">
-            <!-- Card header: name + type badge + type override dropdown + select-all -->
+            <!-- Card header: name + type badge -->
             <div class="col-card-header">
               <h6>
-                {{ column }}
-
-                <!-- Type badge — reflects the auto-detected type -->
-                {% if column in identifier_columns %}
-                <span class="type-badge badge-id" id="badge_{{ col_id }}">identifier</span>
-                {% elif col_type == "email" %}
-                <span class="type-badge badge-email" id="badge_{{ col_id }}">email</span>
-                {% elif col_type == "phone" %}
-                <span class="type-badge badge-phone" id="badge_{{ col_id }}">phone</span>
-                {% elif col_type == "url" %}
-                <span class="type-badge badge-url" id="badge_{{ col_id }}">url</span>
-                {% elif col_type == "numeric" %}
-                <span class="type-badge badge-numeric" id="badge_{{ col_id }}">numeric</span>
-                {% elif col_type == "date" %}
-                <span class="type-badge badge-date" id="badge_{{ col_id }}">date</span>
-                {% elif col_type == "name" %}
-                <span class="type-badge badge-name" id="badge_{{ col_id }}">name/text</span>
-                {% elif col_type == "company" %}
-                <span class="type-badge badge-company" id="badge_{{ col_id }}">company/text</span>
-                {% else %}
-                <span class="type-badge badge-text" id="badge_{{ col_id }}">text</span>
-                {% endif %}
-
-                <!-- Type override dropdown — only for non-identifier columns -->
-                {% if column not in identifier_columns %}
-                <select name="type_override_{{ col_id }}" id="type_override_{{ col_id }}"
-                  class="form-select form-select-sm d-inline-block ms-1"
-                  style="width:auto; min-width:90px; font-size:0.72rem; padding:1px 22px 1px 6px; height:auto; border-radius:6px;"
-                  data-col="{{ col_id }}" data-auto="{{ col_type }}">
-                  <option value="">Auto ({{ col_type }})</option>
-                  <option value="email" {% if col_type=='email' %}selected{% endif %}>email</option>
-                  <option value="phone" {% if col_type=='phone' %}selected{% endif %}>phone</option>
-                  <option value="url" {% if col_type=='url' %}selected{% endif %}>url</option>
-                  <option value="numeric" {% if col_type=='numeric' %}selected{% endif %}>numeric</option>
-                  <option value="date" {% if col_type=='date' %}selected{% endif %}>date</option>
-                  <option value="text" {% if col_type=='text' or col_type in ('name','company') %}selected{% endif %}>
-                    text</option>
-                </select>
-                {% endif %}
+                {{ m.name }}
+                <span class="type-badge badge-{{ m.type }}">{{ m.type }}</span>
               </h6>
-
-              {% if column not in identifier_columns %}
               <div class="form-check mb-0 d-flex align-items-center gap-2">
-                <input type="checkbox" class="form-check-input select-all-col" data-col="{{ col_id }}"
-                  id="selectall_{{ col_id }}">
-                <label class="form-check-label" style="font-size:0.78rem;color:#6b7280;cursor:pointer;"
-                  for="selectall_{{ col_id }}">Select all</label>
+                <input type="checkbox" class="form-check-input select-all-col" data-col="master_{{ m.identifier }}" id="selectall_master_{{ m.identifier }}">
+                <label class="form-check-label" style="font-size:0.78rem;color:#6b7280;cursor:pointer;" for="selectall_master_{{ m.identifier }}">Select all</label>
               </div>
-              {% endif %}
             </div>
 
             <!-- Card body -->
             <div class="col-card-body">
-              {% if col_type == "identifier" %}
-              <div class="alert alert-info small py-2 px-3 mb-2" style="font-size:0.8rem;">
-                Identifier column — cleaning rules disabled. You may check for duplicate identifiers.
-              </div>
-              {% endif %}
-
-              <!-- Checkbox grid -->
-              <!-- For identifier columns: only show the identifier duplicate check -->
-              {% if column in identifier_columns %}
-              <div class="row g-2">
-                <div class="col-md-4">
-                  <label class="rule-check-wrap">
-                    <input type="checkbox" class="form-check-input" name="rules_{{ col_id }}[]"
-                      value="identifier_duplicate_check" id="identifier_dup_{{ col_id }}">
-                    <span class="rule-label">Check duplicates</span>
-                  </label>
-                </div>
-              </div>
-
-              {% else %}
-              <!--
-            For non-identifier columns: render ALL rules from the registry,
-            but only SHOW those compatible with the current (or overridden) type.
-            data-allowed-types is used by JS to show/hide on dropdown change.
-          -->
-              <div class="row g-2" id="rules_grid_{{ col_id }}">
+              <div class="row g-2" id="rules_grid_master_{{ m.identifier }}">
                 {% for rule_key, rule_meta in RULES_REGISTRY.items() %}
                 {% set allowed = rule_meta.get('allowed_types', []) %}
-                <div class="col-md-3 col-sm-4 rule-option" id="ruleoption_{{ col_id }}_{{ rule_key }}"
-                  data-col="{{ col_id }}" data-allowed="{{ allowed|join(',') }}" {% if col_type not in allowed and
-                  col_type not in ('name','company') %}style="display:none;" {% elif col_type in ('name','company')
-                  and 'text' not in allowed %}style="display:none;" {% endif %}>
+                {% set match_type = m.type if m.type != 'company' and m.type != 'name' else 'text' %}
+                <div class="col-md-3 col-sm-4 rule-option" id="ruleoption_master_{{ m.identifier }}_{{ rule_key }}"
+                  data-col="master_{{ m.identifier }}" data-allowed="{{ allowed|join(',') }}" 
+                  {% if match_type not in allowed %}style="display:none;"{% endif %}>
                   <label class="rule-check-wrap" style="width:100%;">
-                    <input type="checkbox" class="form-check-input" name="rules_{{ col_id }}[]" value="{{ rule_key }}"
-                      id="{{ rule_key }}_{{ col_id }}" {% if column in selected_rule_map and rule_key in
-                      selected_rule_map[column] %}checked{% endif %}>
+                    <input type="checkbox" class="form-check-input" name="rules_master_{{ m.identifier }}[]" value="{{ rule_key }}"
+                      id="{{ rule_key }}_master_{{ m.identifier }}" {% if 'master_' ~ m.identifier in column_rule_map and rule_key in column_rule_map['master_' ~ m.identifier] %}checked{% endif %}>
                     <span class="rule-label">{{ rule_meta["label"] }}</span>
                   </label>
                 </div>
@@ -555,33 +512,36 @@
               </div>
 
               <!-- Strategy dropdown for handle_missing -->
-              {% set is_checked = column in selected_rule_map and "handle_missing" in selected_rule_map[column] %}
-              {% set saved_strategy = selected_strategy_map.get(column, "") if selected_strategy_map is defined else ""
-              %}
-              <div class="strategy-row" id="strategy_wrapper_{{ col_id }}"
-                data-initially-visible="{{ 'true' if is_checked else 'false' }}" data-col-type="{{ col_type }}">
+              {% set is_checked = 'master_' ~ m.identifier in column_rule_map and "handle_missing" in column_rule_map['master_' ~ m.identifier] %}
+              {% set saved_strategy = selected_strategy_map.get('master_' ~ m.identifier, "") %}
+              <div class="strategy-row" id="strategy_wrapper_master_{{ m.identifier }}"
+                data-initially-visible="{{ 'true' if is_checked else 'false' }}" data-col-type="{{ m.type }}">
                 <small class="text-muted fw-semibold text-nowrap" style="font-size:0.8rem;">
                   <i class="bi bi-funnel me-1"></i>Missing value strategy:
                 </small>
                 <select class="form-select form-select-sm" style="width:auto;min-width:210px;"
-                  name="strategy_{{ col_id }}" id="strategy_select_{{ col_id }}">
-                  <option value="flag" data-types="email, phone, url, numeric, date, text, name, company" {% if
-                    saved_strategy in ("flag","") %}selected{% endif %}>Flag as invalid (default)</option>
-                  <option value="drop" data-types="email, phone, url, numeric, date, text, name, company" {% if
-                    saved_strategy=="drop" %}selected{% endif %}>Drop row</option>
-                  <option value="mean" data-types="numeric" {% if saved_strategy=="mean" %}selected{% endif %}>Fill with
-                    mean (numeric)</option>
-                  <option value="median" data-types="numeric" {% if saved_strategy=="median" %}selected{% endif %}>Fill
-                    with median (numeric)</option>
-                  <option value="placeholder" data-types="email, phone, url, text, name, company" {% if
-                    saved_strategy=="placeholder" %}selected{% endif %}>Fill with "Unknown" (text)</option>
+                  name="strategy_master_{{ m.identifier }}" id="strategy_select_master_{{ m.identifier }}">
+                  <option value="flag" {% if saved_strategy in ("flag","") %}selected{% endif %}>Flag as invalid (default)</option>
+                  <option value="drop" {% if saved_strategy=="drop" %}selected{% endif %}>Drop row</option>
+                  <option value="mean" {% if saved_strategy=="mean" %}selected{% endif %}>Fill with mean (numeric)</option>
+                  <option value="median" {% if saved_strategy=="median" %}selected{% endif %}>Fill with median (numeric)</option>
+                  <option value="placeholder" {% if saved_strategy=="placeholder" %}selected{% endif %}>Fill with "Unknown" (text)</option>
                 </select>
               </div>
-              {% endif %}
-
-            </div><!-- /col-card-body -->
-          </div><!-- /col-card -->
+            </div>
+          </div>
           {% endfor %}
+
+          <!-- 3. Custom Fields Rules Config Section -->
+          <div class="d-flex justify-content-between align-items-center mb-3 mt-5">
+            <h5 class="fw-bold mb-0 text-dark"><i class="bi bi-tags me-2 text-danger"></i>3. Custom Fields Cleaning Rules</h5>
+            <button type="button" class="btn btn-sm btn-outline-danger" id="addCustomRuleCardBtn">
+              <i class="bi bi-plus-circle me-1"></i>Add Custom Field Rule
+            </button>
+          </div>
+          <div id="customRulesCardsWrapper" class="mb-4">
+            <!-- Dynamically populated custom field rule cards -->
+          </div>
 
           <!-- Submit bar -->
           <div class="submit-bar">
@@ -630,6 +590,110 @@
             var autoType = sel.dataset.auto;
             updateStrategyOptions(colId, autoType);
           });
+
+          // ── Custom Field Rules Dynamic Card Builder ─────────────────────────
+          const chooseRulesData = document.getElementById("chooseRulesData");
+          const customFieldsRegistry = JSON.parse(chooseRulesData.getAttribute("data-custom-fields") || "[]");
+          const savedCustomRules = JSON.parse(chooseRulesData.getAttribute("data-saved-custom-rules") || "{}");
+          
+          let customCardIndex = 0;
+          
+          window.addCustomRuleCard = function(selectedFieldId = "", activeRules = [], selectedStrategy = "flag") {
+              const wrapper = document.getElementById("customRulesCardsWrapper");
+              const index = customCardIndex++;
+              
+              let optionsHtml = '<option value="">-- Choose Custom Attribute --</option>';
+              customFieldsRegistry.forEach(cf => {
+                  const selected = String(cf.id) === String(selectedFieldId) ? "selected" : "";
+                  optionsHtml += `<option value="${cf.id}" ${selected}>${cf.field_name}</option>`;
+              });
+              
+              const rulesToRender = [
+                  { key: "trim_whitespace", label: "Trim Whitespace" },
+                  { key: "clean_special_chars", label: "Clean Special Chars" },
+                  { key: "validate_not_empty", label: "Validate Not Empty" },
+                  { key: "handle_missing", label: "Handle Missing Values" }
+              ];
+              
+              let checkboxesHtml = "";
+              rulesToRender.forEach(r => {
+                  const checked = activeRules.includes(r.key) ? "checked" : "";
+                  checkboxesHtml += `
+                      <div class="col-md-3 col-sm-4">
+                          <label class="rule-check-wrap" style="width:100%;">
+                              <input type="checkbox" class="form-check-input custom-rule-checkbox" data-index="${index}" data-rule="${r.key}" name="rules_custom_${index}[]" value="${r.key}" ${checked}>
+                              <span class="rule-label">${r.label}</span>
+                          </label>
+                      </div>
+                  `;
+              });
+              
+              const cardDiv = document.createElement("div");
+              cardDiv.className = "col-card custom-rule-card";
+              cardDiv.id = `custom_rule_card_${index}`;
+              cardDiv.innerHTML = `
+                  <div class="col-card-header d-flex justify-content-between align-items-center">
+                      <div class="d-flex align-items-center gap-2">
+                          <select class="form-select form-select-sm" name="custom_field_target_${index}" style="min-width: 220px;" required>
+                              ${optionsHtml}
+                          </select>
+                          <span class="type-badge badge-text">VARCHAR</span>
+                      </div>
+                      <button type="button" class="btn btn-sm btn-outline-danger py-0 px-2 btn-remove-custom-card">
+                          <i class="bi bi-trash-fill me-1"></i>Remove
+                      </button>
+                  </div>
+                  <div class="col-card-body">
+                      <div class="row g-2">
+                          ${checkboxesHtml}
+                      </div>
+                      <div class="strategy-row mt-3 pt-3 border-top" id="strategy_wrapper_custom_${index}" style="display: ${activeRules.includes("handle_missing") ? "flex" : "none"};">
+                          <small class="text-muted fw-semibold text-nowrap" style="font-size:0.8rem;">
+                              <i class="bi bi-funnel me-1"></i>Missing value strategy:
+                          </small>
+                          <select class="form-select form-select-sm" style="width:auto;min-width:210px;" name="strategy_custom_${index}">
+                              <option value="flag" ${selectedStrategy === "flag" ? "selected" : ""}>Flag as invalid (default)</option>
+                              <option value="drop" ${selectedStrategy === "drop" ? "selected" : ""}>Drop row</option>
+                              <option value="placeholder" ${selectedStrategy === "placeholder" ? "selected" : ""}>Fill with "Unknown"</option>
+                          </select>
+                      </div>
+                  </div>
+              `;
+              
+              wrapper.appendChild(cardDiv);
+              
+              // Attach delete handler
+              cardDiv.querySelector(".btn-remove-custom-card").addEventListener("click", function() {
+                  cardDiv.remove();
+              });
+              
+              // Attach checkbox handler to show/hide missing strategy dropdown
+              cardDiv.querySelectorAll(".custom-rule-checkbox").forEach(cb => {
+                  cb.addEventListener("change", function() {
+                      if (this.dataset.rule === "handle_missing") {
+                          const stratWrapper = document.getElementById(`strategy_wrapper_custom_${index}`);
+                          if (stratWrapper) {
+                              stratWrapper.style.display = this.checked ? "flex" : "none";
+                          }
+                      }
+                  });
+              });
+          };
+
+          // Attach add card button listener
+          const addBtn = document.getElementById("addCustomRuleCardBtn");
+          if (addBtn) {
+              addBtn.addEventListener("click", function() {
+                  window.addCustomRuleCard();
+              });
+          }
+
+          // Restore saved custom rules if any
+          if (savedCustomRules) {
+              Object.entries(savedCustomRules).forEach(([fieldId, data]) => {
+                  window.addCustomRuleCard(fieldId, data.rules || [], data.strategy || "flag");
+              });
+          }
         });
 
         // Type override dropdown — update visible rules on change
@@ -793,14 +857,32 @@
         // Presets
         function serializeRules() {
           var result = {};
-          document.querySelectorAll('input[type="checkbox"]:checked').forEach(function (cb) {
-            var match = cb.name.match(/^rules_(.+)\[\]$/);
-            if (match) {
-              var col = match[1].replace(/_/g, " ");
-              if (!result[col]) result[col] = [];
-              result[col].push(cb.value);
+          
+          // 1. Gather master rules
+          document.querySelectorAll('input[name^="rules_master_"]:checked').forEach(function (cb) {
+            var col = cb.name.replace("[]", "");
+            if (!result[col]) result[col] = [];
+            result[col].push(cb.value);
+          });
+          
+          // 2. Gather custom rules
+          document.querySelectorAll('.custom-rule-card').forEach(function (card) {
+            var selectEl = card.querySelector('select[name^="custom_field_target_"]');
+            if (selectEl && selectEl.value) {
+                var indexMatch = selectEl.name.match(/\d+/);
+                if (indexMatch) {
+                    var idx = indexMatch[0];
+                    var targetFid = selectEl.value;
+                    var colKey = "rules_custom_" + targetFid;
+                    
+                    var checkedCheckboxes = card.querySelectorAll(".custom-rule-checkbox[data-index='" + idx + "']:checked");
+                    if (checkedCheckboxes.length > 0) {
+                        result[colKey] = Array.from(checkedCheckboxes).map(function (c) { return c.value; });
+                    }
+                }
             }
           });
+          
           document.getElementById("rulesJsonInput").value = JSON.stringify(result);
           if (Object.keys(result).length === 0) {
             alert("No rules selected — please select at least one rule before saving.");

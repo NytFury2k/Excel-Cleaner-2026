@@ -11,6 +11,7 @@ from functools import wraps
 
 import bcrypt
 import mysql.connector
+import pandas as pd
 from flask import session, redirect, url_for, flash, request, jsonify, g
 import logging
 _logger=logging.getLogger(__name__)
@@ -849,6 +850,197 @@ def ingest_uploaded_file(file_id, file_path, username):
             )
             conn.commit()
             
+    except Exception as e:
+        conn.rollback()
+        try:
+            cursor.execute("UPDATE uploaded_files SET status = 'failed' WHERE id = %s", (file_id,))
+            conn.commit()
+        except Exception:
+            pass
+        _logger.exception("Error ingesting file ID %s:", file_id)
+        raise e
+    finally:
+        cursor.close()
+        conn.close()
+
+def ingest_uploaded_file_with_mapping(file_id, file_path, username, mapping_config):
+    """
+    Ingests spreadsheet data based on user-configured column mapping layout.
+    Also rejects duplicate rows where every mapped value matches an existing database entry.
+    """
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    
+    try:
+        # 1. Read Excel/CSV file
+        if file_path.endswith('.csv'):
+            try:
+                df = pd.read_csv(file_path)
+            except Exception:
+                df = pd.read_csv(file_path, sep=None, engine='python')
+        else:
+            df = pd.read_excel(file_path)
+            
+        headers = df.columns.tolist()
+        if not headers:
+            cursor.execute("UPDATE uploaded_files SET status = 'failed' WHERE id = %s", (file_id,))
+            conn.commit()
+            return
+            
+        # 2. Handle dynamic dynamic creation of new custom fields
+        final_mapping = {}
+        for header, target in mapping_config.items():
+            if target == 'create_new':
+                norm = normalize_header(header)
+                # Check if it already exists in the registry
+                cursor.execute("SELECT id FROM field_registry WHERE normalized_name = %s", (norm,))
+                reg_row = cursor.fetchone()
+                if reg_row:
+                    final_mapping[header] = f"custom:{reg_row['id']}"
+                else:
+                    cursor.execute(
+                        "INSERT INTO field_registry (field_name, normalized_name, data_type, usage_count) VALUES (%s, %s, %s, %s)",
+                        (header, norm, 'VARCHAR', 1)
+                    )
+                    new_id = cursor.lastrowid
+                    final_mapping[header] = f"custom:{new_id}"
+            elif target == 'ignore' or not target:
+                continue
+            else:
+                final_mapping[header] = target
+                
+        # 3. Process Rows and Check for Duplicates
+        records_to_insert = []
+        rejected_count = 0
+        seen_in_batch = set()
+        
+        # Get list of all columns in master_records dynamically to ensure safety
+        cursor.execute("DESCRIBE master_records")
+        all_db_columns = [row['Field'] for row in cursor.fetchall()]
+        
+        for _, row in df.iterrows():
+            record_dict = {
+                'file_id': file_id,
+                'imported_by': username,
+                'custom_fields': {}
+            }
+            # Initialize all other DB columns to None
+            for col in all_db_columns:
+                if col not in ('id', 'file_id', 'custom_fields', 'created_at', 'updated_at', 'imported_by'):
+                    record_dict[col] = None
+                    
+            has_any_value = False
+            for header, val in row.items():
+                if header not in final_mapping:
+                    continue
+                    
+                if pd.isnull(val) or str(val).strip().lower() in ('nan', 'nat', 'null'):
+                    cleaned_val = None
+                else:
+                    cleaned_val = str(val).strip()
+                    
+                if cleaned_val is None:
+                    continue
+                    
+                has_any_value = True
+                target = final_mapping[header]
+                if target.startswith("master:"):
+                    col_name = target.split("master:")[1]
+                    if col_name in record_dict:
+                        record_dict[col_name] = cleaned_val
+                elif target.startswith("custom:"):
+                    field_id = target.split("custom:")[1]
+                    record_dict['custom_fields'][field_id] = cleaned_val
+                    
+            if not has_any_value:
+                continue # Skip completely empty row
+                
+            # Perform Duplicate Check: if every mapped field matches an existing row
+            dup_query = ["1=1"]
+            dup_params = []
+            
+            # Add checks for master columns mapped
+            for header, target in final_mapping.items():
+                if target.startswith("master:"):
+                    col_name = target.split("master:")[1]
+                    if col_name in record_dict:
+                        val = record_dict[col_name]
+                        if val is not None:
+                            dup_query.append(f"`{col_name}` = %s")
+                            dup_params.append(val)
+                        else:
+                            dup_query.append(f"(`{col_name}` IS NULL OR `{col_name}` = '')")
+                elif target.startswith("custom:"):
+                    field_id = target.split("custom:")[1]
+                    val = record_dict['custom_fields'].get(field_id)
+                    if val is not None:
+                        dup_query.append("JSON_UNQUOTE(JSON_EXTRACT(custom_fields, %s)) = %s")
+                        dup_params.append(f"$.\"{field_id}\"")
+                        dup_params.append(val)
+                    else:
+                        dup_query.append("(custom_fields IS NULL OR JSON_EXTRACT(custom_fields, %s) IS NULL)")
+                        dup_params.append(f"$.\"{field_id}\"")
+                        
+            # Check in-memory duplicates for the current ingestion batch
+            seen_tuple_list = []
+            for h, t in sorted(final_mapping.items()):
+                if t.startswith("master:"):
+                    col_name = t.split("master:")[1]
+                    seen_tuple_list.append((t, record_dict.get(col_name)))
+                elif t.startswith("custom:"):
+                    field_id = t.split("custom:")[1]
+                    seen_tuple_list.append((t, record_dict['custom_fields'].get(field_id)))
+            seen_tuple = tuple(seen_tuple_list)
+            
+            if seen_tuple in seen_in_batch:
+                rejected_count += 1
+                continue
+                
+            # Execute duplicate query against database
+            cursor.execute(f"SELECT COUNT(*) as count FROM master_records WHERE {' AND '.join(dup_query)}", dup_params)
+            dup_row = cursor.fetchone()
+            if dup_row and dup_row['count'] > 0:
+                rejected_count += 1
+            else:
+                records_to_insert.append(record_dict)
+                seen_in_batch.add(seen_tuple)
+                
+        # 4. Insert dynamic inserts
+        if records_to_insert:
+            # We construct a dynamic insert query for whichever columns are in all_db_columns
+            cols_to_insert = [c for c in all_db_columns if c not in ('id', 'created_at', 'updated_at')]
+            
+            insert_query = f"""
+                INSERT INTO master_records ({', '.join([f'`{c}`' for c in cols_to_insert])})
+                VALUES ({', '.join(['%s'] * len(cols_to_insert))})
+            """
+            
+            insert_data = []
+            for r in records_to_insert:
+                row_tuple = []
+                for col in cols_to_insert:
+                    if col == 'custom_fields':
+                        # Convert dict to JSON string or None
+                        row_tuple.append(json.dumps(r['custom_fields']) if r['custom_fields'] else None)
+                    else:
+                        row_tuple.append(r.get(col))
+                insert_data.append(tuple(row_tuple))
+                
+            cursor.executemany(insert_query, insert_data)
+            
+            # Increment usage counts for custom fields
+            for header, target in final_mapping.items():
+                if target.startswith("custom:"):
+                    fid = int(target.split("custom:")[1])
+                    cursor.execute("UPDATE field_registry SET usage_count = usage_count + 1 WHERE id = %s", (fid,))
+                    
+        # Update uploaded_files table stats
+        cursor.execute(
+            "UPDATE uploaded_files SET total_rows = %s, rows_imported = %s, rows_rejected = %s, status = 'completed' WHERE id = %s",
+            (len(df), len(records_to_insert), rejected_count, file_id)
+        )
+        conn.commit()
+        
     except Exception as e:
         conn.rollback()
         try:

@@ -109,6 +109,8 @@
                     <th>Storage Filename</th>
                     <th>Uploaded At</th>
                     <th class="text-center">Total Rows</th>
+                    <th class="text-center">Imported</th>
+                    <th class="text-center">Rejected (Dupes)</th>
                     <th class="text-center">Processing Status</th>
                   </tr>
                 </thead>
@@ -126,7 +128,7 @@
                       <td><small class="text-muted">{{ file.filename }}</small></td>
                       <td><span class="text-muted">{{ file.uploaded_at }}</span></td>
                       <td class="text-center">
-                        <strong class="text-danger">
+                        <strong class="text-dark">
                           {% if file.status == 'completed' %}
                             {{ file.total_rows }}
                           {% elif file.status == 'processing' %}
@@ -135,6 +137,24 @@
                             --
                           {% endif %}
                         </strong>
+                      </td>
+                      <td class="text-center">
+                        <span class="badge bg-success-subtle text-success px-2 py-1">
+                          {% if file.status == 'completed' %}
+                            {{ file.rows_imported }} rows
+                          {% else %}
+                            --
+                          {% endif %}
+                        </span>
+                      </td>
+                      <td class="text-center">
+                        <span class="badge bg-danger-subtle text-danger px-2 py-1">
+                          {% if file.status == 'completed' %}
+                            {{ file.rows_rejected }} rows
+                          {% else %}
+                            --
+                          {% endif %}
+                        </span>
                       </td>
                       <td class="text-center">
                         {% if file.status == 'completed' %}
