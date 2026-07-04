@@ -872,6 +872,7 @@ def data_health():
         entries.append({
             "file_name": file_name or "Unknown file",
             "processed_at": processed_at_display,
+            "created_at": processed_at,
             "total_rows": total_rows,
             "valid_rows": valid_rows,
             "invalid_rows": invalid_rows,
@@ -894,6 +895,50 @@ def data_health():
     overall_valid = sum(e["valid_rows"] for e in entries)
     overall_score = round((overall_valid / overall_total) * 100, 1) if overall_total else 0
 
+    now = datetime.now()
+    current_period_start = now - timedelta(days=7)
+    previous_period_start = now - timedelta(days=14)
+
+    current_entries = [e for e in entries if isinstance(e.get("created_at"), datetime) and e["created_at"] >= current_period_start]
+    previous_entries = [e for e in entries if isinstance(e.get("created_at"), datetime) and previous_period_start <= e["created_at"] < current_period_start]
+
+    def compare_period(current_value, previous_value):
+        if previous_value is None:
+            return {
+                "icon": "bi-dash",
+                "color": "text-warning",
+                "label": "No last week data",
+            }
+        if current_value < previous_value:
+            return {
+                "icon": "bi-arrow-down-short",
+                "color": "text-success",
+                "label": f"{current_value} vs last week",
+            }
+        if current_value == previous_value:
+            return {
+                "icon": "bi-dash",
+                "color": "text-warning",
+                "label": f"{current_value} vs last week",
+            }
+        return {
+            "icon": "bi-arrow-up-short",
+            "color": "text-danger",
+            "label": f"{current_value} vs last week",
+        }
+
+    current_blank_required = sum(e["blank_required"] for e in current_entries)
+    previous_blank_required = sum(e["blank_required"] for e in previous_entries) if previous_entries else None
+    blank_compare = compare_period(current_blank_required, previous_blank_required)
+
+    current_duplicates = sum(e["duplicates_flagged"] for e in current_entries)
+    previous_duplicates = sum(e["duplicates_flagged"] for e in previous_entries) if previous_entries else None
+    duplicates_compare = compare_period(current_duplicates, previous_duplicates)
+
+    current_format_errors = sum(e["format_errors"] for e in current_entries)
+    previous_format_errors = sum(e["format_errors"] for e in previous_entries) if previous_entries else None
+    format_errors_compare = compare_period(current_format_errors, previous_format_errors)
+
     return render_template(
         "data_health.html",
         entries=paginated_entries,
@@ -902,6 +947,9 @@ def data_health():
         blank_required_total=sum(e["blank_required"] for e in entries),
         duplicates_total=sum(e["duplicates_flagged"] for e in entries),
         format_error_total=sum(e["format_errors"] for e in entries),
+        blank_compare=blank_compare,
+        duplicates_compare=duplicates_compare,
+        format_errors_compare=format_errors_compare,
         total_files=total_issue_files,
         page=page,
         total_pages=total_pages,

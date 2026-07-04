@@ -267,6 +267,8 @@
 
     <main class="content-area">
 
+      <div id="previewData" data-uploaded-file='{{ uploaded_file|default("") }}' data-file='{{ file|default("") }}' data-valid='{{ valid|default(0) }}' style="display:none;"></div>
+
       <div class="container mt-3">
         {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}{% for category, message in messages %}

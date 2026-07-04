@@ -1,11 +1,24 @@
 <!-- _logs_table.html partial — included by dashboard and admin_logs -->
 <div>
+  <style>
+    .custom-filter-pill { display: inline-flex; align-items:center; gap:8px; padding:6px 8px; border-radius:999px; background:#f3f4f6; font-size:0.78rem; margin-right:6px; margin-bottom:6px; }
+    .custom-filter-pill .remove-filter { cursor:pointer; color:#6b7280; }
+
+    /* precise spacing for Apply group */
+    .apply-btn-wrap { margin-top: 22px; }
+    @media (min-width: 768px) {
+      .apply-btn-wrap { margin-top: 36px; }
+    }
+    @media (min-width: 1200px) {
+      .apply-btn-wrap { margin-top: 28px; }
+    }
+  </style>
   <!-- Filter bar -->
   <div class="card shadow-sm mb-4">
     <div class="card-body" style="padding: 4ipx 14px;">
       <form method="get" action="{{ url_for('admin_logs') }}" class="mb-4 mb-0">
 
-        <div class="row g-2 align-items-end">
+        <div class="row g-2 align-items-start">
           <div class="col-md-4">
             <label for="searchInput" class="form-label">Search</label>
             <div class="input-group input-group-sm">
@@ -28,18 +41,114 @@
             <input type="date" id="toDate" name="to_date" value="{{ (to_date or '').strip() }}"
               class="form-control form-control-sm" style="border-radius:7px;">
           </div>
-          <div class="col-md-2 d-flex gap-2">
-            <button type="submit" class="btn btn-sm w-100"
-              style="background:#b91c1c;color:#fff;border:none;border-radius:7px;font-size:0.83rem;">Apply</button>
-            {% if search or from_date or to_date %}
-            <a href="{{ url_for('admin_logs') }}" class="btn btn-sm btn-outline-secondary"
-              style="border-radius:7px;font-size:0.83rem;" title="Clear filters"><i class="bi bi-x"></i></a>
-            {% endif %}
+          <div class="col-md-2 d-flex flex-column gap-2">
+            <div class="d-flex gap-2 apply-btn-wrap">
+              <button type="submit" class="btn btn-sm w-100"
+                style="background:#b91c1c;color:#fff;border:none;border-radius:7px;font-size:0.83rem;">Apply</button>
+              {% if search or from_date or to_date %}
+              <a href="{{ url_for('admin_logs') }}" class="btn btn-sm btn-outline-secondary"
+                style="border-radius:7px;font-size:0.83rem;" title="Clear filters"><i class="bi bi-x"></i></a>
+              {% endif %}
+            </div>
+            <button type="button" id="addFilterBtn" class="btn btn-sm btn-outline-secondary w-100"
+              style="border-radius:7px;font-size:0.83rem;">Add Filter</button>
           </div>
         </div>
       </form>
     </div>
   </div>
+
+  <!-- Add Filter Modal -->
+  <div class="modal fade" id="addFilterModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Add Custom Filter</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-2">
+            <label class="form-label">Field name</label>
+            <input type="text" id="filterField" class="form-control form-control-sm" placeholder="e.g. customer_name">
+          </div>
+          <div class="mb-2">
+            <label class="form-label">Operator</label>
+            <select id="filterOp" class="form-select form-select-sm">
+              <option value="eq">equals</option>
+              <option value="contains">contains</option>
+              <option value="startswith">starts with</option>
+              <option value="endswith">ends with</option>
+              <option value="gt">&gt;</option>
+              <option value="lt">&lt;</option>
+            </select>
+          </div>
+          <div class="mb-2">
+            <label class="form-label">Value</label>
+            <input type="text" id="filterValue" class="form-control form-control-sm" placeholder="Value to match">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" id="addFilterConfirm" class="btn btn-sm btn-primary">Add</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function(){
+      var addBtn = document.getElementById('addFilterBtn');
+      if(!addBtn) return;
+      var modalEl = document.getElementById('addFilterModal');
+      var addFilterModal = new bootstrap.Modal(modalEl);
+      var confirmBtn = document.getElementById('addFilterConfirm');
+      var form = document.querySelector("form[action='{{ url_for('admin_logs') }}']");
+
+      // Container to show active custom filters (inside the form so hidden inputs submit)
+      var filterContainer = document.createElement('div');
+      filterContainer.style.marginBottom = '8px';
+      form.insertBefore(filterContainer, form.firstChild);
+
+      addBtn.addEventListener('click', function(){ addFilterModal.show(); });
+
+      function createHiddenInputs(field, op, value) {
+        var hf = document.createElement('input'); hf.type='hidden'; hf.name='filter_field[]'; hf.value=field;
+        var ho = document.createElement('input'); ho.type='hidden'; ho.name='filter_op[]'; ho.value=op;
+        var hv = document.createElement('input'); hv.type='hidden'; hv.name='filter_value[]'; hv.value=value;
+        return [hf, ho, hv];
+      }
+
+      function addFilterPill(field, op, value) {
+        var pill = document.createElement('span'); pill.className='custom-filter-pill';
+        pill.innerHTML = '<strong>'+field+'</strong> <span class="text-muted">'+op+'</span> <span>'+value+'</span>';
+        var rem = document.createElement('i'); rem.className='bi bi-x remove-filter ms-2';
+        rem.title = 'Remove filter';
+        pill.appendChild(rem);
+
+        // attach hidden inputs
+        var inputs = createHiddenInputs(field, op, value);
+        inputs.forEach(function(i){ pill.appendChild(i); });
+
+        rem.addEventListener('click', function(){ pill.remove(); });
+        filterContainer.appendChild(pill);
+      }
+
+      confirmBtn.addEventListener('click', function(){
+        var field = document.getElementById('filterField').value.trim();
+        var op = document.getElementById('filterOp').value;
+        var value = document.getElementById('filterValue').value.trim();
+        if(!field || !value) {
+          alert('Please provide both field and value.');
+          return;
+        }
+        addFilterPill(field, op, value);
+        // clear inputs
+        document.getElementById('filterField').value='';
+        document.getElementById('filterValue').value='';
+        addFilterModal.hide();
+      });
+    })();
+  </script>
 
   <div class="d-flex justify-content-between align-items-center mb-3">
     <small class="text-muted" style="font-size:0.8rem;">

@@ -64,13 +64,13 @@
     overflow: visible !important;
     /* Allow the mini toggle to overhang */
     z-index: 1000 !important;
-    transition: width 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: width 180ms cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   .content-area {
     margin-left: var(--sidebar-width) !important;
     padding-top: calc(var(--header-height) + 24px) !important;
-    transition: margin-left 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: margin-left 180ms cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   /* Resizer handle styling */
@@ -139,7 +139,7 @@
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 12px 16px;
+    padding: 8px 12px;
     text-decoration: none;
     border-radius: 8px;
     margin: 4px 10px;
@@ -169,39 +169,80 @@
     align-items: center;
     transition: padding 0.15s;
   }
-
+  .sidebar-brand {
+    position: relative;
+    overflow: hidden;
+  }
   /* Collapsed sidebar adjustments */
   .sidebar.collapsed {
     width: 64px !important;
   }
 
+  .sidebar-text {
+    transition: opacity 160ms ease, width 160ms ease, visibility 160ms ease;
+    white-space: nowrap;
+    overflow: hidden;
+    display: inline-block;
+    vertical-align: middle;
+  }
+
   .sidebar.collapsed .sidebar-text {
-    display: none !important;
+    opacity: 0 !important;
+    width: 0 !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
   }
 
   .sidebar.collapsed .sidebar-link {
     justify-content: center !important;
-    padding: 12px 0 !important;
-    margin: 4px 5px !important;
+    /* match expanded vertical padding so icons align */
+    padding: 8px 0 !important;
+    /* keep same horizontal gutter as expanded state */
+    margin: 4px 10px !important;
   }
 
-  .sidebar.collapsed .sidebar-link i {
+  /* Make all sidebar icons a consistent size whether collapsed or not */
+  .sidebar-link i {
     font-size: 1.25rem !important;
   }
 
-  .sidebar.collapsed .sidebar-logo-full {
-    display: none !important;
+  /* Smoothly fade between full and collapsed logos to avoid layout jitter */
+  .sidebar-brand img {
+    display: block;
+    max-height: 44px;
+    height: auto;
+    width: auto;
+    transition: opacity 180ms ease, transform 180ms ease;
   }
 
-  .sidebar.collapsed .sidebar-logo-collapsed {
-    display: block !important;
+  .sidebar-logo-full {
+    opacity: 1;
+    transform: translateY(0);
+    position: relative;
   }
 
   .sidebar-logo-collapsed {
-    display: none;
+    opacity: 0;
+    transform: translateY(-4px);
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform-origin: center;
+    transform: translate(-50%, -50%) scale(0.9);
     max-width: 32px;
     height: auto;
-    margin: 0 auto;
+  }
+
+  .sidebar.collapsed .sidebar-logo-full {
+    opacity: 0;
+    transform: translateY(4px) scale(0.95);
+    pointer-events: none;
+  }
+
+  .sidebar.collapsed .sidebar-logo-collapsed {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+    pointer-events: auto;
   }
 
   /* Top Header styling */
@@ -588,6 +629,8 @@
     <img src="https://paramantra.us/aldius/images/favicon.png" alt="Paramantra" class="sidebar-logo-collapsed">
   </div>
 
+  <div id="sidebarData" data-role='{{ session.role|default("") }}' style="display:none;"></div>
+
   <div class="py-2">
     <a href="{{ url_for('dashboard') }}" class="sidebar-link{% if request.endpoint == 'dashboard' %} active{% endif %}">
       <i class="bi bi-grid"></i>
@@ -610,7 +653,7 @@
     <a href="{{ url_for('downloads') }}"
       class="sidebar-link{% if request.endpoint in ['downloads','download_selected','download_admin'] %} active{% endif %}">
       <i class="bi bi-download"></i>
-      <span class="sidebar-text">Downloads</span>
+      <span class="sidebar-text">Download File</span>
     </a>
     {% endif %}
 

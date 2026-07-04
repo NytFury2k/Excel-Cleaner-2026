@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Alias Manager — Paramantra</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <link rel="icon" href="https://paramantra.us/aldius/images/favicon.png" type="image/gif">
+  <style>
+    :root {
+      --red: #b91c1c;
+      --border: #e5e7eb;
+      --surface: #f9fafb;
+    }
+
+    body {
+      background: #f4f5f7;
+      font-family: system-ui, -apple-system, sans-serif;
+    }
+
+    .card {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+    }
+
+    .card-header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 20px;
+      font-weight: 600;
+    }
+
+    .table thead th {
+      background: var(--surface);
+      font-weight: 600;
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #6b7280;
+      border-bottom: 2px solid var(--border);
+      white-space: nowrap;
+    }
+
+    .table td {
+      vertical-align: middle;
+      border-color: var(--border);
+      font-size: 0.88rem;
+    }
+
+    .table-hover tbody tr:hover {
+      background: #fef2f2;
+    }
+
+    .badge {
+      font-weight: 500;
+    }
+
+    .page-hdr h2 {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: #111827;
+      margin-bottom: 3px;
+    }
+
+    .page-hdr p {
+      font-size: 0.875rem;
+      color: #6b7280;
+      margin: 0;
+    }
+
+    .app-layout {
+      display: flex;
+      min-height: 100vh;
+    }
+
+    .content-area {
+      flex: 1;
+      margin-left: 260px;
+      padding: 24px;
+    }
+  </style>
+</head>
+<body>
+  <div class="app-layout">
+    {% include '_sidebar.html' %}
+    <main class="content-area">
+      <div class="container my-4 my-md-5">
+        <div class="page-hdr mb-4">
+          <h2><i class="bi bi-link-45deg me-2" style="color:#b91c1c;"></i>Alias Manager</h2>
+          <p class="text-muted">Map non-standard worksheet column headers to master database columns or registry fields</p>
+        </div>
+
+        <div class="row g-4">
+          <!-- Add Alias Panel -->
+          <div class="col-lg-4">
+            <div class="card shadow-sm">
+              <div class="card-header text-danger font-outfit fw-bold">
+                Create Alias Rule
+              </div>
+              <div class="card-body p-4">
+                <form id="aliasForm">
+                  <div class="mb-3">
+                    <label for="aliasString" class="form-label text-muted small fw-semibold">Original Header String</label>
+                    <input type="text" class="form-control" id="aliasString" name="alias" placeholder="e.g. Mobile No." required>
+                  </div>
+                  
+                  <div class="mb-3">
+                    <label for="targetType" class="form-label text-muted small fw-semibold">Target Type</label>
+                    <select class="form-select" id="targetType" name="target_type" required>
+                      <option value="master">Master Relational Column</option>
+                      <option value="custom">Custom Registered Field</option>
+                    </select>
+                  </div>
+                  
+                  <!-- Master Target Dropdown -->
+                  <div class="mb-4" id="masterTargetContainer">
+                    <label for="masterTarget" class="form-label text-muted small fw-semibold">Master Column Target</label>
+                    <select class="form-select" id="masterTarget">
+                      <option value="full_name">Full Name</option>
+                      <option value="email_address">Email Address</option>
+                      <option value="primary_phone_number">Primary Phone Number</option>
+                      <option value="alternate_phone_number">Alternate Phone Number</option>
+                      <option value="company_name">Company Name</option>
+                      <option value="job_title">Job Title</option>
+                      <option value="department">Department</option>
+                      <option value="website_url">Website URL</option>
+                      <option value="address_line_1">Address Line 1</option>
+                      <option value="address_line_2">Address Line 2</option>
+                      <option value="city">City</option>
+                      <option value="state_province">State / Province</option>
+                      <option value="postal_zip_code">Postal / ZIP Code</option>
+                      <option value="country">Country</option>
+                      <option value="linkedin_profile_url">LinkedIn Profile URL</option>
+                      <option value="industry">Industry</option>
+                      <option value="lead_source">Lead Source</option>
+                      <option value="record_status">Record Status</option>
+                      <option value="date_of_birth">Date of Birth</option>
+                      <option value="gender">Gender</option>
+                      <option value="company_size">Company Size</option>
+                      <option value="annual_revenue">Annual Revenue</option>
+                      <option value="imported_by">Imported By</option>
+                    </select>
+                  </div>
+                  
+                  <!-- Custom Target Dropdown (Hidden initially) -->
+                  <div class="mb-4 d-none" id="customTargetContainer">
+                    <label for="customTarget" class="form-label text-muted small fw-semibold">Custom Field Target</label>
+                    <select class="form-select" id="customTarget">
+                      <option value="">-- Select Custom Field --</option>
+                      {% for field in custom_fields %}
+                      <option value="{{ field.id }}">{{ field.field_name }}</option>
+                      {% endfor %}
+                    </select>
+                  </div>
+
+                  <button type="submit" class="btn btn-danger w-100 py-2 fw-semibold">
+                    <i class="bi bi-plus-lg me-2"></i> Save Alias Rule
+                  </button>
+                </form>
+              </div>
+            </div>
+          </div>
+
+          <!-- Alias Rules Table -->
+          <div class="col-lg-8">
+            <div class="card shadow-sm">
+              <div class="card-header text-danger font-outfit fw-bold">
+                Mapped Aliases
+              </div>
+              <div class="card-body p-0">
+                <div class="table-responsive" style="border-radius:10px;overflow:hidden;">
+                  <table class="table table-hover align-middle mb-0" id="aliasesTable">
+                    <thead>
+                      <tr>
+                        <th>Alias text</th>
+                        <th>Normalized alias</th>
+                        <th>Target Category</th>
+                        <th>Maps to Identifier</th>
+                        <th class="text-center">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {% if aliases %}
+                        {% for alias in aliases %}
+                        <tr data-alias-id="{{ alias.id }}">
+                          <td><strong class="text-dark">{{ alias.alias }}</strong></td>
+                          <td><code class="text-primary fw-semibold">{{ alias.alias.strip().lower().replace(" ", "_") }}</code></td>
+                          <td>
+                            <span class="badge {% if alias.target_type == 'master' %}bg-info text-dark{% else %}bg-warning text-dark{% endif %}">
+                              {{ alias.target_type | upper }}
+                            </span>
+                          </td>
+                          <td>
+                            <span class="badge bg-light text-dark border border-secondary-subtle px-2 py-1">
+                              {{ alias.target_identifier }}
+                            </span>
+                          </td>
+                          <td class="text-center">
+                            <button class="btn btn-sm btn-outline-danger btn-delete-alias">
+                              <i class="bi bi-trash"></i>
+                            </button>
+                          </td>
+                        </tr>
+                        {% endfor %}
+                      {% else %}
+                        <tr>
+                          <td colspan="5" class="text-center py-5 text-muted">
+                            <i class="bi bi-diagram-3 fs-2 mb-3 d-block text-secondary"></i>
+                            No alias rules mapped yet. Create one on the left to handle alternative spreadsheet headers.
+                          </td>
+                        </tr>
+                      {% endif %}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+      <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            const targetTypeSelect = document.getElementById("targetType");
+            const masterContainer = document.getElementById("masterTargetContainer");
+            const customContainer = document.getElementById("customTargetContainer");
+            
+            const masterTarget = document.getElementById("masterTarget");
+            const customTarget = document.getElementById("customTarget");
+            
+            targetTypeSelect.addEventListener("change", function() {
+                if (this.value === "master") {
+                    masterContainer.classList.remove("d-none");
+                    customContainer.classList.add("d-none");
+                } else {
+                    masterContainer.classList.add("d-none");
+                    customContainer.classList.remove("d-none");
+                }
+            });
+
+            const aliasForm = document.getElementById("aliasForm");
+            aliasForm.addEventListener("submit", function(e) {
+                e.preventDefault();
+                
+                const alias = document.getElementById("aliasString").value.trim();
+                const targetType = targetTypeSelect.value;
+                const targetIdentifier = targetType === "master" ? masterTarget.value : customTarget.value;
+                
+                if (targetType === "custom" && !targetIdentifier) {
+                    alert("Please select a valid custom field target.");
+                    return;
+                }
+
+                const formData = new FormData();
+                formData.append("alias", alias);
+                formData.append("target_type", targetType);
+                formData.append("target_identifier", targetIdentifier);
+
+                fetch("/api/aliases", {
+                    method: "POST",
+                    body: formData
+                })
+                .then(res => {
+                    if (!res.ok) {
+                        return res.json().then(data => { throw new Error(data.error || "Failed to create alias"); });
+                    }
+                    return res.json();
+                })
+                .then(data => {
+                    alert("Alias rule created successfully!");
+                    window.location.reload();
+                })
+                .catch(err => {
+                    console.error(err);
+                    alert("Error: " + err.message);
+                });
+            });
+
+            const deleteButtons = document.querySelectorAll(".btn-delete-alias");
+            deleteButtons.forEach(btn => {
+                btn.addEventListener("click", function() {
+                    if (!confirm("Are you sure you want to delete this alias mapping rule?")) {
+                        return;
+                    }
+                    
+                    const row = this.closest("tr");
+                    const aliasId = row.getAttribute("data-alias-id");
+                    
+                    fetch(`/api/aliases/${aliasId}/delete`, {
+                        method: "POST"
+                    })
+                    .then(res => {
+                        if (!res.ok) {
+                            throw new Error("Failed to delete alias");
+                        }
+                        row.remove();
+                    })
+                    .catch(err => {
+                        console.error(err);
+                        alert("Could not delete alias rule mapping. Please try again.");
+                    });
+                });
+            });
+        });
+      </script>
+    </main>
+  </div>
+</body>
+</html>

@@ -342,6 +342,7 @@
 </head>
 
 <body>
+  <div id="chooseRulesData" data-custom-fields='{{ (custom_fields_registry|default({}))|tojson }}' data-saved-custom-rules='{{ session.get("custom_rules_saved", {})|tojson }}' style="display:none;"></div>
   <div class="app-layout">
 
     {% include '_sidebar.html' %}
