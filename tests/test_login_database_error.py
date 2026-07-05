@@ -1,4 +1,4 @@
-import mysql.connector
+import psycopg2
 import app as app_module
 
 
@@ -6,7 +6,7 @@ def test_login_returns_service_unavailable_when_db_is_down(monkeypatch):
     client = app_module.app.test_client()
 
     def fail_login_check(username):
-        raise mysql.connector.DatabaseError("DB unavailable")
+        raise psycopg2.DatabaseError("DB unavailable")
 
     monkeypatch.setattr(app_module, "check_login_rate_limit", fail_login_check)
 

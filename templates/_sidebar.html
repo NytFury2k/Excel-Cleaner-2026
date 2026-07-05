@@ -649,6 +649,18 @@
       <span class="sidebar-text">Upload File</span>
     </a>
 
+    <a href="{{ url_for('cleansing_command_center') }}"
+      class="sidebar-link{% if request.endpoint == 'cleansing_command_center' %} active{% endif %}">
+      <i class="bi bi-grid-3x3-gap-fill"></i>
+      <span class="sidebar-text">Command Center</span>
+    </a>
+
+    <a href="{{ url_for('duplicate_review_workbench') }}"
+      class="sidebar-link{% if request.endpoint == 'duplicate_review_workbench' %} active{% endif %}">
+      <i class="bi bi-git"></i>
+      <span class="sidebar-text">Duplicate Workbench</span>
+    </a>
+
     {% if session.role in ["admin","manager","team_lead"] %}
     <a href="{{ url_for('downloads') }}"
       class="sidebar-link{% if request.endpoint in ['downloads','download_selected','download_admin'] %} active{% endif %}">

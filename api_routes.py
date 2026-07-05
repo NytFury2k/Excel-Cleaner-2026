@@ -468,6 +468,13 @@ def api_clean():
         removed_file = f"{base_name}_removed_{timestamp}.xlsx"
         removed_rows.to_excel(removed_file, index=False)
 
+    # Ingest data to Supabase database (CDP tables)
+    from helpers import ingest_cleaning_results
+    try:
+        ingest_cleaning_results(cleaned_df, invalid_df, removed_rows, detailed_errors, g.api_user_id)
+    except Exception as e:
+        print(f"API Database Ingestion Warning: {e}")
+
     # Store in server-side state
     import json as _json
     set_job_state(
@@ -739,9 +746,9 @@ def api_users():
         base_query += " AND role = %s"
         params.append(role_filter)
     if status_filter == "active":
-        base_query += " AND is_active = 1"
+        base_query += " AND is_active = TRUE"
     elif status_filter == "inactive":
-        base_query += " AND is_active = 0"
+        base_query += " AND is_active = FALSE"
 
     order_clause = " ORDER BY username ASC"
     if sort == "username_desc":
@@ -760,7 +767,7 @@ def api_users():
     total_users = cursor.fetchone()["total"]
 
     cursor.execute(
-        f"SELECT id, username, role, `is_active` {base_query}{order_clause} LIMIT %s OFFSET %s",
+        f"SELECT id, username, role, is_active {base_query}{order_clause} LIMIT %s OFFSET %s",
         params + [per_page, offset],
     )
     users = cursor.fetchall()
@@ -853,7 +860,7 @@ def api_toggle_user(target_id):
     conn   = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     cursor.execute(
-        "SELECT username, role, `is_active` FROM users WHERE id = %s",
+        "SELECT username, role, is_active FROM users WHERE id = %s",
         (target_id,)
     )
     user = cursor.fetchone()
@@ -868,15 +875,15 @@ def api_toggle_user(target_id):
         conn.close()
         return _bad_request("Cannot disable admin accounts.")
 
-    new_status = 0 if user["is_active"] else 1
+    new_status = False if user["is_active"] else True
     cursor.execute(
-        "UPDATE users SET `is_active` = %s WHERE id = %s",
+        "UPDATE users SET is_active = %s WHERE id = %s",
         (new_status, target_id)
     )
     conn.commit()
     conn.close()
 
-    action_text = "Disabled" if new_status == 0 else "Enabled"
+    action_text = "Disabled" if not new_status else "Enabled"
     log_action(
         g.api_user_id,
         f"[API] {action_text} user (id={target_id}, username='{user['username']}')",
@@ -885,7 +892,7 @@ def api_toggle_user(target_id):
     return jsonify({
         "success":   True,
         "message":   f"User {action_text.lower()}.",
-        "is_active": bool(new_status),
+        "is_active": new_status,
     }), 200
 
 
@@ -1160,7 +1167,7 @@ def api_save_preset():
     cursor.execute("""
         INSERT INTO rule_presets (user_id, name, rules_json)
         VALUES (%s, %s, %s)
-        ON DUPLICATE KEY UPDATE rules_json = VALUES(rules_json)
+        ON CONFLICT (user_id, name) DO UPDATE SET rules_json = EXCLUDED.rules_json
     """, (g.api_user_id, name, rules_json))
     conn.commit()
     conn.close()
@@ -1279,11 +1286,12 @@ def api_create_user():
     try:
         cursor.execute(
             "INSERT INTO users (username, password, role, email, manager_id, created_by) "
-            "VALUES (%s, %s, %s, %s, %s, %s)",
+            "VALUES (%s, %s, %s, %s, %s, %s) RETURNING id",
             (username, hashed, role, email, new_manager_id, g.api_user_id)
         )
+        res = cursor.fetchone()
+        new_user_id = res['id'] if isinstance(res, dict) else res[0]
         conn.commit()
-        new_user_id = cursor.lastrowid
 
         # Backfill role_id (matches app.py behaviour)
         cursor.execute("SELECT id FROM roles WHERE name = %s", (role,))

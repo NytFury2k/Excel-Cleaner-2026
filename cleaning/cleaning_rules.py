@@ -49,23 +49,17 @@ def clean_special_chars(df, column, column_type= None):
     return df, []
 
 
-def normalize_currency(df, column, column_type=None):
-    """Normalises currency/number shorthand to plain floats.
-    Handles:
-    Indian: L/Lac/Lakhs/Lakh-> x 100,000
-            Cr/C/Crore/Crores-> x 10,000,000
-    Global: K/k              -> x 1,000
-            M/m/mn           -> x 1,000,000
-            B/b/bn           -> x 1,000,000,000
-            
-    Prefixes stripped: ₹, $, €, £, ¥, Rs. USD, EUR, GBP, INR (and spaces)
-    Values that doen't match any pattern are left unchanged so validate_numeric can still flag them."""
+def parse_currency_to_numeric(val):
+    """Parses standard currency and shorthand values into pure float.
+    Returns float or None if unparseable."""
+    if pd.isna(val):
+        return None
+    s = str(val).strip()
+    if not s:
+        return None
 
-    df =df.copy()
-
-    #Prefix
+    # Prefix patterns to strip: ₹, $, €, £, ¥, Rs. USD, EUR, etc.
     PREFIX = r"^[₹$€£¥\s]*(?:Rs\.?|USD|EUR|GBP|INR|AUD|CAD)?\s*"
-
     NUMBER = r"([\d,]+\.?\d*)"
 
     units = [
@@ -76,28 +70,33 @@ def normalize_currency(df, column, column_type=None):
         (r"(?:Thousands?|K)\b", 1_000),
     ]
 
-    compiled = [
-        (re.compile(PREFIX+NUMBER+ r"\s*"+ unit+ r"\s*$", re.IGNORECASE),mult)
-        for unit , mult in units
-    ]
+    for unit_pattern, multiplier in units:
+        pattern = re.compile(PREFIX + NUMBER + r"\s*" + unit_pattern + r"\s*$", re.IGNORECASE)
+        m = pattern.match(s)
+        if m:
+            try:
+                return float(m.group(1).replace(",", "")) * multiplier
+            except ValueError:
+                pass
+
+    # plain number case — strip prefix and commas
+    plain = re.sub(r"^[₹$€£¥\s]*(?:Rs\.?|USD|EUR|GBP|INR|AUD|CAD)?\s*", "", s)
+    plain = plain.replace(",", "")
+    try:
+        return float(plain)
+    except ValueError:
+        return None
+
+
+def normalize_currency(df, column, column_type=None):
+    """Normalises currency/number shorthand to plain floats.
+    Values that don't match any pattern are left unchanged so validators can flag them."""
+    df = df.copy()
 
     def convert(value):
-        if pd.isna(value):
-            return value
-        s= str(value).strip()
-        for pattern, multiplier in compiled:
-            m=pattern.match(s)
-            if m:
-                return float(m.group(1).replace(",",""))*multiplier
-        
-        #no unit match- strip prefix and try as plain number
-        plain = re.sub(r"^[₹$€£¥\s]*(?:Rs\.?|USD|EUR|GBP|INR|AUD|CAD)?\s*","",s)
-        plain = plain.replace(",","")
-        try:
-            return float(plain)
-        except ValueError:
-            return value  #truly unrecognisable- left for validator to flag
-    
+        parsed = parse_currency_to_numeric(value)
+        return parsed if parsed is not None else value
+
     df[column] = df[column].apply(convert)
     return df, []
 
@@ -134,32 +133,7 @@ def handle_missing(df, column, column_type=None, strategy="flag"):
             })
 
     elif strategy in ("median", "mean") and column_type == "numeric":
-        def parse_numeric(val):
-            if pd.isna(val):
-                return None
-            s = str(val).strip()
-            # Strip currency prefixes
-            s = re.sub(r"^[₹$€£¥\s]*(?:Rs\.?\s*)?", "", s)
-            # Indian shorthand
-            m = re.match(r"([\d,]+\.?\d*)\s*(L|Lac|Lacs|Lakh|Lakhs)\s*$", s, re.IGNORECASE)
-            if m:
-                return float(m.group(1).replace(",", "")) * 100_000
-            m = re.match(r"([\d,]+\.?\d*)\s*(Cr|Crore|Crores)\s*$", s, re.IGNORECASE)
-            if m:
-                return float(m.group(1).replace(",", "")) * 10_000_000
-            # Global shorthand
-            m = re.match(r"([\d,]+\.?\d*)\s*(K)\s*$", s, re.IGNORECASE)
-            if m:
-                return float(m.group(1).replace(",", "")) * 1_000
-            m = re.match(r"([\d,]+\.?\d*)\s*(M|mn)\s*$", s, re.IGNORECASE)
-            if m:
-                return float(m.group(1).replace(",", "")) * 1_000_000
-            try:
-                return float(s.replace(",", ""))
-            except ValueError:
-                return None
-
-        parsed = df[column].apply(parse_numeric)
+        parsed = df[column].apply(parse_currency_to_numeric)
         agg_val = parsed.median() if strategy == "median" else parsed.mean()
 
         if pd.notna(agg_val):

@@ -10,9 +10,15 @@ from datetime import datetime, timedelta
 from functools import wraps
 
 import bcrypt
-import mysql.connector
+import psycopg2
+import psycopg2.extras
+from dotenv import load_dotenv
 from flask import session, redirect, url_for, flash, request, jsonify, g
 import logging
+
+# Explicitly load .env file using its absolute path relative to helpers.py
+load_dotenv(os.path.join(os.path.dirname(__file__), ".env"), override=True)
+
 _logger=logging.getLogger(__name__)
 
 MAX_PAGE_SIZE = 100
@@ -22,14 +28,114 @@ INACTIVITY_LIMIT = timedelta(minutes=60)
 
 # ── Database ──────────────────────────────────────────────────────────────────
 
+class PostgresCursorWrapper:
+    def __init__(self, cursor):
+        self._cursor = cursor
+
+    def execute(self, query, params=None):
+        self._cursor.execute(query, params)
+
+    def fetchone(self):
+        return self._cursor.fetchone()
+
+    def fetchall(self):
+        return self._cursor.fetchall()
+
+    @property
+    def rowcount(self):
+        return self._cursor.rowcount
+
+    @property
+    def description(self):
+        return self._cursor.description
+
+    @property
+    def lastrowid(self):
+        raise NotImplementedError("Postgres uses RETURNING id instead of lastrowid.")
+
+    def close(self):
+        self._cursor.close()
+
+    def __iter__(self):
+        return iter(self._cursor)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
+
+from psycopg2.pool import ThreadedConnectionPool
+
+_db_pool = None
+
+def init_pool():
+    global _db_pool
+    if _db_pool is None:
+        db_uri = os.getenv("DATABASE_URL")
+        if not db_uri:
+            db_uri = "postgresql://postgres:excelapppass@localhost:5432/excel_cleaner_db"
+        # Minimum 2 connections, maximum 20 connections in the pool
+        _db_pool = ThreadedConnectionPool(2, 20, dsn=db_uri)
+
+class PostgresConnectionWrapper:
+    def __init__(self, conn, pool=None):
+        self._conn = conn
+        self._pool = pool
+
+    def cursor(self, dictionary=False):
+        if dictionary:
+            return PostgresCursorWrapper(self._conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor))
+        return PostgresCursorWrapper(self._conn.cursor())
+
+    def commit(self):
+        self._conn.commit()
+
+    def rollback(self):
+        self._conn.rollback()
+
+    def close(self):
+        if self._pool:
+            # Check if connection was closed or broken, if so discard from pool
+            try:
+                if self._conn.closed != 0:
+                    self._pool.putconn(self._conn, close=True)
+                else:
+                    self._pool.putconn(self._conn)
+            except Exception:
+                try:
+                    self._pool.putconn(self._conn, close=True)
+                except Exception:
+                    pass
+        else:
+            self._conn.close()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
+
 def get_db_connection():
-    return mysql.connector.connect(
-        host="127.0.0.1",
-        user="excel_cleaner_app",
-        password="excelapppass",
-        database="excel_cleaner_db",
-        auth_plugin="mysql_native_password"
-    )
+    init_pool()
+    max_retries = 3
+    for _ in range(max_retries):
+        try:
+            conn = _db_pool.getconn()
+            # Verify connection is still open
+            if conn.closed == 0:
+                return PostgresConnectionWrapper(conn, pool=_db_pool)
+            # If closed, discard it
+            _db_pool.putconn(conn, close=True)
+        except Exception:
+            pass
+            
+    # Fallback to a brand new connection if pool fails or returns dead connections
+    db_uri = os.getenv("DATABASE_URL")
+    if not db_uri:
+        db_uri = "postgresql://postgres:excelapppass@localhost:5432/excel_cleaner_db"
+    conn = psycopg2.connect(db_uri)
+    return PostgresConnectionWrapper(conn)
 
 
 # ── Logging ───────────────────────────────────────────────────────────────────
@@ -111,8 +217,17 @@ def load_permissions_from_db(role_name):
 
 def _table_exists(cursor, table_name):
     try:
-        cursor.execute("SHOW TABLES LIKE %s", (table_name,))
-        return cursor.fetchone() is not None
+        cursor.execute("""
+            SELECT EXISTS (
+                SELECT FROM information_schema.tables 
+                WHERE table_schema = 'public' 
+                AND table_name = %s
+            )
+        """, (table_name,))
+        row = cursor.fetchone()
+        if not row:
+            return False
+        return row[0] if isinstance(row, tuple) else row.get("exists", False)
     except Exception:
         return False
 
@@ -464,7 +579,7 @@ def revoke_api_token(token_str):
     conn   = get_db_connection()
     cursor = conn.cursor()
     cursor.execute(
-        "UPDATE api_tokens SET is_active = 0 WHERE token = %s",
+        "UPDATE api_tokens SET is_active = FALSE WHERE token = %s",
         (token_hash,)
     )
     conn.commit()
@@ -518,8 +633,8 @@ def check_login_rate_limit(username):
         SELECT COUNT(*) AS fails, MIN(attempted_at) AS first_fail
         FROM login_attempts
         WHERE username = %s
-          AND success  = 0
-          AND attempted_at > NOW() - INTERVAL 10 MINUTE
+          AND success  = FALSE
+          AND attempted_at > NOW() - INTERVAL '10 MINUTE'
     """, (username,))
     row = cursor.fetchone()
     conn.close()
@@ -562,7 +677,7 @@ def record_login_attempt(username, success):
     cursor = conn.cursor()
     cursor.execute(
         "INSERT INTO login_attempts (username, success) VALUES (%s, %s)",
-        (username, 1 if success else 0)
+        (username, success)
     )
     conn.commit()
     conn.close()
@@ -626,7 +741,7 @@ def set_job_state(user_id, **fields):
 
     col_names = ", ".join(fields.keys())
     placeholders = ", ".join(["%s"]*len(fields))
-    updates = ", ".join(f"{k} = VALUES({k})" for k in fields.keys())
+    updates = ", ".join(f"{k} = EXCLUDED.{k}" for k in fields.keys())
     values =  list(fields.values())
 
     conn = get_db_connection()
@@ -634,7 +749,7 @@ def set_job_state(user_id, **fields):
     cursor.execute(
         f"""INSERT INTO cleaning_jobs (user_id, {col_names})
         VALUES (%s, {placeholders})
-        ON DUPLICATE KEY UPDATE {updates}""",
+        ON CONFLICT (user_id) DO UPDATE SET {updates}""",
         [user_id] + values
     )
     conn.commit()
@@ -676,3 +791,610 @@ def log_search(user_id, username, search_term):
     finally:
         if conn is not None:
             conn.close()
+
+
+def ingest_cleaning_results(cleaned_df, invalid_df, removed_rows, detailed_errors, user_id):
+    """
+    Ingests cleaned records into master_records, invalid/removed rows into quarantine,
+    and warnings/errors into validation_results.
+    """
+    import json
+    import uuid
+    import psycopg2
+    
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    CORE_COLUMNS = {
+        'company': ['company', 'company name', 'firm', 'organisation', 'organization', 'org'],
+        'email': ['email', 'email address', 'e-mail', 'mail'],
+        'phone': ['phone', 'phone number', 'mobile', 'telephone', 'number', 'contact'],
+        'source': ['source', 'lead source'],
+        'issue': ['issue', 'problem', 'ticket'],
+        'integrity': ['integrity', 'data integrity'],
+        'match_score': ['match_score', 'score']
+    }
+    
+    def map_columns(df_cols):
+        mapping = {}
+        for db_col, aliases in CORE_COLUMNS.items():
+            for df_col in df_cols:
+                if df_col.strip().lower() in aliases:
+                    mapping[db_col] = df_col
+                    break
+        return mapping
+
+    try:
+        col_map = map_columns(cleaned_df.columns)
+        mapped_df_cols = set(col_map.values())
+        extra_cols = [c for c in cleaned_df.columns if c not in mapped_df_cols]
+        
+        # 1. Ingest cleaned records
+        for idx, row in cleaned_df.iterrows():
+            email_val = row.get(col_map.get('email')) if 'email' in col_map else None
+            if email_val is None or (isinstance(email_val, float) and (email_val != email_val or str(email_val).lower() == 'nan')) or str(email_val).strip() == '':
+                email_val = None
+                
+            company_val = row.get(col_map.get('company')) if 'company' in col_map else None
+            phone_val = row.get(col_map.get('phone')) if 'phone' in col_map else None
+            source_val = row.get(col_map.get('source')) if 'source' in col_map else None
+            issue_val = row.get(col_map.get('issue')) if 'issue' in col_map else None
+            integrity_val = row.get(col_map.get('integrity')) if 'integrity' in col_map else 'Clean'
+            match_score_val = row.get(col_map.get('match_score')) if 'match_score' in col_map else None
+            
+            extra_dict = {}
+            for col in extra_cols:
+                val = row[col]
+                if val != val or str(val).lower() == 'nan' or val is None:
+                    extra_dict[col] = None
+                else:
+                    extra_dict[col] = val
+            
+            extra_json = json.dumps(extra_dict)
+            cust_uuid = str(uuid.uuid4())
+            
+            existing_id = None
+            if email_val:
+                cursor.execute("SELECT customer_id FROM master_records WHERE email = %s AND survivor_id IS NULL LIMIT 1", (email_val,))
+                row_exists = cursor.fetchone()
+                if row_exists:
+                    existing_id = row_exists[0]
+            
+            if existing_id:
+                cursor.execute("""
+                    UPDATE master_records 
+                    SET company = COALESCE(%s, company),
+                        phone = COALESCE(%s, phone),
+                        source = COALESCE(%s, source),
+                        issue = COALESCE(%s, issue),
+                        integrity = %s,
+                        match_score = %s,
+                        extra_fields = extra_fields || %s::jsonb,
+                        updated_at = CURRENT_TIMESTAMP
+                    WHERE customer_id = %s
+                """, (
+                    company_val, phone_val, source_val, issue_val, 
+                    integrity_val, match_score_val, extra_json, existing_id
+                ))
+                cust_id = existing_id
+            else:
+                cursor.execute("""
+                    INSERT INTO master_records 
+                    (customer_id, company, email, phone, source, issue, integrity, match_score, extra_fields) 
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    RETURNING customer_id
+                """, (
+                    cust_uuid, company_val, email_val, phone_val, source_val, 
+                    issue_val, integrity_val, match_score_val, extra_json
+                ))
+                cust_id = cursor.fetchone()[0]
+            
+            row_errors = [e for e in detailed_errors if e.get("row_index") == idx]
+            for err in row_errors:
+                cursor.execute("""
+                    INSERT INTO validation_results (rule_id, customer_id, column_name, status)
+                    VALUES (%s, %s, %s, %s)
+                """, (
+                    err.get("rule", "Unknown"), cust_id, err.get("column", "Unknown"), err.get("message", "Validation error")
+                ))
+
+        # 2. Ingest into quarantine (both fully removed rows and fully invalid rows)
+        cursor.execute("SELECT username FROM users WHERE id = %s", (user_id,))
+        username_row = cursor.fetchone()
+        flagged_by = username_row[0] if username_row else 'system'
+        file_uuid = str(uuid.uuid4())
+        
+        if not invalid_df.empty:
+            for idx, row in invalid_df.iterrows():
+                row_dict = {}
+                for col in invalid_df.columns:
+                    val = row[col]
+                    if val != val or str(val).lower() == 'nan' or val is None:
+                        row_dict[col] = None
+                    else:
+                        row_dict[col] = val
+                row_json = json.dumps(row_dict)
+                
+                row_errs = [e.get("message") for e in detailed_errors if e.get("row_index") == idx]
+                reason = "; ".join(row_errs) if row_errs else "Validation failure"
+                
+                cursor.execute("""
+                    INSERT INTO quarantine (file_id, raw_payload, reason, flagged_by)
+                    VALUES (%s, %s, %s, %s)
+                """, (file_uuid, row_json, reason, flagged_by))
+                
+        if not removed_rows.empty:
+            for idx, row in removed_rows.iterrows():
+                row_dict = {}
+                for col in removed_rows.columns:
+                    val = row[col]
+                    if val != val or str(val).lower() == 'nan' or val is None:
+                        row_dict[col] = None
+                    else:
+                        row_dict[col] = val
+                row_json = json.dumps(row_dict)
+                reason = row.get("Removal Reason") or "Duplicate record"
+                
+                cursor.execute("""
+                    INSERT INTO quarantine (file_id, raw_payload, reason, flagged_by)
+                    VALUES (%s, %s, %s, %s)
+                """, (file_uuid, row_json, reason, flagged_by))
+
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        raise e
+    finally:
+        conn.close()
+
+
+# ── Custom Fields & Mapping Ingestion (Rishi Branch) ──────────────────────────
+
+MASTER_COLUMNS = {
+    'full_name', 'email_address', 'primary_phone_number', 'alternate_phone_number',
+    'company_name', 'job_title', 'department', 'website_url', 'address_line_1',
+    'address_line_2', 'city', 'state_province', 'postal_zip_code', 'country',
+    'linkedin_profile_url', 'industry', 'lead_source', 'record_status', 'date_of_birth',
+    'gender', 'company_size', 'annual_revenue', 'imported_by'
+}
+
+def normalize_header(header_name):
+    name = str(header_name).strip().lower()
+    name = re.sub(r'[^a-z0-9\s_\-]', '', name)
+    name = re.sub(r'[\s_\-]+', '_', name)
+    return name.strip('_')
+
+def suggest_column_mapping(columns, cursor):
+    master_cols = [
+        ("full_name", "Full Name"),
+        ("email_address", "Email Address"),
+        ("primary_phone_number", "Primary Phone Number"),
+        ("alternate_phone_number", "Alternate Phone Number"),
+        ("company_name", "Company Name"),
+        ("job_title", "Job Title"),
+        ("department", "Department"),
+        ("website_url", "Website URL"),
+        ("address_line_1", "Address Line 1"),
+        ("address_line_2", "Address Line 2"),
+        ("city", "City"),
+        ("state_province", "State / Province"),
+        ("postal_zip_code", "Postal / ZIP Code"),
+        ("country", "Country"),
+        ("linkedin_profile_url", "LinkedIn Profile URL"),
+        ("industry", "Industry"),
+        ("lead_source", "Lead Source"),
+        ("record_status", "Record Status"),
+        ("date_of_birth", "Date of Birth"),
+        ("gender", "Gender"),
+        ("company_size", "Company Size"),
+        ("annual_revenue", "Annual Revenue")
+    ]
+    
+    cursor.execute("SELECT id, field_name FROM field_registry WHERE is_active = TRUE")
+    custom_fields = cursor.fetchall()
+    
+    cursor.execute("SELECT alias, target_type, target_identifier FROM field_aliases")
+    aliases = cursor.fetchall()
+    
+    suggestions = {}
+    
+    for col in columns:
+        col_norm = normalize_header(col)
+        matched = False
+        
+        # 1. Aliases check
+        for a in aliases:
+            if a['alias'].lower().strip() == col.lower().strip() or normalize_header(a['alias']) == col_norm:
+                suggestions[col] = f"{a['target_type']}:{a['target_identifier']}"
+                matched = True
+                break
+        if matched:
+            continue
+            
+        # 2. Master columns check
+        for mc_norm, mc_name in master_cols:
+            if mc_norm == col_norm or mc_name.lower().strip() == col.lower().strip() or normalize_header(mc_name) == col_norm:
+                suggestions[col] = f"master:{mc_norm}"
+                matched = True
+                break
+        if matched:
+            continue
+            
+        # 3. Custom fields check
+        for cf in custom_fields:
+            if cf['normalized_name'] == col_norm or cf['field_name'].lower().strip() == col.lower().strip() or normalize_header(cf['field_name']) == col_norm:
+                suggestions[col] = f"custom:{cf['id']}"
+                matched = True
+                break
+        if matched:
+            continue
+            
+        suggestions[col] = "create_new"
+        
+    return suggestions
+
+def ingest_uploaded_file(file_id, file_path, username):
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    import pandas as pd
+    
+    try:
+        # Read file headers
+        if file_path.endswith('.csv'):
+            try:
+                df = pd.read_csv(file_path)
+            except Exception:
+                df = pd.read_csv(file_path, sep=None, engine='python')
+        else:
+            df = pd.read_excel(file_path)
+            
+        headers = df.columns.tolist()
+        if not headers:
+            return
+            
+        # 1. Fetch existing aliases & registry fields
+        cursor.execute("SELECT alias, target_type, target_identifier FROM field_aliases")
+        aliases = {row['alias'].strip().lower().replace(" ", "_"): row for row in cursor.fetchall()}
+        
+        cursor.execute("SELECT id, normalized_name FROM field_registry")
+        registry = {row['normalized_name']: row['id'] for row in cursor.fetchall()}
+        
+        header_mapping = {}
+        for header in headers:
+            norm = normalize_header(header)
+            if not norm:
+                continue
+                
+            # Check 1: Direct Master Column match
+            if norm in MASTER_COLUMNS:
+                header_mapping[header] = {'type': 'master', 'target': norm}
+                continue
+                
+            # Check 2: Match aliases
+            if norm in aliases:
+                alias = aliases[norm]
+                header_mapping[header] = {
+                    'type': alias['target_type'],
+                    'target': alias['target_identifier']
+                }
+                if alias['target_type'] == 'custom':
+                    cursor.execute(
+                        "UPDATE field_registry SET usage_count = usage_count + 1 WHERE id = %s",
+                        (int(alias['target_identifier']),)
+                    )
+                continue
+                
+            # Check 3: Check Registry
+            if norm in registry:
+                reg_id = registry[norm]
+                header_mapping[header] = {'type': 'custom', 'target': str(reg_id)}
+                cursor.execute(
+                    "UPDATE field_registry SET usage_count = usage_count + 1 WHERE id = %s",
+                    (reg_id,)
+                )
+                continue
+                
+            # Check 4: Create new registry field
+            cursor.execute(
+                "INSERT INTO field_registry (field_name, normalized_name, data_type, usage_count) VALUES (%s, %s, %s, %s) RETURNING id",
+                (header, norm, 'VARCHAR', 1)
+            )
+            row = cursor.fetchone()
+            new_id = row['id'] if isinstance(row, dict) else row[0]
+            registry[norm] = new_id
+            header_mapping[header] = {'type': 'custom', 'target': str(new_id)}
+            
+        conn.commit()
+        
+        # 2. Ingest Rows
+        records_to_insert = []
+        for _, row in df.iterrows():
+            record_dict = {
+                'file_id': file_id,
+                'full_name': None,
+                'email_address': None,
+                'primary_phone_number': None,
+                'alternate_phone_number': None,
+                'company_name': None,
+                'job_title': None,
+                'department': None,
+                'website_url': None,
+                'address_line_1': None,
+                'address_line_2': None,
+                'city': None,
+                'state_province': None,
+                'postal_zip_code': None,
+                'country': None,
+                'linkedin_profile_url': None,
+                'industry': None,
+                'lead_source': None,
+                'record_status': None,
+                'date_of_birth': None,
+                'gender': None,
+                'company_size': None,
+                'annual_revenue': None,
+                'imported_by': username,
+                'extra_fields': {}
+            }
+            
+            for header, val in row.items():
+                if header not in header_mapping:
+                    continue
+                    
+                if pd.isnull(val) or str(val).strip().lower() in ('nan', 'nat', 'null'):
+                    cleaned_val = None
+                else:
+                    cleaned_val = val
+                    
+                if cleaned_val is None:
+                    continue
+                    
+                mapping = header_mapping[header]
+                if mapping['type'] == 'master':
+                    record_dict[mapping['target']] = str(cleaned_val)
+                else:
+                    record_dict['extra_fields'][mapping['target']] = str(cleaned_val)
+                    
+            if record_dict['extra_fields']:
+                record_dict['extra_fields'] = json.dumps(record_dict['extra_fields'])
+            else:
+                record_dict['extra_fields'] = None
+                
+            records_to_insert.append(record_dict)
+            
+        # Bulk insert records
+        if records_to_insert:
+            columns_list = [
+                'file_id', 'full_name', 'email_address', 'primary_phone_number', 'alternate_phone_number',
+                'company_name', 'job_title', 'department', 'website_url', 'address_line_1', 'address_line_2',
+                'city', 'state_province', 'postal_zip_code', 'country', 'linkedin_profile_url', 'industry',
+                'lead_source', 'record_status', 'date_of_birth', 'gender', 'company_size', 'annual_revenue',
+                'imported_by', 'extra_fields'
+            ]
+            insert_query = f"""
+                INSERT INTO master_records ({', '.join([f'"{col}"' for col in columns_list])})
+                VALUES ({', '.join(['%s'] * len(columns_list))})
+            """
+            
+            insert_data = [
+                tuple(r[col] for col in columns_list)
+                for r in records_to_insert
+            ]
+            
+            cursor.executemany(insert_query, insert_data)
+            
+            # Update file status and row count
+            cursor.execute(
+                "UPDATE uploaded_files SET total_rows = %s, status = 'completed' WHERE id = %s",
+                (len(records_to_insert), file_id)
+            )
+            conn.commit()
+            
+    except Exception as e:
+        conn.rollback()
+        try:
+            cursor.execute("UPDATE uploaded_files SET status = 'failed' WHERE id = %s", (file_id,))
+            conn.commit()
+        except Exception:
+            pass
+        _logger.exception("Error ingesting file ID %s:", file_id)
+        raise e
+    finally:
+        cursor.close()
+        conn.close()
+
+def ingest_uploaded_file_with_mapping(file_id, file_path, username, mapping_config):
+    """
+    Ingests spreadsheet data based on user-configured column mapping layout.
+    Also rejects duplicate rows where every mapped value matches an existing database entry.
+    """
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    import pandas as pd
+    
+    try:
+        # 1. Read Excel/CSV file
+        if file_path.endswith('.csv'):
+            try:
+                df = pd.read_csv(file_path)
+            except Exception:
+                df = pd.read_csv(file_path, sep=None, engine='python')
+        else:
+            df = pd.read_excel(file_path)
+            
+        headers = df.columns.tolist()
+        if not headers:
+            cursor.execute("UPDATE uploaded_files SET status = 'failed' WHERE id = %s", (file_id,))
+            conn.commit()
+            return
+            
+        # 2. Handle dynamic creation of new custom fields
+        final_mapping = {}
+        for header, target in mapping_config.items():
+            if target == 'create_new':
+                norm = normalize_header(header)
+                # Check if it already exists in the registry
+                cursor.execute("SELECT id FROM field_registry WHERE normalized_name = %s", (norm,))
+                reg_row = cursor.fetchone()
+                if reg_row:
+                    final_mapping[header] = f"custom:{reg_row['id']}"
+                else:
+                    cursor.execute(
+                        "INSERT INTO field_registry (field_name, normalized_name, data_type, usage_count) VALUES (%s, %s, %s, %s) RETURNING id",
+                        (header, norm, 'VARCHAR', 1)
+                    )
+                    row = cursor.fetchone()
+                    new_id = row['id'] if isinstance(row, dict) else row[0]
+                    final_mapping[header] = f"custom:{new_id}"
+            elif target == 'ignore' or not target:
+                continue
+            else:
+                final_mapping[header] = target
+                
+        # 3. Process Rows and Check for Duplicates
+        records_to_insert = []
+        rejected_count = 0
+        seen_in_batch = set()
+        
+        # Get list of all columns in master_records dynamically to ensure safety
+        cursor.execute("""
+            SELECT column_name 
+            FROM information_schema.columns 
+            WHERE table_name = 'master_records'
+        """)
+        all_db_columns = [row['column_name'] if isinstance(row, dict) else row[0] for row in cursor.fetchall()]
+        
+        for _, row in df.iterrows():
+            record_dict = {
+                'file_id': file_id,
+                'imported_by': username,
+                'extra_fields': {}
+            }
+            # Initialize all other DB columns to None
+            for col in all_db_columns:
+                if col not in ('id', 'file_id', 'extra_fields', 'created_at', 'updated_at', 'imported_by'):
+                    record_dict[col] = None
+                    
+            has_any_value = False
+            for header, val in row.items():
+                if header not in final_mapping:
+                    continue
+                    
+                if pd.isnull(val) or str(val).strip().lower() in ('nan', 'nat', 'null'):
+                    cleaned_val = None
+                else:
+                    cleaned_val = str(val).strip()
+                    
+                if cleaned_val is None:
+                    continue
+                    
+                has_any_value = True
+                target = final_mapping[header]
+                if target.startswith("master:"):
+                    col_name = target.split("master:")[1]
+                    if col_name in record_dict:
+                        record_dict[col_name] = cleaned_val
+                elif target.startswith("custom:"):
+                    field_id = target.split("custom:")[1]
+                    record_dict['extra_fields'][field_id] = cleaned_val
+                    
+            if not has_any_value:
+                continue # Skip completely empty row
+                
+            # Perform Duplicate Check: if every mapped field matches an existing row
+            dup_query = ["1=1"]
+            dup_params = []
+            
+            # Add checks for master columns mapped
+            for header, target in final_mapping.items():
+                if target.startswith("master:"):
+                    col_name = target.split("master:")[1]
+                    if col_name in record_dict:
+                        val = record_dict[col_name]
+                        if val is not None:
+                            dup_query.append(f'"{col_name}" = %s')
+                            dup_params.append(val)
+                        else:
+                            dup_query.append(f'("{col_name}" IS NULL OR "{col_name}" = \'\')')
+                elif target.startswith("custom:"):
+                    field_id = target.split("custom:")[1]
+                    val = record_dict['extra_fields'].get(field_id)
+                    if val is not None:
+                        dup_query.append("extra_fields->>%s = %s")
+                        dup_params.append(str(field_id))
+                        dup_params.append(val)
+                    else:
+                        dup_query.append("(extra_fields IS NULL OR extra_fields->>%s IS NULL)")
+                        dup_params.append(str(field_id))
+                        
+            # Check in-memory duplicates for the current ingestion batch
+            seen_tuple_list = []
+            for h, t in sorted(final_mapping.items()):
+                if t.startswith("master:"):
+                    col_name = t.split("master:")[1]
+                    seen_tuple_list.append((t, record_dict.get(col_name)))
+                elif t.startswith("custom:"):
+                    field_id = t.split("custom:")[1]
+                    seen_tuple_list.append((t, record_dict['extra_fields'].get(field_id)))
+            seen_tuple = tuple(seen_tuple_list)
+            
+            if seen_tuple in seen_in_batch:
+                rejected_count += 1
+                continue
+                
+            # Execute duplicate query against database
+            cursor.execute(f"SELECT COUNT(*) as count FROM master_records WHERE {' AND '.join(dup_query)}", dup_params)
+            dup_row = cursor.fetchone()
+            if dup_row and (dup_row.get('count') or 0 if isinstance(dup_row, dict) else dup_row[0] or 0) > 0:
+                rejected_count += 1
+            else:
+                records_to_insert.append(record_dict)
+                seen_in_batch.add(seen_tuple)
+                
+        # 4. Insert dynamic inserts
+        if records_to_insert:
+            cols_to_insert = [c for c in all_db_columns if c not in ('id', 'created_at', 'updated_at')]
+            
+            insert_query = f"""
+                INSERT INTO master_records ({', '.join([f'"{c}"' for c in cols_to_insert])})
+                VALUES ({', '.join(['%s'] * len(cols_to_insert))})
+            """
+            
+            insert_data = []
+            for r in records_to_insert:
+                row_tuple = []
+                for col in cols_to_insert:
+                    if col == 'extra_fields':
+                        # Convert dict to JSON string or None
+                        row_tuple.append(json.dumps(r['extra_fields']) if r['extra_fields'] else None)
+                    else:
+                        row_tuple.append(r.get(col))
+                insert_data.append(tuple(row_tuple))
+                
+            cursor.executemany(insert_query, insert_data)
+            
+            # Increment usage counts for custom fields
+            for header, target in final_mapping.items():
+                if target.startswith("custom:"):
+                    fid = int(target.split("custom:")[1])
+                    cursor.execute("UPDATE field_registry SET usage_count = usage_count + 1 WHERE id = %s", (fid,))
+                    
+        # Update uploaded_files table stats
+        cursor.execute(
+            "UPDATE uploaded_files SET total_rows = %s, rows_imported = %s, rows_rejected = %s, status = 'completed' WHERE id = %s",
+            (len(df), len(records_to_insert), rejected_count, file_id)
+        )
+        conn.commit()
+        
+    except Exception as e:
+        conn.rollback()
+        try:
+            cursor.execute("UPDATE uploaded_files SET status = 'failed' WHERE id = %s", (file_id,))
+            conn.commit()
+        except Exception:
+            pass
+        _logger.exception("Error ingesting file ID %s:", file_id)
+        raise e
+    finally:
+        cursor.close()
+        conn.close()

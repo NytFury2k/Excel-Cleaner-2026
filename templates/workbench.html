@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Duplicate Review Workbench — Paramantra</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <link rel="icon" href="https://paramantra.us/aldius/images/favicon.png" type="image/gif">
+  <style>
+    :root {
+      --red: #b91c1c;
+      --border: #e5e7eb;
+      --surface: #f9fafb;
+    }
+
+    body {
+      background: #f4f5f7;
+      font-family: system-ui, -apple-system, sans-serif;
+    }
+
+    .card {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .card-header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 20px;
+      font-weight: 600;
+    }
+
+    .card-body {
+      padding: 20px;
+    }
+
+    .form-control, .form-select {
+      border-radius: 8px;
+      border-color: var(--border);
+      font-size: 0.88rem;
+    }
+
+    .form-control:focus, .form-select:focus {
+      border-color: #fca5a5;
+      box-shadow: 0 0 0 3px rgba(185, 28, 28, 0.1);
+    }
+
+    .btn-danger {
+      background: var(--red);
+      border-color: var(--red);
+    }
+
+    .btn-danger:hover {
+      background: #991b1b;
+      border-color: #991b1b;
+    }
+
+    .page-hdr h2 {
+      font-size: 1.35rem;
+      font-weight: 700;
+      color: #111827;
+      margin-bottom: 3px;
+    }
+
+    .page-hdr p {
+      font-size: 0.875rem;
+      color: #6b7280;
+      margin: 0;
+    }
+
+    .app-layout {
+      display: flex;
+      min-height: 100vh;
+    }
+
+    .sidebar {
+      width: 260px;
+      background: #fff;
+      border-right: 1px solid #e5e7eb;
+      position: fixed;
+      top: 0;
+      left: 0;
+      bottom: 0;
+    }
+
+    .content-area {
+      flex: 1;
+      margin-left: 260px;
+      padding: 24px;
+    }
+
+    .cluster-list-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 16px;
+      color: #374151;
+      text-decoration: none;
+      border-bottom: 1px solid #f3f4f6;
+      font-size: 0.88rem;
+    }
+
+    .cluster-list-item:hover {
+      background: #fef2f2;
+      color: var(--red);
+    }
+
+    .cluster-list-item.active {
+      background: #fee2e2;
+      color: #991b1b;
+      font-weight: 600;
+    }
+
+    .compare-column-card {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      min-height: 100%;
+    }
+
+    .compare-label {
+      font-size: 0.72rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      color: #9ca3af;
+      margin-bottom: 2px;
+    }
+
+    .compare-value {
+      font-size: 0.88rem;
+      color: #111827;
+      margin-bottom: 12px;
+      word-break: break-all;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="app-layout">
+
+    {% include '_sidebar.html' %}
+
+    <main class="content-area">
+      <div class="container my-4">
+
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+              <div class="alert alert-{{ category if category != 'error' else 'danger' }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+              </div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+
+        <!-- Header -->
+        <div class="page-hdr mb-4">
+          <h2><i class="bi bi-git me-2" style="color:var(--red);"></i>Duplicate Review Workbench</h2>
+          <p>Inspect, compare, and merge overlapping customer records into a single surviving profile</p>
+        </div>
+
+        <div class="row g-4">
+          <!-- Left Panel: Cluster List -->
+          <div class="col-12 col-md-3">
+            <div class="card shadow-sm h-100">
+              <div class="card-header text-dark">
+                <i class="bi bi-list-task me-1 text-danger"></i> Overlap Queues
+              </div>
+              <div class="card-body p-0" style="max-height: 600px; overflow-y: auto;">
+                {% if clusters %}
+                  {% for c in clusters %}
+                    <a href="{{ url_for('workbench_review', type=c.type, value=c.value) }}" 
+                       class="cluster-list-item {% if active_cluster and active_cluster.type == c.type and active_cluster.value == c.value %}active{% endif %}">
+                      <span class="text-truncate" style="max-width: 80%;">{{ c.title }}</span>
+                      <span class="badge bg-danger-subtle text-danger rounded-pill">{{ c.count }}</span>
+                    </a>
+                  {% endfor %}
+                {% else %}
+                  <div class="p-4 text-center text-muted" style="font-size:0.8rem;">
+                    <i class="bi bi-clipboard-check fs-3 d-block mb-2 text-white-50"></i>
+                    No duplicate record clusters detected in the database.
+                  </div>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+
+          <!-- Right Panel: Compare & Merge Interface -->
+          <div class="col-12 col-md-9">
+            {% if records %}
+              <form action="{{ url_for('workbench_merge') }}" method="POST">
+                <!-- Keep track of cluster information -->
+                <input type="hidden" name="cluster_type" value="{{ active_cluster.type }}">
+                <input type="hidden" name="cluster_value" value="{{ active_cluster.value }}">
+
+                <div class="card shadow-sm mb-4">
+                  <div class="card-header bg-danger text-white d-flex justify-content-between align-items-center">
+                    <span><i class="bi bi-eye me-2"></i>Comparing {{ records | length }} Duplicate Records</span>
+                    <button type="submit" class="btn btn-light btn-sm text-danger fw-bold px-3" style="border-radius: 8px;">
+                      <i class="bi bi-check2-circle me-1"></i>Resolve & Merge
+                    </button>
+                  </div>
+                  
+                  <div class="card-body bg-light">
+                    <!-- Grid of Compared Records -->
+                    <div class="row g-3 mb-4">
+                      {% for r in records %}
+                        <div class="col">
+                          <div class="compare-column-card shadow-sm">
+                            <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
+                              <span class="badge bg-secondary">Record #{{ loop.index }}</span>
+                              
+                              <div class="form-check">
+                                <input class="form-check-input" type="radio" name="primary_id" id="primary_{{ r.customer_id }}" value="{{ r.customer_id }}" {% if loop.first %}checked{% endif %} onclick="selectSurvivor('{{ loop.index0 }}')">
+                                <label class="form-check-label fw-bold text-danger" for="primary_{{ r.customer_id }}" style="font-size: 0.78rem; cursor: pointer;">
+                                  Keep as Primary
+                                </label>
+                              </div>
+                            </div>
+
+                            <input type="hidden" name="secondary_ids[]" value="{{ r.customer_id }}">
+
+                            <div class="compare-label">ID / Anchor</div>
+                            <div class="compare-value text-muted" style="font-size:0.75rem;">{{ r.customer_id }}</div>
+
+                            <div class="compare-label">Company</div>
+                            <div class="compare-value text-dark fw-bold" id="val_company_{{ loop.index0 }}">{{ r.company or '-' }}</div>
+
+                            <div class="compare-label">Email</div>
+                            <div class="compare-value text-dark" id="val_email_{{ loop.index0 }}">{{ r.email or '-' }}</div>
+
+                            <div class="compare-label">Phone</div>
+                            <div class="compare-value text-dark" id="val_phone_{{ loop.index0 }}">{{ r.phone or '-' }}</div>
+
+                            <div class="compare-label">Source</div>
+                            <div class="compare-value text-dark" id="val_source_{{ loop.index0 }}">{{ r.source or 'Direct' }}</div>
+
+                            <div class="compare-label">Issue / Ticket</div>
+                            <div class="compare-value text-dark" id="val_issue_{{ loop.index0 }}">{{ r.issue or '-' }}</div>
+
+                            <div class="compare-label">Integrity Status</div>
+                            <div class="compare-value" id="val_integrity_{{ loop.index0 }}">
+                              <span class="badge bg-{{ 'success' if r.integrity == 'Clean' else 'warning' }}">{{ r.integrity }}</span>
+                            </div>
+
+                            <!-- Dynamic Extra JSONB Column unpacking -->
+                            {% set extra = r.extra_fields | parse_json %}
+                            {% if extra_keys %}
+                              <div class="border-top pt-2 mt-2">
+                                <div class="text-muted fw-bold mb-2" style="font-size:0.75rem; text-transform: uppercase;">Nested Custom Attributes</div>
+                                {% for key in extra_keys %}
+                                  <div class="compare-label">{{ key }}</div>
+                                  <div class="compare-value text-dark" id="val_extra_{{ key }}_{{ loop.index0 }}">{{ extra.get(key) or '-' }}</div>
+                                {% endfor %}
+                              </div>
+                            {% endif %}
+                          </div>
+                        </div>
+                      {% endfor %}
+                    </div>
+
+                    <!-- Merge/Survivor Survivorship Output Selection Column -->
+                    <div class="card shadow-sm border-danger">
+                      <div class="card-header bg-danger-subtle text-danger fw-bold" style="font-size:0.9rem;">
+                        <i class="bi bi-shield-fill-check me-1"></i>Final Survivorship Record Settings
+                      </div>
+                      <div class="card-body bg-white">
+                        <div class="row g-3">
+                          <div class="col-md-6 col-12">
+                            <label class="form-label">Company Name</label>
+                            <input type="text" name="merged_company" id="merged_company" class="form-control" value="">
+                          </div>
+                          <div class="col-md-6 col-12">
+                            <label class="form-label">Email Address</label>
+                            <input type="email" name="merged_email" id="merged_email" class="form-control" value="">
+                          </div>
+                          <div class="col-md-6 col-12">
+                            <label class="form-label">Phone Number</label>
+                            <input type="text" name="merged_phone" id="merged_phone" class="form-control" value="">
+                          </div>
+                          <div class="col-md-6 col-12">
+                            <label class="form-label">Data Source</label>
+                            <input type="text" name="merged_source" id="merged_source" class="form-control" value="">
+                          </div>
+                          <div class="col-md-6 col-12">
+                            <label class="form-label">Issue / Problem</label>
+                            <input type="text" name="merged_issue" id="merged_issue" class="form-control" value="">
+                          </div>
+                          <div class="col-md-6 col-12">
+                            <label class="form-label">Integrity Status</label>
+                            <select name="merged_integrity" id="merged_integrity" class="form-select">
+                              <option value="Clean">Clean</option>
+                              <option value="Flagged">Flagged</option>
+                            </select>
+                          </div>
+                          
+                          <!-- Dynamic inputs for extra keys -->
+                          {% if extra_keys %}
+                            <div class="col-12 border-top pt-3 mt-3">
+                              <h6 class="text-danger fw-bold mb-3" style="font-size:0.85rem;"><i class="bi bi-plus-circle me-1"></i>Survivorship Custom Dynamic Inputs</h6>
+                              <div class="row g-3">
+                                {% for key in extra_keys %}
+                                  <input type="hidden" name="extra_keys[]" value="{{ key }}">
+                                  <div class="col-md-6 col-12">
+                                    <label class="form-label">{{ key }}</label>
+                                    <input type="text" name="merged_extra_{{ key }}" id="merged_extra_{{ key }}" class="form-control" value="">
+                                  </div>
+                                {% endfor %}
+                              </div>
+                            </div>
+                          {% endif %}
+                        </div>
+                      </div>
+                    </div>
+
+                  </div>
+                </div>
+              </form>
+            {% else %}
+              <div class="card shadow-sm border-0 bg-white py-5 text-center text-muted">
+                <i class="bi bi-shield-shaded fs-1 d-block mb-3 text-danger"></i>
+                <h5 class="text-dark fw-bold mb-1">Deduplication Workspace Empty</h5>
+                <p class="px-5 text-secondary" style="font-size:0.875rem;">Select an overlap cluster from the left panel to begin side-by-side data reconciliation, or run a new files cleaning pipeline with the "Duplicates Check" rule to discover new clusters.</p>
+              </div>
+            {% endif %}
+          </div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    // Pre-populate survivor form inputs based on the selected primary record index
+    const records = [
+      {% if records %}
+        {% for r in records %}
+          {
+            company: "{{ r.company or '' }}",
+            email: "{{ r.email or '' }}",
+            phone: "{{ r.phone or '' }}",
+            source: "{{ r.source or 'Direct' }}",
+            issue: "{{ r.issue or '' }}",
+            integrity: "{{ r.integrity or 'Clean' }}",
+            extra: {{ r.extra_fields | parse_json | tojson }}
+          },
+        {% endfor %}
+      {% endif %}
+    ];
+
+    function selectSurvivor(idx) {
+      const rec = records[idx];
+      if (!rec) return;
+
+      document.getElementById('merged_company').value = rec.company;
+      document.getElementById('merged_email').value = rec.email;
+      document.getElementById('merged_phone').value = rec.phone;
+      document.getElementById('merged_source').value = rec.source;
+      document.getElementById('merged_issue').value = rec.issue;
+      document.getElementById('merged_integrity').value = rec.integrity;
+
+      // Populate dynamic custom extra fields
+      if (rec.extra) {
+        for (const [key, val] of Object.entries(rec.extra)) {
+          const el = document.getElementById('merged_extra_' + key);
+          if (el) {
+            el.value = val || '';
+          }
+        }
+      }
+    }
+
+    // Auto-select the first record when the page loads
+    window.onload = function() {
+      selectSurvivor(0);
+    };
+  </script>
+</body>
+
+</html>

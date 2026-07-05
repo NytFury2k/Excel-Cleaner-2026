@@ -1,0 +1,20 @@
+# Python caches
+__pycache__/
+*.pyc
+
+# Local configuration
+.env
+
+# Large test datasets
+test_crm_data.csv
+
+# Generated output directories
+Generated_Files/
+temp_*.xlsx
+temp_*.csv
+*.xlsx
+*.csv
+
+# Logs
+logs/
+*.log

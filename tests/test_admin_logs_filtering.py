@@ -1,4 +1,4 @@
-from mysql.connector import ProgrammingError
+from psycopg2 import ProgrammingError
 
 from helpers import fetch_visible_logs
 
@@ -11,17 +11,17 @@ class FakeCursor:
 
     def execute(self, query, params=None):
         self.queries.append((query, params))
-        if isinstance(query, str) and query.upper().startswith("SHOW TABLES"):
+        if isinstance(query, str) and ("show tables" in query.lower() or "information_schema.tables" in query.lower()):
             self.show_tables_calls += 1
             self._show_tables = True
             return
         if "search_logs" in query.lower():
-            raise ProgrammingError("1146", "1146 (42S02): Table 'excel_cleaner_db.search_logs' doesn't exist", "42S02")
+            raise ProgrammingError("Table 'excel_cleaner_db.search_logs' doesn't exist")
 
     def fetchone(self):
         if self._show_tables:
             self._show_tables = False
-            return None
+            return (False,)
         return {"count": 0}
 
     def fetchall(self):

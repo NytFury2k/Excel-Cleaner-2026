@@ -1,17 +1,21 @@
 from flask import Flask, render_template, request, redirect, url_for, session, flash, send_file, abort, get_flashed_messages, jsonify
 import json
-import mysql.connector
+import psycopg2
 import bcrypt
 import pandas as pd
 from io import BytesIO
 import re
 import os
-from mysql.connector import Error, IntegrityError
+from psycopg2 import Error, IntegrityError
 import uuid
 import secrets
 from rbac import has_permission, ROLE_PERMISSIONS
 from functools import wraps
 from datetime import datetime, timedelta
+from concurrent.futures import ThreadPoolExecutor
+
+# Bound concurrent background ingestions to 2 workers to prevent DB connection/memory exhaustion
+bg_executor = ThreadPoolExecutor(max_workers=2)
 
 from collections import Counter
 import time
@@ -92,6 +96,7 @@ _validate_env()
 INACTIVITY_LIMIT = timedelta(minutes=30)
 
 app = Flask(__name__)
+app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024
 
 
 from flask_mail import Mail, Message
@@ -200,7 +205,7 @@ def _send_lockout_alert(username):
             # No manager — notify all admins who have an email set
             conn2   = get_db_connection()
             cursor2 = conn2.cursor(dictionary=True)
-            cursor2.execute("SELECT email FROM users WHERE role='admin' AND email IS NOT NULL AND is_active=1")
+            cursor2.execute("SELECT email FROM users WHERE role='admin' AND email IS NOT NULL AND is_active=TRUE")
             for admin in cursor2.fetchall():
                 notify_emails.append(admin["email"])
             conn2.close()
@@ -352,10 +357,11 @@ def register():
 
             # Public self-registration: no creator, no manager assignment
             cursor.execute(
-                "INSERT INTO users (username, password, role, email, manager_id, created_by) VALUES (%s, %s, %s, %s, NULL, NULL)",
+                "INSERT INTO users (username, password, role, email, manager_id, created_by) VALUES (%s, %s, %s, %s, NULL, NULL) RETURNING id",
                 (username, hashed, role, email)
             )
-            new_user_id = cursor.lastrowid
+            res = cursor.fetchone()
+            new_user_id = res['id'] if isinstance(res, dict) else res[0]
 
             # Set role_id
             cursor.execute("SELECT id FROM roles WHERE name = %s", (role,))
@@ -419,9 +425,9 @@ def admin_create_user():
     if caller_role == "admin":
         _conn   = get_db_connection()
         _cursor = _conn.cursor(dictionary=True)
-        _cursor.execute("SELECT id, username FROM users WHERE role='manager' AND is_active=1 ORDER BY username ASC")
+        _cursor.execute("SELECT id, username FROM users WHERE role='manager' AND is_active=TRUE ORDER BY username ASC")
         available_managers = _cursor.fetchall()
-        _cursor.execute("SELECT id, username FROM users WHERE role='team_lead' AND is_active=1 ORDER BY username ASC")
+        _cursor.execute("SELECT id, username FROM users WHERE role='team_lead' AND is_active=TRUE ORDER BY username ASC")
         available_tls=_cursor.fetchall()
         _cursor.close()
         _conn.close()
@@ -429,7 +435,7 @@ def admin_create_user():
     if caller_role == "manager":
         _conn   = get_db_connection()
         _cursor = _conn.cursor(dictionary=True)
-        _cursor.execute("SELECT id, username FROM users WHERE role='team_lead' AND manager_id=%s AND is_active=1 ORDER BY username ASC", (session.get("user_id"),))
+        _cursor.execute("SELECT id, username FROM users WHERE role='team_lead' AND manager_id=%s AND is_active=TRUE ORDER BY username ASC", (session.get("user_id"),))
         available_tls=_cursor.fetchall()
         _cursor.close()
         _conn.close()
@@ -528,11 +534,12 @@ def admin_create_user():
             cursor = conn.cursor(dictionary=True)
 
             cursor.execute(
-                "INSERT INTO users (username, password, role, email, manager_id, created_by) VALUES (%s, %s, %s, %s, %s, %s)",
+                "INSERT INTO users (username, password, role, email, manager_id, created_by) VALUES (%s, %s, %s, %s, %s, %s) RETURNING id",
                 (username, hashed, role, email, new_manager_id, created_by)
             )
+            res = cursor.fetchone()
+            new_user_id = res['id'] if isinstance(res, dict) else res[0]
             conn.commit()
-            new_user_id = cursor.lastrowid
 
             # Backfill role_id
             cursor.execute("SELECT id FROM roles WHERE name = %s", (role,))
@@ -656,6 +663,7 @@ def login():
         session["username"]   = user["username"]
         session["user_email"] = user.get("email")
         session["manager_id"] = user.get("manager_id")
+        session["permissions"] = list(load_permissions_from_db(user["role"]))
         session["last_active"] = datetime.utcnow().isoformat()
         
         record_login_attempt(username, success=True)
@@ -733,11 +741,11 @@ def dashboard():
     row_stats = cursor.fetchone()
     total_rows = (row_stats['total'] or 0) if row_stats else 0
 
-    cursor.execute("SELECT COUNT(*) as count FROM users WHERE is_active = 1")
+    cursor.execute("SELECT COUNT(*) as count FROM users WHERE is_active = TRUE")
     active_users_row = cursor.fetchone()
     active_users = active_users_row['count'] if active_users_row else 0
 
-    cursor.execute("SELECT COUNT(*) as count FROM logs WHERE action LIKE 'Uploaded file%' AND DATE(created_at) = CURDATE()")
+    cursor.execute("SELECT COUNT(*) as count FROM logs WHERE action LIKE 'Uploaded file%' AND DATE(created_at) = CURRENT_DATE")
     uploads_today_row = cursor.fetchone()
     uploads_today = uploads_today_row['count'] if uploads_today_row else 0
 
@@ -1213,6 +1221,13 @@ def clean_data():
         removed_file= os.path.join("Generated_Files","Removed",f"{base_name}_removed_{timestamp}.xlsx")
         removed_rows.to_excel(removed_file, index=False)
 
+    # Ingest data to Supabase database (CDP tables)
+    from helpers import ingest_cleaning_results
+    try:
+        ingest_cleaning_results(cleaned_df, invalid_df, removed_rows, detailed_errors, session["user_id"])
+    except Exception as e:
+        flash(f"Data ingested with database warnings: {e}", "warning")
+
     
     #STEP 8: Generate Preview
     preview = cleaned_df.reset_index(drop=True).head(15).to_html(
@@ -1399,7 +1414,7 @@ def downloads():
     else:
         filter_ids = visible_ids
 
-    # --- Scan Generated_Files directory for files belonging to visible users ---
+    # --- Scan Generated_Files directory for files belonging to visible/filtered users ---
     import glob as _glob
     from datetime import datetime as _dt
 
@@ -1407,45 +1422,66 @@ def downloads():
     type_dirs = {"cleaned": "Cleaned", "invalid": "Invalid", "removed": "Removed"}
 
     all_files = []
+
+    # Get uploads belonging to filter_ids to match UUID prefixes
+    uploaded_records = []
+    if filter_ids:
+        ph_ids = ", ".join(["%s"] * len(filter_ids))
+        cursor.execute(f"SELECT filename, original_filename FROM uploaded_files WHERE user_id IN ({ph_ids})", filter_ids)
+        uploaded_records = cursor.fetchall()
+
+    uuid_to_filename = {}
+    for record in uploaded_records:
+        uploaded_fn = record["filename"]
+        uuid_prefix = uploaded_fn.split("_", 1)[0]
+        # In case the prefix is UUID (32 chars)
+        if len(uuid_prefix) == 32:
+            uuid_to_filename[uuid_prefix] = record["original_filename"]
+        else:
+            uuid_to_filename[uploaded_fn] = record["original_filename"]
+
     for ftype, subdir in type_dirs.items():
         if ftype not in selected_types:
             continue
-        pattern = os.path.join(base_dir, subdir, "*.xlsx")
-        for fpath in _glob.glob(pattern):
-            fname = os.path.basename(fpath)
-            rel   = os.path.join("Generated_Files", subdir, fname)
+        
+        # Scan for each user's upload UUID prefix in the directory
+        for uuid_prefix, orig_name in uuid_to_filename.items():
+            pattern = os.path.join(base_dir, subdir, f"{uuid_prefix}_*.xlsx")
+            for fpath in _glob.glob(pattern):
+                fname = os.path.basename(fpath)
+                rel   = os.path.join("Generated_Files", subdir, fname)
 
-            # Date filter from filename timestamp (format: name_YYYYMMDD_HHMMSS.xlsx)
-            try:
-                parts    = fname.rsplit("_", 2)
-                file_dt  = _dt.strptime(parts[-2] + parts[-1].replace(".xlsx", ""), "%Y%m%d%H%M%S")
-            except Exception:
-                file_dt = _dt.fromtimestamp(os.path.getmtime(fpath))
-
-            if from_date:
+                # Date filter from filename timestamp (format: name_YYYYMMDD_HHMMSS.xlsx)
                 try:
-                    if file_dt.date() < _dt.strptime(from_date, "%Y-%m-%d").date():
-                        continue
+                    parts    = fname.rsplit("_", 2)
+                    file_dt  = _dt.strptime(parts[-2] + parts[-1].replace(".xlsx", ""), "%Y%m%d%H%M%S")
                 except Exception:
-                    pass
-            if to_date:
-                try:
-                    if file_dt.date() > _dt.strptime(to_date, "%Y-%m-%d").date():
-                        continue
-                except Exception:
-                    pass
-            if search and search.lower() not in fname.lower():
-                continue
+                    file_dt = _dt.fromtimestamp(os.path.getmtime(fpath))
 
-            size_kb = round(os.path.getsize(fpath) / 1024, 1)
-            all_files.append({
-                "rel_path":    rel,
-                "display_name": fname,
-                "type":        ftype,
-                "size_kb":     size_kb,
-                "date":        file_dt.strftime("%Y-%m-%d %H:%M"),
-                "sort_key":    file_dt,
-            })
+                if from_date:
+                    try:
+                        if file_dt.date() < _dt.strptime(from_date, "%Y-%m-%d").date():
+                            continue
+                    except Exception:
+                        pass
+                if to_date:
+                    try:
+                        if file_dt.date() > _dt.strptime(to_date, "%Y-%m-%d").date():
+                            continue
+                    except Exception:
+                        pass
+                if search and search.lower() not in fname.lower():
+                    continue
+
+                size_kb = round(os.path.getsize(fpath) / 1024, 1)
+                all_files.append({
+                    "rel_path":    rel,
+                    "display_name": fname,
+                    "type":        ftype,
+                    "size_kb":     size_kb,
+                    "date":        file_dt.strftime("%Y-%m-%d %H:%M"),
+                    "sort_key":    file_dt,
+                })
 
     all_files.sort(key=lambda x: x["sort_key"], reverse=True)
     total_files = len(all_files)
@@ -1720,9 +1756,9 @@ def list_users():
         conditions.append("u.role = %s")
         params.append(role_filter)
     if status_filter == "active":
-        conditions.append("u.is_active = 1")
+        conditions.append("u.is_active = TRUE")
     elif status_filter == "inactive":
-        conditions.append("u.is_active = 0")
+        conditions.append("u.is_active = FALSE")
 
     where_clause = " WHERE " + " AND ".join(conditions)
 
@@ -1734,6 +1770,9 @@ def list_users():
     }
     order_clause = " ORDER BY " + order_map.get(sort, "u.username ASC")
 
+    hierarchy_view = False
+    hierarchy_data = {}
+
     try:
         cursor.execute(f"SELECT COUNT(*) AS total FROM users u {where_clause}", params)
         total_users = cursor.fetchone()["total"]
@@ -1743,6 +1782,78 @@ def list_users():
             params + [per_page, offset]
         )
         users = cursor.fetchall()
+
+        # Build hierarchy list only if no filters/sorting are active
+        hierarchy_view = not (search or role_filter or status_filter or sort)
+        if hierarchy_view:
+            try:
+                # Query all visible users to build tree (reuse existing DB connection before closing it)
+                cursor.execute(f"{base_select} {where_clause} ORDER BY u.username ASC", params)
+                all_users_list = cursor.fetchall()
+                
+                # Map each user by ID
+                users_by_id = {u["id"]: u for u in all_users_list}
+                
+                admins = []
+                managers = []
+                team_leads = []
+                plain_users = []
+                
+                # Add nested children collections
+                for u in all_users_list:
+                    u["team_leads"] = []
+                    u["reporting_users"] = []
+                    
+                    if u["role"] == "admin":
+                        admins.append(u)
+                    elif u["role"] == "manager":
+                        managers.append(u)
+                    elif u["role"] == "team_lead":
+                        team_leads.append(u)
+                    else:
+                        plain_users.append(u)
+                        
+                # Map Team Leads to Managers
+                unassigned_team_leads = []
+                for tl in team_leads:
+                    mgr_id = tl["manager_id"]
+                    if mgr_id and mgr_id in users_by_id:
+                        users_by_id[mgr_id]["team_leads"].append(tl)
+                    else:
+                        unassigned_team_leads.append(tl)
+                        
+                # Map Users to Team Leads (or Managers as fallback)
+                unassigned_users = []
+                for u in plain_users:
+                    mgr_id = u["manager_id"]
+                    if mgr_id and mgr_id in users_by_id:
+                        parent = users_by_id[mgr_id]
+                        if parent["role"] == "team_lead":
+                            parent["reporting_users"].append(u)
+                        elif parent["role"] == "manager":
+                            # Direct report to manager
+                            parent["team_leads"].append({
+                                "id": -1,
+                                "username": "Direct Reports",
+                                "role": "team_lead",
+                                "is_active": True,
+                                "reporting_users": [u]
+                            })
+                        else:
+                            unassigned_users.append(u)
+                    else:
+                        unassigned_users.append(u)
+                        
+                hierarchy_data = {
+                    "admins": admins,
+                    "managers": managers,
+                    "unassigned_team_leads": unassigned_team_leads,
+                    "unassigned_users": unassigned_users
+                }
+            except Exception as hierarchy_exc:
+                app.logger.exception("Failed to build users hierarchy tree")
+                hierarchy_view = False
+
     except Exception as exc:
         app.logger.exception("Failed to load users list")
         flash("The users page could not be loaded right now.", "danger")
@@ -1751,6 +1862,8 @@ def list_users():
         total_pages = 1
         start = 0
         end = 0
+        hierarchy_view = False
+        hierarchy_data = {}
     finally:
         conn.close()
 
@@ -1769,6 +1882,8 @@ def list_users():
         caller_role=caller_role,
         caller_id=caller_id,
         caller_username=caller_username,
+        hierarchy_view=hierarchy_view,
+        hierarchy_data=hierarchy_data,
     )
 
 
@@ -1865,9 +1980,9 @@ def manage_users():
         conditions.append("u.role = %s")
         params.append(role_filter)
     if status_filter == "active":
-        conditions.append("u.is_active = 1")
+        conditions.append("u.is_active = TRUE")
     elif status_filter == "inactive":
-        conditions.append("u.is_active = 0")
+        conditions.append("u.is_active = FALSE")
 
     order_map = {
         "username_desc": "u.username DESC",
@@ -1889,18 +2004,18 @@ def manage_users():
 
     # Dropdown lists for the reassign modal
     if caller_role == "admin":
-        cursor.execute("SELECT id, username FROM users WHERE role='admin' AND is_active=1 ORDER BY username")
+        cursor.execute("SELECT id, username FROM users WHERE role='admin' AND is_active=TRUE ORDER BY username")
         available_admins = cursor.fetchall()
-        cursor.execute("SELECT id, username FROM users WHERE role='manager' AND is_active=1 ORDER BY username")
+        cursor.execute("SELECT id, username FROM users WHERE role='manager' AND is_active=TRUE ORDER BY username")
         available_managers = cursor.fetchall()
-        cursor.execute("SELECT id, username FROM users WHERE role='team_lead' AND is_active=1 ORDER BY username")
+        cursor.execute("SELECT id, username FROM users WHERE role='team_lead' AND is_active=TRUE ORDER BY username")
         available_tls = cursor.fetchall()
     else:
         available_admins = []
         cursor.execute("SELECT id, username FROM users WHERE id=%s", (caller_id,))
         available_managers = cursor.fetchall()
         cursor.execute(
-            "SELECT id, username FROM users WHERE role='team_lead' AND manager_id=%s AND is_active=1 ORDER BY username",
+            "SELECT id, username FROM users WHERE role='team_lead' AND manager_id=%s AND is_active=TRUE ORDER BY username",
             (caller_id,)
         )
         available_tls = cursor.fetchall()
@@ -1940,7 +2055,7 @@ def tls_for_manager(manager_id):
     conn   = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     cursor.execute(
-        "SELECT id, username FROM users WHERE role='team_lead' AND manager_id=%s AND is_active=1 ORDER BY username",
+        "SELECT id, username FROM users WHERE role='team_lead' AND manager_id=%s AND is_active=TRUE ORDER BY username",
         (manager_id,)
     )
     tls = cursor.fetchall()
@@ -2176,21 +2291,21 @@ def toggle_user(user_id):
 
 
     #1) Read current state
-    cursor.execute("SELECT username, `is_active` FROM users WHERE id = %s", (user_id,))
+    cursor.execute("SELECT username, is_active FROM users WHERE id = %s", (user_id,))
     row=cursor.fetchone()
 
-    new_status=0 if row["is_active"] else 1
+    new_status=False if row["is_active"] else True
 
     #2) Update to flipped value
     cursor.execute(
-        "UPDATE users SET `is_active` = %s WHERE id = %s",
+        "UPDATE users SET is_active = %s WHERE id = %s",
         (new_status, user_id),
     )
 
     conn.commit()
     conn.close()
 
-    action_text = "Disabled" if new_status == 0 else "Enabled"
+    action_text = "Disabled" if not new_status else "Enabled"
 
     log_action(
         session["user_id"],
@@ -2300,10 +2415,10 @@ def reset_password(user_id):
     hashed = bcrypt.hashpw(temp_password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
     
     # 1. Update password AND set reset flag
-    cursor.execute("UPDATE users SET password = %s, requires_password_change = 1 WHERE id = %s", (hashed, user_id))
+    cursor.execute("UPDATE users SET password = %s, requires_password_change = TRUE WHERE id = %s", (hashed, user_id))
 
     # 2. Clear lockout
-    cursor.execute("DELETE FROM login_attempts WHERE username = %s AND success = 0", (target_user["username"],))
+    cursor.execute("DELETE FROM login_attempts WHERE username = %s AND success = FALSE", (target_user["username"],))
     
     conn.commit()
     conn.close()
@@ -2409,8 +2524,8 @@ def save_preset():
     cursor.execute("""
                    INSERT INTO rule_presets (user_id, name, rules_json)
                    VALUES (%s, %s, %s)
-                   ON DUPLICATE KEY UPDATE rules_json = VALUES(rules_json)
-                   """,(session["user_id"], name, rules_json))
+                    ON CONFLICT (user_id, name) DO UPDATE SET rules_json = EXCLUDED.rules_json
+                    """,(session["user_id"], name, rules_json))
     conn.commit()
     conn.close()
     flash(f"Preset '{name}' saved.","success")
@@ -2515,14 +2630,773 @@ def preview_page():
     })
 
 
-@app.route("/test-mail")
-def test_mail():
+@app.template_filter('parse_json')
+def parse_json_filter(val):
+    import json
+    if not val:
+        return {}
+    if isinstance(val, dict):
+        return val
     try:
-        msg = Message("Test", recipients=["ruhinz26@gmail.com"], body="Test email from Data Manager")
-        mail.send(msg)
-        return "Email sent sucessfully"
+        return json.loads(val)
+    except Exception:
+        return {}
+
+@app.route("/records")
+@login_required()
+def cleansing_command_center():
+    page = request.args.get("page", 1, type=int)
+    search = request.args.get("search", "").strip()
+    per_page = 15
+    offset = (page - 1) * per_page
+    
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    
+    conditions = []
+    params = []
+    
+    if search:
+        if ":" in search:
+            # GIN-indexed path search: e.g. "current_address:Seoul"
+            parts = search.split(":", 1)
+            key = parts[0].strip()
+            val = parts[1].strip()
+            conditions.append("extra_fields->>%s ILIKE %s")
+            params.extend([key, f"%{val}%"])
+        else:
+            # General search across fields
+            conditions.append("(company ILIKE %s OR email ILIKE %s OR phone ILIKE %s OR source ILIKE %s OR extra_fields::text ILIKE %s)")
+            params.extend([f"%{search}%"] * 5)
+            
+    # Restrict to active records (no survivor_id)
+    conditions.append("survivor_id IS NULL")
+    where_clause = " WHERE " + " AND ".join(conditions)
+    
+    # Query records
+    cursor.execute(f"""
+        SELECT customer_id, company, email, phone, source, integrity, match_score, extra_fields, created_at
+        FROM master_records
+        {where_clause}
+        ORDER BY created_at DESC
+        LIMIT %s OFFSET %s
+    """, params + [per_page, offset])
+    records = cursor.fetchall()
+    
+    # Count total
+    cursor.execute(f"SELECT COUNT(*) as count FROM master_records {where_clause}", params)
+    total_records = cursor.fetchone()["count"]
+    
+    # Counts for summary cards
+    cursor.execute("SELECT COUNT(*) as count FROM quarantine")
+    total_quarantine = cursor.fetchone()["count"]
+    
+    cursor.execute("SELECT COUNT(*) as count FROM validation_results")
+    total_warnings = cursor.fetchone()["count"]
+    
+    conn.close()
+    
+    import math
+    total_pages = max(1, math.ceil(total_records / per_page))
+    
+    return render_template(
+        "records.html",
+        records=records,
+        search=search,
+        page=page,
+        total_pages=total_pages,
+        total_records=total_records,
+        total_quarantine=total_quarantine,
+        total_warnings=total_warnings
+    )
+
+@app.route("/workbench")
+@login_required()
+def duplicate_review_workbench():
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    
+    # 1. Fetch duplicate clusters based on matching email
+    cursor.execute("""
+        SELECT email, COUNT(*) as count 
+        FROM master_records 
+        WHERE email IS NOT NULL AND survivor_id IS NULL
+        GROUP BY email 
+        HAVING COUNT(*) > 1
+        ORDER BY count DESC
+    """)
+    email_dupes = cursor.fetchall()
+    
+    # 2. Fetch duplicate clusters based on matching phone
+    cursor.execute("""
+        SELECT phone, COUNT(*) as count 
+        FROM master_records 
+        WHERE phone IS NOT NULL AND survivor_id IS NULL
+        GROUP BY phone 
+        HAVING COUNT(*) > 1
+        ORDER BY count DESC
+    """)
+    phone_dupes = cursor.fetchall()
+    
+    clusters = []
+    for d in email_dupes:
+        clusters.append({
+            "type": "email",
+            "value": d["email"],
+            "count": d["count"],
+            "title": f"Email: {d['email']}"
+        })
+    for d in phone_dupes:
+        clusters.append({
+            "type": "phone",
+            "value": d["phone"],
+            "count": d["count"],
+            "title": f"Phone: {d['phone']}"
+        })
+        
+    conn.close()
+    return render_template("workbench.html", clusters=clusters, active_cluster=None, records=[])
+
+@app.route("/workbench/review")
+@login_required()
+def workbench_review():
+    dup_type = request.args.get("type")
+    dup_value = request.args.get("value")
+    
+    if not dup_type or not dup_value:
+        return redirect(url_for("duplicate_review_workbench"))
+        
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    
+    if dup_type == "email":
+        cursor.execute("SELECT * FROM master_records WHERE email = %s AND survivor_id IS NULL", (dup_value,))
+    elif dup_type == "phone":
+        cursor.execute("SELECT * FROM master_records WHERE phone = %s AND survivor_id IS NULL", (dup_value,))
+    else:
+        conn.close()
+        return redirect(url_for("duplicate_review_workbench"))
+        
+    records = cursor.fetchall()
+    
+    # Re-gather clusters for sidebar
+    cursor.execute("""
+        SELECT email, COUNT(*) as count 
+        FROM master_records 
+        WHERE email IS NOT NULL AND survivor_id IS NULL
+        GROUP BY email 
+        HAVING COUNT(*) > 1
+        ORDER BY count DESC
+    """)
+    email_dupes = cursor.fetchall()
+    cursor.execute("""
+        SELECT phone, COUNT(*) as count 
+        FROM master_records 
+        WHERE phone IS NOT NULL AND survivor_id IS NULL
+        GROUP BY phone 
+        HAVING COUNT(*) > 1
+        ORDER BY count DESC
+    """)
+    phone_dupes = cursor.fetchall()
+    
+    clusters = []
+    for d in email_dupes:
+        clusters.append({
+            "type": "email",
+            "value": d["email"],
+            "count": d["count"],
+            "title": f"Email: {d['email']}"
+        })
+    for d in phone_dupes:
+        clusters.append({
+            "type": "phone",
+            "value": d["phone"],
+            "count": d["count"],
+            "title": f"Phone: {d['phone']}"
+        })
+        
+    conn.close()
+    
+    # Gather dynamic keys
+    all_extra_keys = set()
+    import json
+    for r in records:
+        extra_fields = r.get("extra_fields")
+        extra_dict = {}
+        if extra_fields:
+            if isinstance(extra_fields, dict):
+                extra_dict = extra_fields
+            else:
+                try:
+                    extra_dict = json.loads(extra_fields)
+                except Exception:
+                    pass
+        for k in extra_dict.keys():
+            all_extra_keys.add(k)
+            
+    return render_template(
+        "workbench.html",
+        clusters=clusters,
+        active_cluster={"type": dup_type, "value": dup_value},
+        records=records,
+        extra_keys=sorted(list(all_extra_keys))
+    )
+
+@app.route("/workbench/merge", methods=["POST"])
+@login_required()
+def workbench_merge():
+    primary_id = request.form.get("primary_id")
+    secondary_ids = request.form.getlist("secondary_ids[]")
+    cluster_type = request.form.get("cluster_type", "")
+    cluster_value = request.form.get("cluster_value", "")
+    
+    if not primary_id or not secondary_ids:
+        flash("Please select records to merge.", "danger")
+        return redirect(url_for("duplicate_review_workbench"))
+        
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    
+    try:
+        # 1. Fetch primary record
+        cursor.execute("SELECT * FROM master_records WHERE customer_id = %s", (primary_id,))
+        primary_record = cursor.fetchone()
+        if not primary_record:
+            raise Exception("Primary record not found.")
+            
+        company = request.form.get("merged_company")
+        email = request.form.get("merged_email")
+        phone = request.form.get("merged_phone")
+        source = request.form.get("merged_source")
+        issue = request.form.get("merged_issue")
+        integrity = request.form.get("merged_integrity")
+        
+        import json
+        extra_keys = request.form.getlist("extra_keys[]")
+        merged_extra = {}
+        for k in extra_keys:
+            merged_extra[k] = request.form.get(f"merged_extra_{k}")
+            
+        merged_extra_json = json.dumps(merged_extra)
+        
+        def get_extra_dict(record):
+            ext = record.get("extra_fields")
+            if not ext:
+                return {}
+            if isinstance(ext, dict):
+                return ext
+            try:
+                return json.loads(ext)
+            except Exception:
+                return {}
+        
+        # 2. Iterate through secondary records, archive, and audit them
+        for sec_id in secondary_ids:
+            cursor.execute("SELECT * FROM master_records WHERE customer_id = %s", (sec_id,))
+            sec_record = cursor.fetchone()
+            if sec_record:
+                cursor.execute("""
+                    INSERT INTO merge_audit (cluster_id, action_taken, performed_by, before_snapshot)
+                    VALUES (%s, 'MERGE_ARCHIVE', %s, %s)
+                """, (
+                    cluster_value,
+                    session["username"],
+                    json.dumps({
+                        "customer_id": sec_id,
+                        "company": sec_record["company"],
+                        "email": sec_record["email"],
+                        "phone": sec_record["phone"],
+                        "source": sec_record["source"],
+                        "issue": sec_record["issue"],
+                        "integrity": sec_record["integrity"],
+                        "extra_fields": get_extra_dict(sec_record)
+                    })
+                ))
+                
+                cursor.execute("UPDATE master_records SET survivor_id = %s, updated_at = CURRENT_TIMESTAMP WHERE customer_id = %s", (primary_id, sec_id))
+                
+        cursor.execute("""
+            INSERT INTO merge_audit (cluster_id, action_taken, performed_by, before_snapshot)
+            VALUES (%s, 'MERGE_SURVIVOR_PRE', %s, %s)
+        """, (
+            cluster_value,
+            session["username"],
+            json.dumps({
+                "customer_id": primary_id,
+                "company": primary_record["company"],
+                "email": primary_record["email"],
+                "phone": primary_record["phone"],
+                "source": primary_record["source"],
+                "issue": primary_record["issue"],
+                "integrity": primary_record["integrity"],
+                "extra_fields": get_extra_dict(primary_record)
+            })
+        ))
+        
+        # 3. Update primary record with the merged values
+        cursor.execute("""
+            UPDATE master_records 
+            SET company = %s, email = %s, phone = %s, source = %s, issue = %s, integrity = %s, extra_fields = %s, updated_at = CURRENT_TIMESTAMP
+            WHERE customer_id = %s
+        """, (company, email, phone, source, issue, integrity, merged_extra_json, primary_id))
+        
+        conn.commit()
+        flash("Records successfully merged in the database!", "success")
+        log_action(session["user_id"], f"Merged duplicates for {cluster_type} '{cluster_value}' into primary record '{primary_id}'")
+        
     except Exception as e:
-        return f"Failed: {e}"
+        conn.rollback()
+        flash(f"Error during merge transaction: {e}", "danger")
+    finally:
+        conn.close()
+        
+    return redirect(url_for("duplicate_review_workbench"))
+
+
+# ── Custom Fields Registry & Mapping Ingestion Routes (Rishi Branch) ──────────
+
+@app.route('/api/custom-fields', methods=['GET'])
+@login_required()
+def get_custom_fields():
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT id, field_name, normalized_name, data_type, is_active, searchable, filterable FROM field_registry WHERE is_active = TRUE")
+    fields = cursor.fetchall()
+    conn.close()
+    return jsonify(fields)
+
+@app.route('/api/records/<int:record_id>/custom', methods=['GET'])
+@login_required()
+def get_record_custom_fields(record_id):
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT * FROM master_records WHERE id = %s", (record_id,))
+    row = cursor.fetchone()
+    
+    if not row:
+        conn.close()
+        return jsonify({"error": "Record not found"}), 404
+        
+    cfields = row.get('extra_fields')
+    if isinstance(cfields, str):
+        try:
+            cfields = json.loads(cfields)
+        except Exception:
+            cfields = {}
+    elif not cfields:
+        cfields = {}
+        
+    resolved_data = {}
+    
+    # 1. Resolve JSON custom fields
+    for key_id_str, val in cfields.items():
+        try:
+            cursor.execute("SELECT field_name FROM field_registry WHERE id = %s", (int(key_id_str),))
+            f_row = cursor.fetchone()
+            if f_row:
+                resolved_data[f_row['field_name'] if isinstance(f_row, dict) else f_row[0]] = val
+            else:
+                resolved_data[f"Unregistered Field #{key_id_str}"] = val
+        except (ValueError, TypeError):
+            resolved_data[key_id_str] = val
+                
+    # 2. Add other populated columns that aren't metadata or main table columns
+    for col, val in row.items():
+        if col in ('id', 'file_id', 'extra_fields', 'created_at', 'updated_at', 'imported_by',
+                   'full_name', 'email_address', 'primary_phone_number', 'company_name', 'city', 'state_province'):
+            continue
+        if val is not None and str(val).strip() != '':
+            label = " ".join([w.capitalize() for w in col.split("_")])
+            resolved_data[label] = val
+            
+    conn.close()
+    return jsonify(resolved_data)
+
+@app.route('/registry')
+@login_required()
+def registry():
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT id, field_name, normalized_name, data_type, is_active, searchable, usage_count, created_at FROM field_registry ORDER BY id ASC")
+    fields = cursor.fetchall()
+    
+    # Calculate usage count dynamically from master_records JSONB using ->>
+    for f in fields:
+        field_id = f['id']
+        cursor.execute("SELECT COUNT(*) as count FROM master_records WHERE extra_fields->>%s IS NOT NULL", (str(field_id),))
+        cnt_row = cursor.fetchone()
+        f['usage_count'] = (cnt_row.get('count') or 0 if isinstance(cnt_row, dict) else cnt_row[0] or 0) if cnt_row else 0
+        
+        if f['created_at'] and isinstance(f['created_at'], datetime):
+            f['created_at'] = f['created_at'].strftime('%Y-%m-%d %H:%M')
+            
+    conn.close()
+    return render_template('registry.html', fields=fields)
+
+@app.route('/aliases')
+@login_required()
+def aliases_view():
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT id, alias, target_type, target_identifier FROM field_aliases ORDER BY id ASC")
+    aliases = cursor.fetchall()
+    
+    cursor.execute("SELECT id, field_name FROM field_registry WHERE is_active = TRUE")
+    custom_fields = cursor.fetchall()
+    
+    conn.close()
+    return render_template('aliases.html', aliases=aliases, custom_fields=custom_fields)
+
+@app.route('/history')
+@login_required()
+def history_view():
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT id, user_id, filename, original_filename, uploaded_at, total_rows, rows_imported, rows_rejected, status FROM uploaded_files ORDER BY id DESC")
+    uploads = cursor.fetchall()
+    
+    for u in uploads:
+        if u['uploaded_at'] and isinstance(u['uploaded_at'], datetime):
+            u['uploaded_at'] = u['uploaded_at'].strftime('%Y-%m-%d %H:%M:%S')
+            
+    conn.close()
+    return render_template('history.html', uploads=uploads)
+
+@app.route('/api/aliases', methods=['POST'])
+@login_required()
+def api_create_alias():
+    alias = request.form.get('alias', '').strip()
+    target_type = request.form.get('target_type', '').strip()
+    target_identifier = request.form.get('target_identifier', '').strip()
+    
+    if not alias:
+        return jsonify({"error": "Alias string cannot be empty"}), 400
+    if target_type not in ('master', 'custom'):
+        return jsonify({"error": "Target type must be 'master' or 'custom'"}), 400
+    if not target_identifier:
+        return jsonify({"error": "Target identifier cannot be empty"}), 400
+        
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        
+        # Check if alias already exists
+        cursor.execute("SELECT id FROM field_aliases WHERE alias = %s", (alias,))
+        if cursor.fetchone():
+            conn.close()
+            return jsonify({"error": f"Alias '{alias}' is already mapped."}), 400
+            
+        norm_alias = alias.strip().lower().replace(" ", "_")
+        cursor.execute(
+            "INSERT INTO field_aliases (alias, normalized_alias, target_type, target_identifier) VALUES (%s, %s, %s, %s)",
+            (alias, norm_alias, target_type, target_identifier)
+        )
+        conn.commit()
+        conn.close()
+        
+        return jsonify({"message": "Alias mapped successfully!"}), 201
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/aliases/<int:alias_id>/delete', methods=['POST'])
+@login_required()
+def api_delete_alias(alias_id):
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM field_aliases WHERE id = %s", (alias_id,))
+        conn.commit()
+        conn.close()
+        return jsonify({"message": "Alias mapping deleted"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/fields/<int:field_id>/status', methods=['POST'])
+@login_required()
+def api_update_field_status(field_id):
+    data = request.json or {}
+    
+    is_active = data.get('is_active')
+    searchable = data.get('searchable')
+    filterable = data.get('filterable')
+    
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    try:
+        if is_active is not None:
+            cursor.execute("UPDATE field_registry SET is_active = %s WHERE id = %s", (bool(is_active), field_id))
+        if searchable is not None:
+            cursor.execute("UPDATE field_registry SET searchable = %s WHERE id = %s", (bool(searchable), field_id))
+        if filterable is not None:
+            cursor.execute("UPDATE field_registry SET filterable = %s WHERE id = %s", (bool(filterable), field_id))
+            
+        conn.commit()
+        conn.close()
+        return jsonify({"message": "Field status updated successfully"}), 200
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/fields/<int:field_id>/convert-to-master', methods=['POST'])
+@login_required()
+def api_convert_to_master(field_id):
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        
+        # 1. Fetch registry field info
+        cursor.execute("SELECT field_name, normalized_name FROM field_registry WHERE id = %s", (field_id,))
+        field = cursor.fetchone()
+        if not field:
+            conn.close()
+            return jsonify({"error": "Registry field not found"}), 404
+            
+        c_name = field['normalized_name']
+        f_name = field['field_name']
+        
+        # 2. Add column to master_records table (Postgres double quotes instead of backticks)
+        try:
+            cursor.execute(f'ALTER TABLE master_records ADD COLUMN "{c_name}" VARCHAR(255) NULL')
+            conn.commit()
+        except Exception as alter_err:
+            # Column might already exist, log warning and proceed
+            pass
+            
+        # 3. Migrate data from extra_fields JSONB to the new column
+        cursor.execute("SELECT id, extra_fields FROM master_records WHERE extra_fields->>%s IS NOT NULL", (str(field_id),))
+        rows = cursor.fetchall()
+        for r in rows:
+            extra = r['extra_fields']
+            if isinstance(extra, str):
+                try:
+                    extra = json.loads(extra)
+                except Exception:
+                    extra = {}
+            if not extra:
+                extra = {}
+            val = extra.pop(str(field_id), None)
+            cursor.execute(
+                f'UPDATE master_records SET "{c_name}" = %s, extra_fields = %s WHERE id = %s',
+                (val, json.dumps(extra) if extra else None, r['id'])
+            )
+            
+        # 4. Update aliases target identifier to the new master column
+        cursor.execute(
+            "UPDATE field_aliases SET target_type = 'master', target_identifier = %s WHERE target_type = 'custom' AND target_identifier = %s",
+            (c_name, str(field_id))
+        )
+        
+        # 5. Delete from field_registry
+        cursor.execute("DELETE FROM field_registry WHERE id = %s", (field_id,))
+        conn.commit()
+        conn.close()
+        
+        return jsonify({"message": f"Successfully converted '{f_name}' custom field to a Master Column!"}), 200
+        
+    except Exception as e:
+        if conn:
+            conn.rollback()
+            conn.close()
+        return jsonify({"error": f"Migration failed: {str(e)}"}), 500
+
+@app.route('/api/upload-draft', methods=['POST'])
+@login_required()
+def api_upload_draft():
+    if 'file' not in request.files:
+        return jsonify({"error": "No file uploaded"}), 400
+        
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({"error": "No file selected"}), 400
+        
+    ext = os.path.splitext(file.filename)[1].lower()
+    if ext not in ('.xlsx', '.xls', '.csv'):
+        return jsonify({"error": "Only Excel and CSV files are allowed"}), 400
+        
+    try:
+        # Save temp file securely
+        safe_filename = os.path.basename(file.filename)
+        unique_filename = f"{uuid.uuid4().hex}_{safe_filename}"
+        upload_folder = "Generated_Files/Uploaded"
+        os.makedirs(upload_folder, exist_ok=True)
+        file_path = os.path.join(upload_folder, unique_filename)
+        file.save(file_path)
+        
+        # Read columns
+        if ext == '.csv':
+            try:
+                df = pd.read_csv(file_path, nrows=5)
+            except Exception:
+                df = pd.read_csv(file_path, sep=None, engine='python', nrows=5)
+        else:
+            df = pd.read_excel(file_path, nrows=5)
+            
+        columns = df.columns.tolist()
+        
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        suggestions = suggest_column_mapping(columns, cursor)
+        
+        cursor.execute("SELECT id, field_name FROM field_registry WHERE is_active = TRUE")
+        custom_fields = cursor.fetchall()
+        conn.close()
+        
+        return jsonify({
+            "filename": unique_filename,
+            "original_filename": safe_filename,
+            "columns": columns,
+            "suggestions": suggestions,
+            "custom_fields": custom_fields
+        }), 200
+        
+    except Exception as e:
+        return jsonify({"error": f"Failed to parse file: {str(e)}"}), 500
+
+@app.route('/api/browser/proceed-ingestion', methods=['POST'])
+@login_required()
+def api_proceed_ingestion():
+    data = request.get_json() or {}
+    filename = data.get('filename')
+    original_filename = data.get('original_filename')
+    mapping = data.get('mapping')
+    
+    if not filename or not mapping:
+        return jsonify({"error": "Missing filename or mapping details"}), 400
+        
+    file_path = os.path.join("Generated_Files/Uploaded", filename)
+    if not os.path.exists(file_path):
+        return jsonify({"error": "Temp file not found on server"}), 404
+        
+    try:
+        # Determine total rows
+        ext = os.path.splitext(filename)[1].lower()
+        if ext == '.csv':
+            try:
+                df = pd.read_csv(file_path)
+            except Exception:
+                df = pd.read_csv(file_path, sep=None, engine='python')
+        else:
+            df = pd.read_excel(file_path)
+        row_count = len(df)
+        
+        # Log database row for upload history
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute(
+            "INSERT INTO uploaded_files (user_id, filename, original_filename, total_rows, status, uploaded_at) VALUES (%s, %s, %s, %s, %s, %s) RETURNING id",
+            (session['user_id'], filename, original_filename, row_count, 'processing', datetime.utcnow())
+        )
+        row = cursor.fetchone()
+        file_id = row['id'] if isinstance(row, dict) else row[0]
+        conn.commit()
+        
+        cursor.execute("SELECT username FROM users WHERE id = %s", (session["user_id"],))
+        u_row = cursor.fetchone()
+        username = u_row["username"] if u_row else "unknown"
+        conn.close()
+        
+        # Run mapping ingestion in background
+        # Run mapping ingestion in background using ThreadPoolExecutor
+        from helpers import ingest_uploaded_file_with_mapping
+        
+        def process_upload_with_mapping():
+            try:
+                ingest_uploaded_file_with_mapping(file_id, file_path, username, mapping)
+            except Exception:
+                pass
+                
+        bg_executor.submit(process_upload_with_mapping)
+        
+        return jsonify({
+            "message": "Ingestion initiated successfully!",
+            "file_id": file_id
+        }), 200
+        
+    except Exception as e:
+        return jsonify({"error": f"Failed to proceed with ingestion: {str(e)}"}), 500
+
+@app.route('/api/browser/upload', methods=['POST'])
+@login_required()
+def api_upload_file():
+    if 'file' not in request.files:
+        return jsonify({"error": "No file part in request"}), 400
+        
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({"error": "No file selected for upload"}), 400
+        
+    ext = os.path.splitext(file.filename)[1].lower()
+    if ext not in ('.xlsx', '.xls', '.csv'):
+        return jsonify({"error": "Only Excel files (.xlsx, .xls) and CSV (.csv) are allowed"}), 400
+        
+    try:
+        # Save file securely with UUID to prevent overlaps
+        safe_filename = os.path.basename(file.filename)
+        unique_filename = f"{uuid.uuid4().hex}_{safe_filename}"
+        
+        # Ensure upload folder exists
+        upload_folder = "Generated_Files/Uploaded"
+        os.makedirs(upload_folder, exist_ok=True)
+        
+        file_path = os.path.join(upload_folder, unique_filename)
+        file.save(file_path)
+        
+        # Log database row for upload history
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        
+        # Check size or length (quick load to check length)
+        try:
+            if ext == '.csv':
+                df = pd.read_csv(file_path)
+            else:
+                df = pd.read_excel(file_path)
+            row_count = len(df)
+        except Exception:
+            row_count = 0
+            
+        cursor.execute(
+            "INSERT INTO uploaded_files (user_id, filename, original_filename, total_rows, status, uploaded_at) VALUES (%s, %s, %s, %s, %s, %s) RETURNING id",
+            (session['user_id'], unique_filename, safe_filename, row_count, 'processing', datetime.utcnow())
+        )
+        row = cursor.fetchone()
+        file_id = row['id'] if isinstance(row, dict) else row[0]
+        conn.commit()
+        
+        # Get username
+        cursor.execute("SELECT username FROM users WHERE id = %s", (session["user_id"],))
+        u_row = cursor.fetchone()
+        username = u_row["username"] if u_row else "unknown"
+        conn.close()
+        
+        # Execute parsing pipeline in a background thread using ThreadPoolExecutor
+        from helpers import ingest_uploaded_file
+        
+        def process_upload():
+            try:
+                ingest_uploaded_file(file_id, file_path, username)
+            except Exception:
+                pass
+                
+        bg_executor.submit(process_upload)
+        
+        return jsonify({
+            "message": "Upload successful! Ingestion pipeline started.",
+            "file": {
+                "id": file_id,
+                "user_id": session['user_id'],
+                "filename": unique_filename,
+                "original_filename": safe_filename,
+                "total_rows": row_count,
+                "status": "processing"
+            }
+        }), 202
+        
+    except Exception as e:
+        return jsonify({"error": f"Failed to upload file: {str(e)}"}), 500
+
 
 if __name__ == "__main__":
     app.run(debug=True)

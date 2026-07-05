@@ -355,27 +355,8 @@ ALTER TABLE logs ADD COLUMN removed_rows INT DEFAULT 0;
 
 select * from logs where date(created_at) = '2026-03-10';
 
-CREATE TABLE login_attempts (
-id int auto_increment primary key,
-username varchar(100) not null,
-attempted_at datetime default current_timestamp,
-success tinyint(1) default 0,
-INDEX idx_username_time (username, attempted_at)
-);
+-- Removed redundant CREATE and DROP for login_attempts and rule_presets to prevent data loss.
 
-CREATE TABLE rule_presets (
-id int auto_increment primary key,
-user_id int not null,
-name varchar(100) not null,
-rules_json text not null,
-created_at datetime default current_timestamp,
-foreign key (user_id) references users(id) on delete cascade,
-unique key unique_user_preset (user_id, name)
-);
-
-
-drop table login_attempts;
-drop table rule_presets;
 
 
 desc logs;

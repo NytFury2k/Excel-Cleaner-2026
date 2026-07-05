@@ -1,11 +1,11 @@
-import mysql.connector
+import psycopg2
 import app as app_module
 
 
 def test_users_page_returns_200_when_db_query_fails(monkeypatch):
     class FakeCursor:
         def execute(self, *args, **kwargs):
-            raise mysql.connector.errors.ProgrammingError("boom")
+            raise psycopg2.ProgrammingError("boom")
 
         def fetchone(self):
             return {"total": 0}
@@ -24,12 +24,13 @@ def test_users_page_returns_200_when_db_query_fails(monkeypatch):
     monkeypatch.setattr(app_module, "has_permission", lambda permission: True)
     monkeypatch.setattr(app_module, "get_visible_user_ids", lambda cursor, role=None, user_id=None: [1])
 
+    from datetime import datetime
     client = app_module.app.test_client()
     with client.session_transaction() as session:
         session["user_id"] = 1
         session["role"] = "admin"
         session["username"] = "admin"
-        session["last_active"] = "2026-06-25T00:00:00"
+        session["last_active"] = datetime.utcnow().isoformat()
 
     response = client.get("/users", follow_redirects=False)
 

@@ -4,7 +4,7 @@ from .type_resolver import resolve_column_type
 from .rules_registry import RULES_REGISTRY
 import pandas as pd
 import re
-from difflib import SequenceMatcher
+from rapidfuzz.distance import JaroWinkler
 from .survivorship import merge_cluster
 from flask import flash, redirect, url_for
 
@@ -44,7 +44,7 @@ def canonicalize_value(value, column_type):
 def text_similarity(a, b):
     if pd.isna(a) or pd.isna(b):
         return 0
-    return SequenceMatcher(None, str(a), str(b)).ratio()
+    return JaroWinkler.normalized_similarity(str(a), str(b))
 
 
 def normalize_for_fuzzy(text):
