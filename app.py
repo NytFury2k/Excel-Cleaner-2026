@@ -3933,11 +3933,15 @@ def api_convert_to_master(field_id):
         
         # 2. Add column to master_records table
         try:
-            cursor.execute(f"ALTER TABLE master_records ADD COLUMN `{c_name}` VARCHAR(255) NULL")
+            cursor.execute(f"ALTER TABLE master_records ADD COLUMN IF NOT EXISTS `{c_name}` VARCHAR(255) NULL")
             conn.commit()
         except Exception as alter_err:
-            # Column might already exist, log warning and proceed
+            # Column might already exist, log warning and roll back to reset aborted transaction state
             app.logger.warning(f"ALTER TABLE column warning: {alter_err}")
+            try:
+                conn.rollback()
+            except Exception:
+                pass
             
         # 3. Migrate data from custom_fields JSON to the new column
         # Select all records having this custom field
