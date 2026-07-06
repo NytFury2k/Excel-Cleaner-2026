@@ -979,12 +979,12 @@ def upload():
         
         ALLOWED_EXTENSIONS = (".xls", ".xlsx", ".csv")
         if file and file.filename.endswith(ALLOWED_EXTENSIONS):
-            #Check file size before doing anything else (limit: 10MB for now)
+            #Check file size before doing anything else (limit: 50MB)
             file.seek(0,2)              #seek to end
             file_size =file.tell()      #get position = size in bytes
             file.seek(0)                #reset to start
-            if file_size > 10 * 1024 * 1024:
-                flash("File too large. Maximum size is 10MB.","danger")
+            if file_size > 50 * 1024 * 1024:
+                flash("File too large. Maximum size is 50MB.","danger")
                 return render_template("upload.html")
             
             safe_filename = os.path.basename(file.filename)  #strips any path traversal
@@ -1005,8 +1005,26 @@ def upload():
                 flash(f"Could not read file: {e}", "danger")
                 return render_template("upload.html")
            
+            import uuid
+            file_uuid = uuid.uuid4().hex
+            unique_filename = f"{file_uuid}_{safe_filename}"
+            
+            # Log database row for upload history
+            try:
+                conn = get_db_connection()
+                cursor = conn.cursor(dictionary=True)
+                cursor.execute(
+                    "INSERT INTO uploaded_files (user_id, filename, original_filename, total_rows, status, uploaded_at) VALUES (%s, %s, %s, %s, %s, %s)",
+                    (session['user_id'], unique_filename, safe_filename, len(df), 'completed', datetime.utcnow())
+                )
+                conn.commit()
+                conn.close()
+            except Exception as db_err:
+                app.logger.warning(f"Could not record upload in database: {db_err}")
+
             session["temp_file"] = temp_path
             session["uploaded_file"] = safe_filename
+            session["uploaded_file_uuid"] = file_uuid
             session.pop("selected_rules", None)  # Clear old rules
            
             log_action(session["user_id"], f"Uploaded file {session['uploaded_file']} ({len(df)} rows)")
@@ -1110,8 +1128,6 @@ import glob
 @login_required()
 def clean_data():
 
-    # print("RAW FORM: ", request.form)    #debug statement
-
     
     if "user_id" not in session or session.get("role") not in ROLE_PERMISSIONS:
         return redirect(url_for("login"))
@@ -1152,8 +1168,6 @@ def clean_data():
                 selected_rules.append((rule_name, column, strategy))
             else:
                 selected_rules.append((rule_name, column))
-
-    # print("PARSED SELECTED RULES: ", selected_rules)    #debug statement
         
     session["selected_rules"] = selected_rules
 
@@ -1170,8 +1184,6 @@ def clean_data():
         else:
             engine_rules.append(rule_tuple)
 
-    # print("DUP COLS: ", dup_columns)    #debug statement
-
     if not selected_rules:
         flash("Please select at least one cleaning rule.", "warning")
         return redirect(url_for("choose_rules"))
@@ -1185,10 +1197,6 @@ def clean_data():
     )
 
     system_warnings = incompatibility_errors
-
-    
-    # print("SELECTED RULES RAW:", selected_rules)    #debug statement
-    # print("TYPE: ", type(selected_rules))           #debug statement
 
     removed_count = len(removed_rows)
 
@@ -1204,22 +1212,41 @@ def clean_data():
     #STEP 7: Save Files
 
     from datetime import datetime
+    import uuid
+
+    file_uuid = session.get("uploaded_file_uuid")
+    if not file_uuid:
+        file_uuid = uuid.uuid4().hex
+        session["uploaded_file_uuid"] = file_uuid
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     base_name=os.path.splitext(os.path.basename(session["uploaded_file"]))[0]
+    orig_ext = os.path.splitext(session["uploaded_file"])[1].lower()
+    out_ext = orig_ext if orig_ext in (".xlsx", ".xls", ".csv") else ".xlsx"
+    if out_ext == ".xls":
+        out_ext = ".xlsx"
 
-    cleaned_file = os.path.join("Generated_Files","Cleaned",f"{base_name}_cleaned_{timestamp}.xlsx")
-    cleaned_df.to_excel(cleaned_file, index=False)
+    cleaned_file = os.path.join("Generated_Files","Cleaned",f"{file_uuid}_{base_name}_cleaned_{timestamp}{out_ext}")
+    if out_ext == ".csv":
+        cleaned_df.to_csv(cleaned_file, index=False)
+    else:
+        cleaned_df.to_excel(cleaned_file, index=False)
 
     invalid_file=None
     if not invalid_df.empty:
-        invalid_file= os.path.join("Generated_Files","Invalid",f"{base_name}_invalid_{timestamp}.xlsx")
-        invalid_df.to_excel(invalid_file, index=False)
+        invalid_file= os.path.join("Generated_Files","Invalid",f"{file_uuid}_{base_name}_invalid_{timestamp}{out_ext}")
+        if out_ext == ".csv":
+            invalid_df.to_csv(invalid_file, index=False)
+        else:
+            invalid_df.to_excel(invalid_file, index=False)
 
     removed_file=None
     if not removed_rows.empty:
-        removed_file= os.path.join("Generated_Files","Removed",f"{base_name}_removed_{timestamp}.xlsx")
-        removed_rows.to_excel(removed_file, index=False)
+        removed_file= os.path.join("Generated_Files","Removed",f"{file_uuid}_{base_name}_removed_{timestamp}{out_ext}")
+        if out_ext == ".csv":
+            removed_rows.to_csv(removed_file, index=False)
+        else:
+            removed_rows.to_excel(removed_file, index=False)
 
     # Ingest data to Supabase database (CDP tables)
     from helpers import ingest_cleaning_results
@@ -1237,7 +1264,6 @@ def clean_data():
         border=0,
         justify="left"
     )
-    # print("Preview",preview)    #debug statement
 
     #STEP 9: Summary
     summary= generate_summary(
@@ -1255,19 +1281,13 @@ def clean_data():
     
     #STEP 11: Logging
     column_rule_map = defaultdict(list)
-    # print("COLUMN RULE MAP RAW: ", dict(column_rule_map))   #debug
 
     for rule_tuple in selected_rules:
         rule_name=rule_tuple[0]
         column=rule_tuple[1]
         rule_meta = RULES_REGISTRY.get(rule_name, {})
         display_name = rule_meta.get("label") or rule_name
-        # print("ADDING: ", column, "->", display_name)    #debug statement
         column_rule_map[column].append(display_name)
-
-    # print("COLUMN RULE MAP: ", column_rule_map)     #debug statement
-    # for col, rules in column_rule_map.items():
-    #     print("COLUMN: ", col, "RULES LIST: ", rules, "TYPE: ", type(rules))  #debug statement
 
     #for group
     selected_filters_display=[
@@ -1279,9 +1299,6 @@ def clean_data():
     ]
     
     filters_count = sum(len(rules) for rules in column_rule_map.values())
-
-    # print("SELECTED FILTERS DISPLAY: ", selected_filters_display)    #debug statement
-    # print("FILTER COUNT: ", filters_count)    #debug statement
 
     rules_applied = [
         f"{column} ({', '.join(rules)})"
@@ -1424,64 +1441,77 @@ def downloads():
     all_files = []
 
     # Get uploads belonging to filter_ids to match UUID prefixes
-    uploaded_records = []
+    visible_uuids = set()
     if filter_ids:
         ph_ids = ", ".join(["%s"] * len(filter_ids))
-        cursor.execute(f"SELECT filename, original_filename FROM uploaded_files WHERE user_id IN ({ph_ids})", filter_ids)
-        uploaded_records = cursor.fetchall()
-
-    uuid_to_filename = {}
-    for record in uploaded_records:
-        uploaded_fn = record["filename"]
-        uuid_prefix = uploaded_fn.split("_", 1)[0]
-        # In case the prefix is UUID (32 chars)
-        if len(uuid_prefix) == 32:
-            uuid_to_filename[uuid_prefix] = record["original_filename"]
-        else:
-            uuid_to_filename[uploaded_fn] = record["original_filename"]
+        cursor.execute(f"SELECT filename FROM uploaded_files WHERE user_id IN ({ph_ids})", filter_ids)
+        for r in cursor.fetchall():
+            uploaded_fn = r["filename"]
+            uuid_part = uploaded_fn.split("_", 1)[0]
+            if len(uuid_part) == 32:
+                visible_uuids.add(uuid_part)
 
     for ftype, subdir in type_dirs.items():
         if ftype not in selected_types:
             continue
         
-        # Scan for each user's upload UUID prefix in the directory
-        for uuid_prefix, orig_name in uuid_to_filename.items():
-            pattern = os.path.join(base_dir, subdir, f"{uuid_prefix}_*.xlsx")
-            for fpath in _glob.glob(pattern):
-                fname = os.path.basename(fpath)
-                rel   = os.path.join("Generated_Files", subdir, fname)
+        files_in_subdir = []
+        for ext_pattern in ("*.xlsx", "*.csv"):
+            files_in_subdir.extend(_glob.glob(os.path.join(base_dir, subdir, ext_pattern)))
 
-                # Date filter from filename timestamp (format: name_YYYYMMDD_HHMMSS.xlsx)
-                try:
-                    parts    = fname.rsplit("_", 2)
-                    file_dt  = _dt.strptime(parts[-2] + parts[-1].replace(".xlsx", ""), "%Y%m%d%H%M%S")
-                except Exception:
-                    file_dt = _dt.fromtimestamp(os.path.getmtime(fpath))
-
-                if from_date:
-                    try:
-                        if file_dt.date() < _dt.strptime(from_date, "%Y-%m-%d").date():
-                            continue
-                    except Exception:
-                        pass
-                if to_date:
-                    try:
-                        if file_dt.date() > _dt.strptime(to_date, "%Y-%m-%d").date():
-                            continue
-                    except Exception:
-                        pass
-                if search and search.lower() not in fname.lower():
+        for fpath in files_in_subdir:
+            fname = os.path.basename(fpath)
+            uuid_prefix = fname.split("_", 1)[0]
+            
+            # Visibility filtering
+            if len(uuid_prefix) == 32:
+                if uuid_prefix not in visible_uuids:
                     continue
+            else:
+                # If it's a legacy file without UUID prefix, only show if caller is admin
+                if role != "admin":
+                    continue
+            
+            rel = os.path.join("Generated_Files", subdir, fname)
 
-                size_kb = round(os.path.getsize(fpath) / 1024, 1)
-                all_files.append({
-                    "rel_path":    rel,
-                    "display_name": fname,
-                    "type":        ftype,
-                    "size_kb":     size_kb,
-                    "date":        file_dt.strftime("%Y-%m-%d %H:%M"),
-                    "sort_key":    file_dt,
-                })
+            # Date filter from filename timestamp (format: name_YYYYMMDD_HHMMSS.xlsx or .csv)
+            try:
+                parts    = fname.rsplit("_", 2)
+                ts_part  = parts[-2] + parts[-1].replace(".xlsx", "").replace(".csv", "")
+                file_dt  = _dt.strptime(ts_part, "%Y%m%d%H%M%S")
+            except Exception:
+                file_dt = _dt.fromtimestamp(os.path.getmtime(fpath))
+
+            if from_date:
+                try:
+                    if file_dt.date() < _dt.strptime(from_date, "%Y-%m-%d").date():
+                        continue
+                except Exception:
+                    pass
+            if to_date:
+                try:
+                    if file_dt.date() > _dt.strptime(to_date, "%Y-%m-%d").date():
+                        continue
+                except Exception:
+                    pass
+            if search and search.lower() not in fname.lower():
+                continue
+
+            size_kb = round(os.path.getsize(fpath) / 1024, 1)
+            
+            # Clean display name by stripping the 32-char UUID prefix
+            display_name = fname
+            if len(uuid_prefix) == 32:
+                display_name = fname.split("_", 1)[1] if "_" in fname else fname
+
+            all_files.append({
+                "rel_path":    rel,
+                "display_name": display_name,
+                "type":        ftype,
+                "size_kb":     size_kb,
+                "date":        file_dt.strftime("%Y-%m-%d %H:%M"),
+                "sort_key":    file_dt,
+            })
 
     all_files.sort(key=lambda x: x["sort_key"], reverse=True)
     total_files = len(all_files)
@@ -1570,6 +1600,7 @@ def downloads():
 def download_selected():
     """Package selected Generated_Files into a ZIP and stream it."""
     role = session.get("role")
+    user_id = session.get("user_id")
     if role not in ("admin", "manager", "team_lead"):
         flash("Access denied.", "warning")
         return redirect(url_for("dashboard"))
@@ -1579,16 +1610,49 @@ def download_selected():
         flash("No files selected.", "warning")
         return redirect(url_for("downloads"))
 
+    # Fetch authorized visible user IDs
+    conn   = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    visible_ids = get_visible_user_ids(cursor, role=role, user_id=user_id)
+    if role == "admin":
+        visible_ids = visible_ids  # all users
+    if user_id not in visible_ids:
+        visible_ids.append(user_id)
+
+    # Pre-fetch UUIDs of visible users' uploads
+    visible_uuids = set()
+    if visible_ids:
+        ph_ids = ", ".join(["%s"] * len(visible_ids))
+        cursor.execute(f"SELECT filename FROM uploaded_files WHERE user_id IN ({ph_ids})", visible_ids)
+        for r in cursor.fetchall():
+            uploaded_fn = r["filename"]
+            uuid_part = uploaded_fn.split("_", 1)[0]
+            if len(uuid_part) == 32:
+                visible_uuids.add(uuid_part)
+    conn.close()
+
     # Safety: only allow paths inside Generated_Files
     allowed_base = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Generated_Files")
     safe_files   = []
     for rel in filenames:
         abs_path = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), rel))
         if abs_path.startswith(allowed_base) and os.path.exists(abs_path):
+            fname = os.path.basename(abs_path)
+            uuid_prefix = fname.split("_", 1)[0]
+            
+            # Enforce visibility check
+            if len(uuid_prefix) == 32:
+                if uuid_prefix not in visible_uuids:
+                    continue  # Skip files unauthorized
+            else:
+                # Legacy file without UUID prefix: only admins can download
+                if role != "admin":
+                    continue
+            
             safe_files.append((rel, abs_path))
 
     if not safe_files:
-        flash("None of the selected files could be found.", "danger")
+        flash("None of the selected files could be downloaded (access denied or not found).", "danger")
         return redirect(url_for("downloads"))
 
     import zipfile as _zf
@@ -1609,6 +1673,7 @@ def download_selected():
 def download_admin(filename):
     """Re-download any Generated_File by relative path (admin/manager/team_lead only)."""
     role = session.get("role")
+    user_id = session.get("user_id")
     if role not in ("admin", "manager", "team_lead"):
         flash("Access denied.", "warning")
         return redirect(url_for("dashboard"))
@@ -1624,6 +1689,38 @@ def download_admin(filename):
 
     if not os.path.exists(abs_path):
         flash("File no longer exists on disk.", "warning")
+        return redirect(url_for("downloads"))
+
+    # RBAC Ownership / Visibility Security Check
+    fname = os.path.basename(abs_path)
+    uuid_prefix = fname.split("_", 1)[0]
+    
+    conn   = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    visible_ids = get_visible_user_ids(cursor, role=role, user_id=user_id)
+    if role == "admin":
+        visible_ids = visible_ids
+    if user_id not in visible_ids:
+        visible_ids.append(user_id)
+
+    is_authorized = False
+    if len(uuid_prefix) == 32:
+        # Check if the prefix belongs to one of the visible users
+        if visible_ids:
+            ph_ids = ", ".join(["%s"] * len(visible_ids))
+            cursor.execute(
+                f"SELECT 1 FROM uploaded_files WHERE filename LIKE %s AND user_id IN ({ph_ids}) LIMIT 1",
+                [uuid_prefix + "%"] + visible_ids
+            )
+            is_authorized = (cursor.fetchone() is not None)
+    else:
+        # Legacy file: only admins can download
+        is_authorized = (role == "admin")
+
+    conn.close()
+
+    if not is_authorized:
+        flash("Access denied. You do not have permission to download this file.", "danger")
         return redirect(url_for("downloads"))
 
     log_action(session["user_id"], f"Downloaded file {filename}")
@@ -1832,13 +1929,22 @@ def list_users():
                             parent["reporting_users"].append(u)
                         elif parent["role"] == "manager":
                             # Direct report to manager
-                            parent["team_leads"].append({
-                                "id": -1,
-                                "username": "Direct Reports",
-                                "role": "team_lead",
-                                "is_active": True,
-                                "reporting_users": [u]
-                            })
+                            # Find or create a virtual "Direct Reports" node
+                            direct_reports_node = None
+                            for tl in parent["team_leads"]:
+                                if tl["id"] == -1:
+                                    direct_reports_node = tl
+                                    break
+                            if not direct_reports_node:
+                                direct_reports_node = {
+                                    "id": -1,
+                                    "username": "Direct Reports",
+                                    "role": "team_lead",
+                                    "is_active": True,
+                                    "reporting_users": []
+                                }
+                                parent["team_leads"].append(direct_reports_node)
+                            direct_reports_node["reporting_users"].append(u)
                         else:
                             unassigned_users.append(u)
                     else:
@@ -2464,13 +2570,18 @@ import glob
 import threading
 
 def cleanup_temp_files():
-    """Delete temp_*.xlsx files older than 2 hours."""
+    """Delete temp upload files older than 2 hours and generated files older than 24 hours."""
     import time
     import glob
     cutoff= time.time() - (2 * 60 *60) # 2 hours for temp files
 
     # Clean temp upload files (2-hour cutoff)
-    for f in glob.glob("temp_*.xlsx") + glob.glob("temp_api_*.xlsx"):
+    temp_files = []
+    for ext in ("*.xlsx", "*.xls", "*.csv"):
+        temp_files.extend(glob.glob(f"temp_{ext}"))
+        temp_files.extend(glob.glob(f"temp_api_{ext}"))
+
+    for f in temp_files:
         try:
             if os.path.getmtime(f) < cutoff:
                 os.remove(f)
@@ -2480,18 +2591,16 @@ def cleanup_temp_files():
 
     #Clean output files older than 24 hours
     output_cutoff = time.time() - (24*60*60)
-    for pattern in [
-        "Generated_Files/Cleaned/*.xlsx",
-        "Generated_Files/Invalid/*.xlsx",
-        "Generated_Files/Removed/*.xlsx",
-    ]:
-        for f in glob.glob(pattern):
-            try:
-                if os.path.getmtime(f) < output_cutoff:
-                    os.remove(f)
-                    app.logger.info(f"[cleanup] Removed output file: {f}")
-            except Exception as e:
-                app.logger.warning(f"[cleanup] Could not remove {f}: {e}")
+    for folder in ("Cleaned", "Invalid", "Removed"):
+        for ext in ("*.xlsx", "*.csv"):
+            pattern = f"Generated_Files/{folder}/{ext}"
+            for f in glob.glob(pattern):
+                try:
+                    if os.path.getmtime(f) < output_cutoff:
+                        os.remove(f)
+                        app.logger.info(f"[cleanup] Removed output file: {f}")
+                except Exception as e:
+                    app.logger.warning(f"[cleanup] Could not remove {f}: {e}")
 
 
 def schedule_cleanup():

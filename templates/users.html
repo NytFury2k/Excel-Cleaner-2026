@@ -473,23 +473,53 @@
             <div class="hierarchy-group-header mb-2">
               <span class="badge bg-secondary-subtle text-secondary px-3 py-2"><i class="bi bi-question-circle me-1"></i> INDEPENDENT / UNASSIGNED MEMBERS</span>
             </div>
-            <div class="row g-3">
+            
+            {% if hierarchy_data.unassigned_team_leads %}
+            <div class="row g-3 mb-3">
               {% for tl in hierarchy_data.unassigned_team_leads %}
-              <div class="col-md-4">
+              <div class="col-md-12">
                 <div class="card p-3 shadow-sm border border-warning">
-                  <div class="d-flex align-items-center justify-content-between">
+                  <div class="d-flex align-items-center justify-content-between bg-warning-subtle p-2 rounded mb-2">
                     <div class="d-flex align-items-center gap-2">
                       <i class="bi bi-star-fill text-warning"></i>
-                      <span class="fw-bold">{{ tl.username }}</span>
+                      <span class="fw-bold text-dark">{{ tl.username }}</span>
                       <span class="badge bg-warning-subtle text-warning-emphasis text-uppercase" style="font-size:0.65rem;">Team Lead</span>
                     </div>
                     <span class="badge bg-{% if tl.is_active %}success{% else %}secondary{% endif %}-subtle text-{% if tl.is_active %}success{% else %}secondary{% endif %}">
                       {{ 'Active' if tl.is_active else 'Inactive' }}
                     </span>
                   </div>
+                  
+                  <!-- Nested reporting users -->
+                  {% if tl.reporting_users %}
+                  <div class="row g-2 mt-1 ps-3">
+                    {% for u in tl.reporting_users %}
+                    <div class="col-md-4">
+                      <div class="card p-2 border shadow-none bg-light-subtle">
+                        <div class="d-flex align-items-center justify-content-between">
+                          <div class="d-flex align-items-center gap-2" style="font-size: 0.85rem;">
+                            <i class="bi bi-person text-secondary"></i>
+                            <span>{{ u.username }}</span>
+                          </div>
+                          <span class="badge bg-{% if u.is_active %}success{% else %}secondary{% endif %}-subtle text-{% if u.is_active %}success{% else %}secondary{% endif %}" style="font-size: 0.7rem;">
+                            {{ 'Active' if u.is_active else 'Inactive' }}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    {% endfor %}
+                  </div>
+                  {% else %}
+                  <div class="text-muted ps-2" style="font-size: 0.8rem; font-style: italic;">No members under this lead.</div>
+                  {% endif %}
                 </div>
               </div>
               {% endfor %}
+            </div>
+            {% endif %}
+
+            {% if hierarchy_data.unassigned_users %}
+            <div class="row g-3">
               {% for u in hierarchy_data.unassigned_users %}
               <div class="col-md-4">
                 <div class="card p-3 shadow-sm border">
@@ -507,6 +537,7 @@
               </div>
               {% endfor %}
             </div>
+            {% endif %}
           </div>
           {% endif %}
         </div>
