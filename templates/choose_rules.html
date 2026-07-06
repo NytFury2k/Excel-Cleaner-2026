@@ -338,6 +338,39 @@
       height: 42px;
       object-fit: contain;
     }
+
+    /* Beautiful Fullscreen Loading Overlay */
+    #loadingOverlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(17, 24, 39, 0.85); /* Darker glassmorphism backdrop */
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 99999;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+    }
+    #loadingOverlay.visible {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .loading-card {
+      max-width: 460px;
+      width: 90%;
+      background: #ffffff;
+      border-radius: 16px;
+      padding: 35px 30px;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04) !important;
+      border: none !important;
+    }
   </style>
 </head>
 
@@ -445,7 +478,7 @@
         </div>
 
         <!-- Column cards form -->
-        <form method="POST" action="{{ url_for('clean_data') }}">
+        <form id="cleanForm" method="POST" action="{{ url_for('clean_data') }}" onsubmit="showLoadingScreen()">
           {% for column in columns %}
           {% set col_id = column|replace(' ','_') %}
           {% set col_type = column_type_map[column] %}
@@ -844,8 +877,72 @@
           document.getElementById("deletePresetForm").action = sel.value;
           return confirm("Delete this preset? This cannot be undone.");
         }
+
+        // Show Fullscreen Loading Overlay and animate the progress bar
+        function showLoadingScreen() {
+          var overlay = document.getElementById("loadingOverlay");
+          if (!overlay) return;
+          overlay.classList.add("visible");
+          
+          var progressBar = document.getElementById("loadingProgressBar");
+          var statusText = document.getElementById("loadingStatusText");
+          
+          var progress = 0;
+          var statusMessages = [
+            { limit: 15, text: "Reading upload file data..." },
+            { limit: 40, text: "Running validation engine on selected columns..." },
+            { limit: 65, text: "Standardizing formats & removing duplicate records..." },
+            { limit: 85, text: "Ingesting cleaned records to Supabase..." },
+            { limit: 95, text: "Generating preview reports and audit logs..." },
+            { limit: 100, text: "Finalizing results..." }
+          ];
+          
+          var interval = setInterval(function() {
+            if (progress < 95) {
+              progress += Math.floor(Math.random() * 4) + 1; // smooth increment
+              if (progress > 95) progress = 95;
+            }
+            
+            if (progressBar) progressBar.style.width = progress + "%";
+            
+            if (statusText) {
+              var currentMsg = statusMessages[0].text;
+              for (var i = 0; i < statusMessages.length; i++) {
+                if (progress <= statusMessages[i].limit) {
+                  currentMsg = statusMessages[i].text;
+                  break;
+                }
+              }
+              statusText.textContent = currentMsg;
+            }
+          }, 180);
+        }
       </script>
     </main>
+  </div>
+
+  <!-- Beautiful Fullscreen Loading Overlay -->
+  <div id="loadingOverlay">
+    <div class="card text-center loading-card">
+      <!-- Modern Styled Spinner -->
+      <div class="d-flex justify-content-center mb-4">
+        <div class="spinner-border text-danger" role="status" style="width: 3.5rem; height: 3.5rem; border-width: 0.3em;">
+          <span class="visually-hidden">Loading...</span>
+        </div>
+      </div>
+      <h5 style="font-weight: 700; color: #111827; margin-bottom: 8px;">Processing Cleaning Rules</h5>
+      <p style="font-size: 0.88rem; color: #6b7280; margin-bottom: 24px;">Please wait while the data engine cleanses and validates your records.</p>
+      
+      <!-- Progress Bar -->
+      <div class="progress mb-3" style="height: 8px; border-radius: 4px; background-color: #f3f4f6; overflow: hidden;">
+        <div id="loadingProgressBar" class="progress-bar progress-bar-striped progress-bar-animated bg-danger" role="progressbar" style="width: 0%; transition: width 0.2s ease;"></div>
+      </div>
+      
+      <!-- Status Text -->
+      <div id="loadingStatusText" style="font-size: 0.8rem; font-weight: 600; color: #b91c1c; min-height: 20px;">
+        Reading upload file data...
+      </div>
+    </div>
   </div>
 </body>
 
