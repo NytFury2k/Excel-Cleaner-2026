@@ -755,6 +755,10 @@ def dashboard():
         flash("Session invalid. Please log in again.", "warning")
         return redirect(url_for("login"))
 
+    # Log dashboard search activity
+    if search and page == 1 and session.get("role") in ["admin", "manager"]:
+        log_search(session["user_id"], session["username"], f"Logs query: {search}")
+
     #helper
     logs, total_logs= fetch_visible_logs(cursor,search=search, from_date=from_date, to_date=to_date, page=page, per_page=per_page)
 
@@ -3137,6 +3141,34 @@ def get_records():
         query_parts.append(f"({missing_field} IS NULL OR {missing_field} = '')")
 
     where_clause = " AND ".join(query_parts)
+
+    # Log records search query activity
+    if page == 1 and session.get("role") in ["admin", "manager"]:
+        search_terms = []
+        for arg_name, col_name in search_mappings.items():
+            val = request.args.get(arg_name, '').strip()
+            if val:
+                search_terms.append(f"{arg_name.capitalize()}: {val}")
+        for c in cols:
+            if c in ('id', 'file_id', 'custom_fields', 'created_at', 'updated_at', 'imported_by') or c in search_mappings.values():
+                continue
+            val = request.args.get(c, '').strip()
+            if val:
+                search_terms.append(f"{c.replace('_', ' ').title()}: {val}")
+        try:
+            custom_filters = json.loads(custom_filters_str)
+            for f in custom_filters:
+                fid = str(f.get('id', '')).strip()
+                fval = str(f.get('val', '')).strip()
+                if fid and fval:
+                    search_terms.append(f"{fid}: {fval}")
+        except Exception:
+            pass
+        if missing_field:
+            search_terms.append(f"Missing: {missing_field}")
+        if search_terms:
+            search_summary = ", ".join(search_terms)
+            log_search(session["user_id"], session["username"], f"Records query: {search_summary}")
     
     # Query total matching records
     count_query = f"SELECT COUNT(*) as total FROM master_records WHERE {where_clause}"
