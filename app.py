@@ -1,18 +1,28 @@
 from flask import Flask, render_template, request, redirect, url_for, session, flash, send_file, abort, get_flashed_messages, jsonify
 import json
-import mysql.connector
 import bcrypt
 import pandas as pd
 from io import BytesIO
 import re
 import os
-from mysql.connector import Error, IntegrityError
 import uuid
 import secrets
 from rbac import has_permission, ROLE_PERMISSIONS
 from functools import wraps
 from datetime import datetime, timedelta
 import json
+# mysql.connector is mocked via helpers.py — import helpers first to activate the mock
+from helpers import (
+    get_db_connection, log_action, login_required,
+    get_visible_user_ids, generate_api_token,
+    resolve_token, revoke_api_token, refresh_api_token,
+    set_job_state, get_job_state, clear_job_files,
+    ingest_uploaded_file_with_mapping, check_login_rate_limit,
+    clear_login_attempts, record_login_attempt, api_login_required,
+    log_search, load_permissions_from_db, fetch_visible_logs
+)
+import mysql.connector
+from mysql.connector import Error, IntegrityError
 
 from collections import Counter
 import time
@@ -93,9 +103,17 @@ _validate_env()
 INACTIVITY_LIMIT = timedelta(minutes=30)
 
 app = Flask(__name__)
+app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50 MB upload limit
 
 
 from flask_mail import Mail, Message
+from werkzeug.exceptions import RequestEntityTooLarge
+
+@app.errorhandler(413)
+@app.errorhandler(RequestEntityTooLarge)
+def handle_file_too_large(e):
+    flash("File too large. Maximum upload size is 50 MB.", "danger")
+    return redirect(request.referrer or url_for('upload')), 302
 
 app.config["MAIL_SERVER"] = os.environ.get("MAIL_SERVER", "smtp.gmail.com")
 app.config["MAIL_PORT"] = int(os.environ.get("MAIL_PORT", 587))
@@ -251,8 +269,9 @@ def _email_already_exists(email, exclude_user_id=None):
 @app.route("/admin/logs")
 @login_required()
 def admin_logs():
-    if "user_id" not in session:
-        return redirect(url_for("login"))
+    if session.get("role") not in ("admin", "manager", "team_lead"):
+        flash("Access denied.", "warning")
+        return redirect(url_for("upload"))
         
     # Search keyword from query params
     search = request.args.get("search", "").strip()
@@ -403,7 +422,8 @@ def admin_create_user():
 
     caller_role = session.get("role")
     if caller_role not in ["admin", "manager"]:
-        abort(403)
+        flash("Access denied.", "warning")
+        return redirect(url_for("upload"))
 
     if caller_role == "admin":
         roles = ["user", "team_lead", "manager", "admin"]
@@ -485,11 +505,9 @@ def admin_create_user():
             else:
                 new_manager_id=session.get("user_id")
         elif role=="user":
-            if caller_role == "admin":
+            if caller_role in ["admin", "manager"]:
                 raw=request.form.get("assign_tl_id","").strip()
                 new_manager_id=int(raw) if raw else None
-            else:
-                new_manager_id=session.get("user_id")
         else:
             new_manager_id=None
 
@@ -549,7 +567,10 @@ def admin_create_user():
                 app.logger.warning(f"Logging failed after user creation: {e}")
 
             flash("User registered successfully!", "success")
-            return redirect(url_for("manage_users"))
+            if session.get("role") == "admin":
+                return redirect(url_for("manage_users"))
+            else:
+                return redirect(url_for("list_users"))
 
         except IntegrityError as e:
             if e.errno == 1062:
@@ -666,6 +687,8 @@ def login():
             flash("Your password was reset. Please set a new password immediately for security.", "warning")
 
         flash("Login successful", "success")
+        if user["role"] in ["team_lead", "user"]:
+            return redirect(url_for("upload"))
         return redirect(url_for("dashboard"))
     
     else:
@@ -695,6 +718,9 @@ def dashboard():
     
     if session.get("role") not in ROLE_PERMISSIONS:
         return redirect(url_for("login"))
+        
+    if session.get("role") in ["team_lead", "user"]:
+        return redirect(url_for("upload"))
 
     # Search keyword from query params
     search = request.args.get("search", "").strip()
@@ -722,6 +748,13 @@ def dashboard():
     cursor.execute("SELECT username, role FROM users WHERE id = %s", (session["user_id"],))
     user=cursor.fetchone()
 
+    # If user not found, session is invalid — redirect to login
+    if user is None:
+        session.clear()
+        conn.close()
+        flash("Session invalid. Please log in again.", "warning")
+        return redirect(url_for("login"))
+
     #helper
     logs, total_logs= fetch_visible_logs(cursor,search=search, from_date=from_date, to_date=to_date, page=page, per_page=per_page)
 
@@ -738,7 +771,7 @@ def dashboard():
     active_users_row = cursor.fetchone()
     active_users = active_users_row['count'] if active_users_row else 0
 
-    cursor.execute("SELECT COUNT(*) as count FROM logs WHERE action LIKE 'Uploaded file%' AND DATE(created_at) = CURDATE()")
+    cursor.execute("SELECT COUNT(*) as count FROM logs WHERE action LIKE 'Uploaded file%' AND DATE(created_at) = CURRENT_DATE")
     uploads_today_row = cursor.fetchone()
     uploads_today = uploads_today_row['count'] if uploads_today_row else 0
 
@@ -799,6 +832,8 @@ def dashboard():
 @login_required()
 def data_health():
     role = session.get("role")
+    if role in ["team_lead", "user"]:
+        return redirect(url_for("upload"))
     user_id = session.get("user_id")
     page = request.args.get("page", 1, type=int) or 1
     per_page = 10
@@ -1104,7 +1139,8 @@ def upload():
             except Exception as e:
                 app.logger.error(f"Failed to kick off background ingestion: {e}")
 
-            log_action(session["user_id"], f"Uploaded file {session['uploaded_file']} ({len(df)} rows)")
+            size_kb = round(file_size / 1024, 1)
+            log_action(session["user_id"], f"Uploaded file {session['uploaded_file']} ({size_kb} KB, {len(df)} rows)")
             return redirect(url_for("choose_rules"))
         else:
             flash("Invalid file format. Please upload an Excel (.xlsx/.xls) or CSV file.", "danger")
@@ -1378,17 +1414,17 @@ def clean_data():
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     base_name=os.path.splitext(os.path.basename(session["uploaded_file"]))[0]
 
-    cleaned_file = os.path.join("Generated_Files","Cleaned",f"{base_name}_cleaned_{timestamp}.xlsx")
+    cleaned_file = os.path.join("Generated_Files","Cleaned",f"{session['user_id']}_{base_name}_cleaned_{timestamp}.xlsx")
     cleaned_df.to_excel(cleaned_file, index=False)
 
     invalid_file=None
     if not invalid_df.empty:
-        invalid_file= os.path.join("Generated_Files","Invalid",f"{base_name}_invalid_{timestamp}.xlsx")
+        invalid_file= os.path.join("Generated_Files","Invalid",f"{session['user_id']}_{base_name}_invalid_{timestamp}.xlsx")
         invalid_df.to_excel(invalid_file, index=False)
 
     removed_file=None
     if not removed_rows.empty:
-        removed_file= os.path.join("Generated_Files","Removed",f"{base_name}_removed_{timestamp}.xlsx")
+        removed_file= os.path.join("Generated_Files","Removed",f"{session['user_id']}_{base_name}_removed_{timestamp}.xlsx")
         removed_rows.to_excel(removed_file, index=False)
 
     
@@ -1507,6 +1543,10 @@ def download(filename):
 
     if "user_id" not in session or session.get("role") not in ROLE_PERMISSIONS:
         return redirect(url_for("login"))
+        
+    if session.get("role") in ["team_lead", "user"]:
+        flash("Access denied.", "danger")
+        return redirect(url_for("upload"))
     
     #only allow downloading files generated in this session
 
@@ -1538,9 +1578,9 @@ def downloads():
     role = session.get("role")
     user_id = session.get("user_id")
 
-    if role not in ("admin", "manager", "team_lead"):
+    if role not in ("admin", "manager"):
         flash("Access denied.", "warning")
-        return redirect(url_for("dashboard"))
+        return redirect(url_for("upload"))
 
     # --- Filter params ---
     selected_types = request.args.getlist("types") or ["cleaned", "invalid", "removed"]
@@ -1593,9 +1633,22 @@ def downloads():
             fname = os.path.basename(fpath)
             rel   = os.path.join("Generated_Files", subdir, fname)
 
+            # Check ownership via user_id prefix in filename
+            fn_parts = fname.split("_", 1)
+            if len(fn_parts) == 2 and fn_parts[0].isdigit():
+                file_owner_id = int(fn_parts[0])
+                display_name = fn_parts[1]
+            else:
+                file_owner_id = None
+                display_name = fname
+
+            # Skip files not owned by visible users / self, unless admin
+            if role != "admin" and file_owner_id is not None and file_owner_id not in visible_ids:
+                continue
+
             # Date filter from filename timestamp (format: name_YYYYMMDD_HHMMSS.xlsx)
             try:
-                parts    = fname.rsplit("_", 2)
+                parts    = display_name.rsplit("_", 2)
                 file_dt  = _dt.strptime(parts[-2] + parts[-1].replace(".xlsx", ""), "%Y%m%d%H%M%S")
             except Exception:
                 file_dt = _dt.fromtimestamp(os.path.getmtime(fpath))
@@ -1612,13 +1665,13 @@ def downloads():
                         continue
                 except Exception:
                     pass
-            if search and search.lower() not in fname.lower():
+            if search and search.lower() not in display_name.lower():
                 continue
 
             size_kb = round(os.path.getsize(fpath) / 1024, 1)
             all_files.append({
                 "rel_path":    rel,
-                "display_name": fname,
+                "display_name": display_name,
                 "type":        ftype,
                 "size_kb":     size_kb,
                 "date":        file_dt.strftime("%Y-%m-%d %H:%M"),
@@ -1721,23 +1774,43 @@ def download_selected():
         flash("No files selected.", "warning")
         return redirect(url_for("downloads"))
 
+    # Enforce RBAC for checking ownership on list
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    visible_ids = get_visible_user_ids(cursor, role=role, user_id=session.get("user_id"))
+    conn.close()
+
+    if session.get("user_id") not in visible_ids:
+        visible_ids.append(session.get("user_id"))
+
     # Safety: only allow paths inside Generated_Files
     allowed_base = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Generated_Files")
     safe_files   = []
     for rel in filenames:
         abs_path = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), rel))
         if abs_path.startswith(allowed_base) and os.path.exists(abs_path):
+            # Authorize: check user ID prefix
+            fname = os.path.basename(abs_path)
+            parts = fname.split("_", 1)
+            if len(parts) == 2 and parts[0].isdigit():
+                file_owner_id = int(parts[0])
+                if role != "admin" and file_owner_id not in visible_ids:
+                    # skip unauthorized file access
+                    continue
             safe_files.append((rel, abs_path))
 
     if not safe_files:
-        flash("None of the selected files could be found.", "danger")
+        flash("None of the selected files could be found or you lack permission to download them.", "danger")
         return redirect(url_for("downloads"))
 
     import zipfile as _zf
     buf = BytesIO()
     with _zf.ZipFile(buf, "w", _zf.ZIP_DEFLATED) as zf:
         for rel, abs_path in safe_files:
-            zf.write(abs_path, os.path.basename(abs_path))
+            fname = os.path.basename(abs_path)
+            parts = fname.split("_", 1)
+            zip_member_name = parts[1] if (len(parts) == 2 and parts[0].isdigit()) else fname
+            zf.write(abs_path, zip_member_name)
             log_action(session["user_id"], f"Downloaded file {rel}")
 
     buf.seek(0)
@@ -1768,8 +1841,29 @@ def download_admin(filename):
         flash("File no longer exists on disk.", "warning")
         return redirect(url_for("downloads"))
 
+    # Authorize: check user ID prefix against visible IDs
+    fname = os.path.basename(abs_path)
+    parts = fname.split("_", 1)
+    if len(parts) == 2 and parts[0].isdigit():
+        file_owner_id = int(parts[0])
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        visible_ids = get_visible_user_ids(cursor, role=role, user_id=session.get("user_id"))
+        conn.close()
+
+        if session.get("user_id") not in visible_ids:
+            visible_ids.append(session.get("user_id"))
+
+        if role != "admin" and file_owner_id not in visible_ids:
+            flash("Access denied. You cannot download files uploaded by other users.", "warning")
+            return redirect(url_for("downloads"))
+
+        download_name = parts[1]
+    else:
+        download_name = fname
+
     log_action(session["user_id"], f"Downloaded file {filename}")
-    return send_file(abs_path, as_attachment=True, download_name=os.path.basename(abs_path))
+    return send_file(abs_path, as_attachment=True, download_name=download_name)
 
 
 #logout route
@@ -2113,13 +2207,9 @@ def export_users():
 @app.route("/users")
 @login_required()
 def list_users():
-    if not (
-        has_permission("view_all_users") or
-        has_permission("view_team_users") or
-        has_permission("view_self")
-    ):
-        flash("Access denied", "warning")
-        return redirect(url_for('dashboard'))
+    if session.get("role") not in ["admin", "manager"]:
+        flash("Access denied.", "warning")
+        return redirect(url_for("upload"))
 
     caller_role     = session.get("role")
     caller_id       = session.get("user_id")
@@ -2232,9 +2322,9 @@ def list_users():
 @app.route("/access-control")
 @login_required()
 def access_control():
-    if not has_permission("manage_roles"):
-        flash("Admin permissions required","warning")
-        return redirect(url_for('dashboard'))
+    if session.get("role") != "admin":
+        flash("Access denied.", "warning")
+        return redirect(url_for("upload"))
 
     # Try to load from DB; fall back to hardcoded map if tables don't exist yet
     try:
@@ -2274,9 +2364,9 @@ def manage_users():
     caller_id       = session.get("user_id")
     caller_username = session.get("username")
 
-    if caller_role not in ["admin", "manager"]:
+    if caller_role not in ["admin"]:
         flash("Access denied.", "warning")
-        return redirect(url_for("dashboard"))
+        return redirect(url_for("upload"))
 
     search        = request.args.get("search", "").strip()
     role_filter   = request.args.get("role",   "").strip()
@@ -2865,7 +2955,7 @@ def save_preset():
     cursor.execute("""
                    INSERT INTO rule_presets (user_id, name, rules_json)
                    VALUES (%s, %s, %s)
-                   ON DUPLICATE KEY UPDATE rules_json = VALUES(rules_json)
+                   ON CONFLICT (user_id, name) DO UPDATE SET rules_json = EXCLUDED.rules_json
                    """,(session["user_id"], name, rules_json))
     conn.commit()
     conn.close()
@@ -2976,7 +3066,7 @@ def test_mail():
     try:
         msg = Message("Test", recipients=["ruhinz26@gmail.com"], body="Test email from Data Manager")
         mail.send(msg)
-        return "Email sent sucessfully"
+        return "Email sent successfully"
     except Exception as e:
         return f"Failed: {e}"
 
@@ -3035,8 +3125,8 @@ def get_records():
             fid = str(f.get('id', '')).strip()
             fval = str(f.get('val', '')).strip()
             if fid and fval:
-                query_parts.append("JSON_UNQUOTE(JSON_EXTRACT(custom_fields, %s)) LIKE %s")
-                params.append(f"$.\"{fid}\"")
+                query_parts.append("custom_fields ->> %s LIKE %s")
+                params.append(fid)
                 params.append(f"%{fval}%")
     except Exception as e:
         app.logger.warning(f"Error parsing custom_filters: {e}")
@@ -3169,8 +3259,8 @@ def export_records():
                 fid = str(f.get('id', '')).strip()
                 fval = str(f.get('val', '')).strip()
                 if fid and fval:
-                    query_parts.append("JSON_UNQUOTE(JSON_EXTRACT(custom_fields, %s)) LIKE %s")
-                    params.append(f"$.\"{fid}\"")
+                    query_parts.append("custom_fields ->> %s LIKE %s")
+                    params.append(fid)
                     params.append(f"%{fval}%")
         except Exception as e:
             app.logger.warning(f"Error parsing custom_filters: {e}")
@@ -3390,6 +3480,9 @@ def get_record_custom_fields(record_id):
 @app.route('/registry')
 @login_required()
 def registry():
+    if session.get("role") != "admin":
+        flash("Access denied.", "warning")
+        return redirect(url_for("upload"))
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     cursor.execute("SELECT id, field_name, normalized_name, data_type, is_active, searchable, usage_count, created_at FROM field_registry ORDER BY id ASC")
@@ -3398,7 +3491,7 @@ def registry():
     # Calculate usage count dynamically from master_records JSON
     for f in fields:
         field_id = f['id']
-        cursor.execute("SELECT COUNT(*) as count FROM master_records WHERE JSON_EXTRACT(custom_fields, %s) IS NOT NULL", (f'$."{field_id}"',))
+        cursor.execute("SELECT COUNT(*) as count FROM master_records WHERE custom_fields ->> %s IS NOT NULL", (str(field_id),))
         cnt_row = cursor.fetchone()
         f['usage_count'] = cnt_row['count'] if cnt_row else 0
         
@@ -3411,6 +3504,9 @@ def registry():
 @app.route('/aliases')
 @login_required()
 def aliases_view():
+    if session.get("role") != "admin":
+        flash("Access denied.", "warning")
+        return redirect(url_for("upload"))
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     cursor.execute("SELECT id, alias, target_type, target_identifier FROM field_aliases ORDER BY id ASC")
@@ -3425,6 +3521,9 @@ def aliases_view():
 @app.route('/history')
 @login_required()
 def history_view():
+    if session.get("role") != "admin":
+        flash("Access denied.", "warning")
+        return redirect(url_for("upload"))
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     cursor.execute("SELECT id, user_id, filename, original_filename, uploaded_at, total_rows, rows_imported, rows_rejected, status FROM uploaded_files ORDER BY id DESC")
@@ -3809,10 +3908,8 @@ def api_convert_to_master(field_id):
             app.logger.warning(f"ALTER TABLE column warning: {alter_err}")
             
         # 3. Migrate data from custom_fields JSON to the new column
-        json_path = f'$."{field_id}"'
-        
         # Select all records having this custom field
-        cursor.execute("SELECT id, custom_fields FROM master_records WHERE JSON_EXTRACT(custom_fields, %s) IS NOT NULL", (json_path,))
+        cursor.execute("SELECT id, custom_fields FROM master_records WHERE custom_fields ->> %s IS NOT NULL", (str(field_id),))
         records = cursor.fetchall()
         
         for r in records:

@@ -338,10 +338,38 @@
       height: 42px;
       object-fit: contain;
     }
+    
+    /* Loading Overlay */
+    #loadingOverlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(255, 255, 255, 0.9);
+      z-index: 9999;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    .spinner-border {
+      width: 3rem;
+      height: 3rem;
+      color: var(--red);
+    }
   </style>
 </head>
 
 <body>
+  <!-- Loading Overlay -->
+  <div id="loadingOverlay">
+    <div class="spinner-border" role="status">
+      <span class="visually-hidden">Loading...</span>
+    </div>
+    <h4 class="mt-3" style="color: #111827; font-weight: 600;">Processing...</h4>
+    <p class="text-muted">Please wait while your data is being handled.</p>
+  </div>
   <div id="chooseRulesData" data-custom-fields='{{ (custom_fields_registry|default({}))|tojson }}' data-saved-custom-rules='{{ session.get("custom_rules_saved", {})|tojson }}' style="display:none;"></div>
   <div class="app-layout">
 
@@ -445,7 +473,7 @@
         </div>
 
         <!-- Column cards form -->
-        <form method="POST" action="{{ url_for('clean_data') }}">
+        <form method="POST" action="{{ url_for('clean_data') }}" id="cleanForm">
           <!-- 1. Column Alignment -->
           <div class="card shadow-sm mb-4">
             <div class="card-header bg-danger-subtle text-danger fw-bold py-2">
@@ -695,6 +723,14 @@
                   window.addCustomRuleCard(fieldId, data.rules || [], data.strategy || "flag");
               });
           }
+          
+          // Show loading overlay on clean form submit
+          const cleanForm = document.getElementById("cleanForm");
+          if (cleanForm) {
+            cleanForm.addEventListener("submit", function() {
+              document.getElementById("loadingOverlay").style.display = "flex";
+            });
+          }
         });
 
         // Type override dropdown — update visible rules on change
@@ -925,6 +961,142 @@
           document.getElementById("deletePresetForm").action = sel.value;
           return confirm("Delete this preset? This cannot be undone.");
         }
+      </script>
+
+      <!-- Progress/Loading Overlay -->
+      <div id="cleaningLoaderOverlay" class="loader-overlay" style="display: none;">
+        <div class="loader-card">
+          <div class="loader-spinner-container mb-3">
+            <div class="spinner-border text-danger" role="status" style="width: 3.5rem; height: 3.5rem; border-width: 0.3em;">
+              <span class="visually-hidden">Loading...</span>
+            </div>
+          </div>
+          <h4 class="loader-title">Cleaning Spreadsheet</h4>
+          <p class="loader-subtitle text-muted">Please wait while the validation & cleaning engines run...</p>
+          
+          <div class="progress loader-progress mb-3">
+            <div id="loaderProgressBar" class="progress-bar progress-bar-striped progress-bar-animated bg-danger" role="progressbar" style="width: 0%;"></div>
+          </div>
+          
+          <div id="loaderTicker" class="loader-ticker">Initializing cleaning pipeline...</div>
+        </div>
+      </div>
+
+      <style>
+        .loader-overlay {
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100vw;
+          height: 100vh;
+          background: rgba(255, 255, 255, 0.4);
+          backdrop-filter: blur(12px);
+          -webkit-backdrop-filter: blur(12px);
+          z-index: 9999;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: all 0.3s ease;
+        }
+
+        [data-theme="dark"] .loader-overlay {
+          background: rgba(15, 15, 18, 0.5);
+        }
+
+        .loader-card {
+          background: rgba(255, 255, 255, 0.85);
+          border: 1px solid rgba(255, 255, 255, 0.3);
+          box-shadow: 0 10px 40px rgba(185, 28, 28, 0.15);
+          border-radius: 16px;
+          padding: 35px;
+          max-width: 450px;
+          width: 90%;
+          text-align: center;
+          backdrop-filter: blur(8px);
+          -webkit-backdrop-filter: blur(8px);
+        }
+
+        [data-theme="dark"] .loader-card {
+          background: rgba(24, 24, 28, 0.9);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        .loader-title {
+          font-weight: 700;
+          color: var(--text-main);
+          margin-bottom: 6px;
+        }
+
+        .loader-subtitle {
+          font-size: 0.88rem;
+          margin-bottom: 25px;
+        }
+
+        .loader-progress {
+          height: 10px;
+          border-radius: 999px;
+          background-color: var(--border);
+          overflow: hidden;
+        }
+
+        .loader-ticker {
+          font-size: 0.88rem;
+          font-weight: 600;
+          color: var(--red);
+          min-height: 22px;
+          opacity: 1;
+          transition: opacity 0.25s ease-in-out;
+        }
+      </style>
+
+      <script>
+        document.addEventListener("DOMContentLoaded", function() {
+          var cleanForm = document.querySelector("form[action*='clean_data']");
+          if (cleanForm) {
+            cleanForm.addEventListener("submit", function(e) {
+              // Show overlay
+              var overlay = document.getElementById("cleaningLoaderOverlay");
+              if (overlay) {
+                overlay.style.display = "flex";
+              }
+
+              // Progress bar animation (asymptotic slow down)
+              var bar = document.getElementById("loaderProgressBar");
+              var width = 0;
+              var progressInterval = setInterval(function() {
+                if (width >= 95) {
+                  clearInterval(progressInterval);
+                } else {
+                  width += (95 - width) * 0.15;
+                  if (bar) bar.style.width = width + "%";
+                }
+              }, 250);
+
+              // Ticker message cycler
+              var ticker = document.getElementById("loaderTicker");
+              var messages = [
+                "Running validation engine...",
+                "Validating email addresses and phone numbers...",
+                "Removing duplicate records...",
+                "Ingesting records to Supabase...",
+                "Resolving schema column mappings...",
+                "Rendering interactive preview table..."
+              ];
+              var msgIdx = 0;
+              var tickerInterval = setInterval(function() {
+                if (ticker) {
+                  ticker.style.opacity = 0;
+                  setTimeout(function() {
+                    ticker.textContent = messages[msgIdx % messages.length];
+                    ticker.style.opacity = 1;
+                    msgIdx++;
+                  }, 250);
+                }
+              }, 1800);
+            });
+          }
+        });
       </script>
     </main>
   </div>

@@ -760,7 +760,7 @@ def api_users():
     total_users = cursor.fetchone()["total"]
 
     cursor.execute(
-        f"SELECT id, username, role, `is_active` {base_query}{order_clause} LIMIT %s OFFSET %s",
+        f"SELECT id, username, role, is_active {base_query}{order_clause} LIMIT %s OFFSET %s",
         params + [per_page, offset],
     )
     users = cursor.fetchall()
@@ -791,7 +791,7 @@ def api_change_role(target_id):
     Response 200:
         { "success": true, "message": "Role updated to manager" }
     """
-    if g.api_role != "admin":
+    if g.api_role not in ["admin", "manager"]:
         return _forbidden()
 
     if not request.is_json:
@@ -799,13 +799,24 @@ def api_change_role(target_id):
 
     data          = request.get_json()
     new_role      = data.get("new_role", "").strip()
-    allowed_roles = {"user", "manager", "team_lead", "admin"}
+    
+    if g.api_role == "admin":
+        allowed_roles = {"user", "manager", "team_lead", "admin"}
+    else:
+        allowed_roles = {"user", "team_lead"}
 
     if new_role not in allowed_roles:
         return _bad_request(f"new_role must be one of: {', '.join(sorted(allowed_roles))}")
 
     conn   = get_db_connection()
     cursor = conn.cursor(dictionary=True)
+    
+    if g.api_role == "manager":
+        from helpers import get_visible_user_ids
+        visible_ids = get_visible_user_ids(cursor, role="manager", user_id=g.api_user_id)
+        if target_id not in visible_ids:
+            conn.close()
+            return _forbidden()
     cursor.execute("SELECT role, username FROM users WHERE id = %s", (target_id,))
     user = cursor.fetchone()
 
@@ -853,7 +864,7 @@ def api_toggle_user(target_id):
     conn   = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     cursor.execute(
-        "SELECT username, role, `is_active` FROM users WHERE id = %s",
+        "SELECT username, role, is_active FROM users WHERE id = %s",
         (target_id,)
     )
     user = cursor.fetchone()
@@ -870,7 +881,7 @@ def api_toggle_user(target_id):
 
     new_status = 0 if user["is_active"] else 1
     cursor.execute(
-        "UPDATE users SET `is_active` = %s WHERE id = %s",
+        "UPDATE users SET is_active = %s WHERE id = %s",
         (new_status, target_id)
     )
     conn.commit()
@@ -1160,7 +1171,7 @@ def api_save_preset():
     cursor.execute("""
         INSERT INTO rule_presets (user_id, name, rules_json)
         VALUES (%s, %s, %s)
-        ON DUPLICATE KEY UPDATE rules_json = VALUES(rules_json)
+        ON CONFLICT (user_id, name) DO UPDATE SET rules_json = EXCLUDED.rules_json
     """, (g.api_user_id, name, rules_json))
     conn.commit()
     conn.close()

@@ -45,5 +45,8 @@ def test_fetch_visible_logs_falls_back_when_search_log_table_missing(monkeypatch
 
     assert logs == []
     assert total == 0
-    assert cursor.show_tables_calls >= 1
+    assert any(
+        isinstance(query, str) and "information_schema.tables" in query.lower()
+        for query, _ in cursor.queries
+    )
     assert any("logs" in (query.lower() if isinstance(query, str) else "") for query, _ in cursor.queries)

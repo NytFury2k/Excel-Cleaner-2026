@@ -1,6 +1,34 @@
-"""
-helpers.py  –  Shared helper functions for app.py and api_routes.py
-"""
+import sys
+from types import ModuleType
+
+# Mock mysql.connector to prevent import errors and translate exceptions
+if "mysql" not in sys.modules or "mysql.connector" not in sys.modules:
+    mock_mysql = ModuleType("mysql")
+    mock_mysql_connector = ModuleType("mysql.connector")
+    mock_mysql_errors = ModuleType("mysql.connector.errors")
+
+    class MockMySqlError(Exception):
+        def __init__(self, msg="Database error", errno=None):
+            super().__init__(msg)
+            self.msg = msg
+            self.errno = errno
+
+    class MockMySqlIntegrityError(MockMySqlError):
+        pass
+
+    mock_mysql_connector.Error = MockMySqlError
+    mock_mysql_connector.IntegrityError = MockMySqlIntegrityError
+    mock_mysql_connector.DatabaseError = MockMySqlError
+    mock_mysql_connector.ProgrammingError = MockMySqlError
+    mock_mysql_connector.errors = mock_mysql_errors
+    mock_mysql.connector = mock_mysql_connector
+    mock_mysql_errors.ProgrammingError = MockMySqlError
+    mock_mysql_errors.IntegrityError = MockMySqlIntegrityError
+    mock_mysql_errors.DatabaseError = MockMySqlError
+
+    sys.modules["mysql"] = mock_mysql
+    sys.modules["mysql.connector"] = mock_mysql_connector
+    sys.modules["mysql.connector.errors"] = mock_mysql_errors
 
 import os
 import re
@@ -14,6 +42,11 @@ import mysql.connector
 import pandas as pd
 from flask import session, redirect, url_for, flash, request, jsonify, g
 import logging
+import psycopg2
+from psycopg2 import pool
+import psycopg2.extras
+from psycopg2 import Error as PgError, IntegrityError as PgIntegrityError
+
 _logger=logging.getLogger(__name__)
 
 MAX_PAGE_SIZE = 100
@@ -21,16 +54,127 @@ MAX_PAGE_SIZE = 100
 INACTIVITY_LIMIT = timedelta(minutes=60)
 
 
-# ── Database ──────────────────────────────────────────────────────────────────
+# ── Postgres / Supabase Wrapper classes ───────────────────────────────────────
+
+class PostgresConnectionWrapper:
+    def __init__(self, conn):
+        self.conn = conn
+
+    def cursor(self, dictionary=False, dict=False):
+        if dictionary or dict:
+            return PostgresCursorWrapper(self.conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor))
+        else:
+            return PostgresCursorWrapper(self.conn.cursor())
+
+    def commit(self):
+        self.conn.commit()
+
+    def rollback(self):
+        self.conn.rollback()
+
+    def close(self):
+        global _db_pool
+        if _db_pool:
+            _db_pool.putconn(self.conn)
+        else:
+            self.conn.close()
+
+    def is_connected(self):
+        return self.conn.closed == 0
+
+class PostgresCursorWrapper:
+    def __init__(self, cursor):
+        self.cursor = cursor
+        self.lastrowid = None
+
+    def execute(self, query, params=None):
+        if isinstance(query, str):
+            query = query.replace('`', '"')
+            query_upper = query.strip().upper()
+            if query_upper.startswith("DESCRIBE "):
+                table_name = query_upper.split("DESCRIBE ")[1].strip().replace('"', '').lower()
+                query = f"SELECT column_name AS \"Field\" FROM information_schema.columns WHERE table_name = '{table_name}'"
+            elif query_upper.startswith("SHOW TABLES LIKE "):
+                pattern = query_upper.split("SHOW TABLES LIKE ")[1].strip()
+                query = f"SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name LIKE {pattern}"
+            elif query_upper == "SHOW TABLES":
+                query = "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'"
+
+        try:
+            self.cursor.execute(query, params)
+            if isinstance(query, str) and query.strip().upper().startswith("INSERT"):
+                try:
+                    temp_cur = self.cursor.connection.cursor()
+                    temp_cur.execute("SELECT lastval()")
+                    row = temp_cur.fetchone()
+                    if isinstance(row, dict):
+                        self.lastrowid = list(row.values())[0]
+                    else:
+                        self.lastrowid = row[0]
+                    temp_cur.close()
+                except Exception:
+                    pass
+        except PgIntegrityError as e:
+            errno = 1062 if e.pgcode == '23505' else None
+            raise sys.modules["mysql.connector"].IntegrityError(str(e), errno=errno)
+        except PgError as e:
+            raise sys.modules["mysql.connector"].Error(str(e))
+
+    def executemany(self, query, seq_of_params):
+        if isinstance(query, str):
+            query = query.replace('`', '"')
+        try:
+            self.cursor.executemany(query, seq_of_params)
+        except PgIntegrityError as e:
+            errno = 1062 if e.pgcode == '23505' else None
+            raise sys.modules["mysql.connector"].IntegrityError(str(e), errno=errno)
+        except PgError as e:
+            raise sys.modules["mysql.connector"].Error(str(e))
+
+    def fetchone(self):
+        try:
+            return self.cursor.fetchone()
+        except PgError as e:
+            raise sys.modules["mysql.connector"].Error(str(e))
+
+    def fetchall(self):
+        try:
+            return self.cursor.fetchall()
+        except PgError as e:
+            raise sys.modules["mysql.connector"].Error(str(e))
+
+    def close(self):
+        self.cursor.close()
+
+    @property
+    def rowcount(self):
+        return self.cursor.rowcount
+
+_db_pool = None
 
 def get_db_connection():
-    return mysql.connector.connect(
-        host="127.0.0.1",
-        user="excel_cleaner_app",
-        password="excelapppass",
-        database="excel_cleaner_db",
-        auth_plugin="mysql_native_password"
-    )
+    global _db_pool
+    if _db_pool is None:
+        db_host = os.environ.get("SUPABASE_DB_HOST", "127.0.0.1")
+        db_name = os.environ.get("SUPABASE_DB_NAME", "postgres")
+        db_user = os.environ.get("SUPABASE_DB_USER", "postgres")
+        db_port = os.environ.get("SUPABASE_DB_PORT", "5432")
+        db_pass = os.environ.get("SUPABASE_DB_PASSWORD", "")
+        
+        _db_pool = psycopg2.pool.SimpleConnectionPool(
+            1, 20,
+            host=db_host,
+            database=db_name,
+            user=db_user,
+            password=db_pass,
+            port=db_port
+        )
+    
+    conn = _db_pool.getconn()
+    with conn.cursor() as cur:
+        cur.execute("SET TIME ZONE 'Asia/Kolkata';")
+    return PostgresConnectionWrapper(conn)
+
 
 
 # ── Logging ───────────────────────────────────────────────────────────────────
@@ -83,13 +227,18 @@ def get_visible_user_ids(cursor, role=None, user_id=None):
             placeholders=", ".join(["%s"]*len(tl_ids))
             cursor.execute(f"SELECT id FROM users WHERE manager_id IN ({placeholders}) AND role = 'user'", tl_ids)
             visible += [row["id"] for row in cursor.fetchall()]
+        if user_id not in visible:
+            visible.append(user_id)
         return visible
     
 
     elif role == "team_lead":
         cursor.execute("SELECT id FROM users WHERE manager_id = %s AND role = 'user'", (user_id,)
                        )
-        return [row["id"] for row in cursor.fetchall()]
+        visible = [row["id"] for row in cursor.fetchall()]
+        if user_id not in visible:
+            visible.append(user_id)
+        return visible
     else:
         return [user_id] if user_id else []
     
@@ -111,8 +260,12 @@ def load_permissions_from_db(role_name):
 
 
 def _table_exists(cursor, table_name):
+    """Check if a table exists in PostgreSQL using information_schema."""
     try:
-        cursor.execute("SHOW TABLES LIKE %s", (table_name,))
+        cursor.execute(
+            "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name = %s",
+            (table_name,)
+        )
         return cursor.fetchone() is not None
     except Exception:
         return False
@@ -123,7 +276,8 @@ def fetch_visible_logs(cursor, *, search=None, from_date=None, to_date=None,
     visible_user_ids = get_visible_user_ids(cursor, role=role, user_id=user_id)
     if not visible_user_ids:
         return [], 0
-
+        
+    visible_user_ids = list(set(visible_user_ids))
     log_type = (log_type or "").strip().lower()
     offset = (page - 1) * per_page
     placeholders = ",".join(["%s"] * len(visible_user_ids))
@@ -169,7 +323,7 @@ def fetch_visible_logs(cursor, *, search=None, from_date=None, to_date=None,
                     data_query += " AND DATE(searched_at) <= %s"
                     data_params.append(to_date)
 
-                data_query += " ORDER BY searched_at DESC LIMIT %s OFFSET %s"
+                data_query += " ORDER BY searched_at DESC, id DESC LIMIT %s OFFSET %s"
                 data_params.extend([per_page, offset])
 
                 cursor.execute(data_query, data_params)
@@ -219,7 +373,7 @@ def fetch_visible_logs(cursor, *, search=None, from_date=None, to_date=None,
             data_query += " AND DATE(logs.created_at) <= %s"
             data_params.append(to_date)
 
-        data_query += " ORDER BY logs.created_at DESC LIMIT %s OFFSET %s"
+        data_query += " ORDER BY logs.created_at DESC, logs.id DESC LIMIT %s OFFSET %s"
         data_params.extend([per_page, offset])
 
         cursor.execute(data_query, data_params)
@@ -309,7 +463,7 @@ def fetch_visible_logs(cursor, *, search=None, from_date=None, to_date=None,
         data_query += " AND DATE(logs.created_at) <= %s"
         data_params.append(to_date)
 
-    data_query += " ORDER BY logs.created_at DESC LIMIT %s OFFSET %s"
+    data_query += " ORDER BY logs.created_at DESC, logs.id DESC LIMIT %s OFFSET %s"
     data_params.extend([per_page, offset])
 
     cursor.execute(data_query, data_params)
@@ -520,7 +674,7 @@ def check_login_rate_limit(username):
         FROM login_attempts
         WHERE username = %s
           AND success  = 0
-          AND attempted_at > NOW() - INTERVAL 10 MINUTE
+          AND attempted_at > NOW() - INTERVAL '10 minutes'
     """, (username,))
     row = cursor.fetchone()
     conn.close()
@@ -627,7 +781,7 @@ def set_job_state(user_id, **fields):
 
     col_names = ", ".join(fields.keys())
     placeholders = ", ".join(["%s"]*len(fields))
-    updates = ", ".join(f"{k} = VALUES({k})" for k in fields.keys())
+    updates = ", ".join(f"{k} = EXCLUDED.{k}" for k in fields.keys())
     values =  list(fields.values())
 
     conn = get_db_connection()
@@ -635,7 +789,7 @@ def set_job_state(user_id, **fields):
     cursor.execute(
         f"""INSERT INTO cleaning_jobs (user_id, {col_names})
         VALUES (%s, {placeholders})
-        ON DUPLICATE KEY UPDATE {updates}""",
+        ON CONFLICT (user_id) DO UPDATE SET {updates}""",
         [user_id] + values
     )
     conn.commit()
@@ -645,7 +799,7 @@ def set_job_state(user_id, **fields):
 def clear_job_files(user_id):
     """Delete the output files on disk for this user's last job."""
     state = get_job_state(user_id)
-    for key in ("clened_file", "invalid_file", "removed_file"):
+    for key in ("cleaned_file", "invalid_file", "removed_file"):
         filepath = state.get(key)
         if filepath and os.path.exists(filepath):
             try:
@@ -973,13 +1127,13 @@ def ingest_uploaded_file_with_mapping(file_id, file_path, username, mapping_conf
                     field_id = target.split("custom:")[1]
                     val = record_dict['custom_fields'].get(field_id)
                     if val is not None:
-                        dup_query.append("TRIM(LOWER(JSON_UNQUOTE(JSON_EXTRACT(custom_fields, %s)))) = TRIM(LOWER(%s))")
-                        dup_params.append(f"$.\"{field_id}\"")
+                        dup_query.append("TRIM(LOWER(custom_fields ->> %s)) = TRIM(LOWER(%s))")
+                        dup_params.append(field_id)
                         dup_params.append(val)
                     else:
-                        dup_query.append("(custom_fields IS NULL OR JSON_EXTRACT(custom_fields, %s) IS NULL OR JSON_UNQUOTE(JSON_EXTRACT(custom_fields, %s)) = '')")
-                        dup_params.append(f"$.\"{field_id}\"")
-                        dup_params.append(f"$.\"{field_id}\"")
+                        dup_query.append("(custom_fields IS NULL OR custom_fields ->> %s IS NULL OR custom_fields ->> %s = '')")
+                        dup_params.append(field_id)
+                        dup_params.append(field_id)
                         
             # Check in-memory duplicates for the current ingestion batch
             seen_tuple_list = []

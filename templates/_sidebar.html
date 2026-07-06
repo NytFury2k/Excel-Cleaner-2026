@@ -632,6 +632,7 @@
   <div id="sidebarData" data-role='{{ session.role|default("") }}' style="display:none;"></div>
 
   <div class="py-2">
+    {% if session.role in ["admin", "manager"] %}
     <a href="{{ url_for('dashboard') }}" class="sidebar-link{% if request.endpoint == 'dashboard' %} active{% endif %}">
       <i class="bi bi-grid"></i>
       <span class="sidebar-text">Dashboard</span>
@@ -642,6 +643,7 @@
       <i class="bi bi-heart-pulse"></i>
       <span class="sidebar-text">Data Health</span>
     </a>
+    {% endif %}
 
     <a href="{{ url_for('upload') }}"
       class="sidebar-link{% if request.endpoint in ['upload', 'choose_rules', 'preview_results'] %} active{% endif %}">
@@ -649,6 +651,7 @@
       <span class="sidebar-text">Upload File</span>
     </a>
 
+    {% if session.role in ["admin"] %}
     <a href="{{ url_for('registry') }}" class="sidebar-link">
       <i class="bi bi-tags"></i>
       <span class="sidebar-text">Field Registry</span>
@@ -658,8 +661,9 @@
       <i class="bi bi-link-45deg"></i>
       <span class="sidebar-text">Alias Manager</span>
     </a>
+    {% endif %}
 
-    {% if session.role in ["admin","manager","team_lead"] %}
+    {% if session.role in ["admin","manager"] %}
     <a href="{{ url_for('downloads') }}"
       class="sidebar-link{% if request.endpoint in ['downloads','download_selected','download_admin'] %} active{% endif %}">
       <i class="bi bi-download"></i>
@@ -667,33 +671,35 @@
     </a>
     {% endif %}
 
-    {% if session.role in ["admin","manager"] %}
+    {% if session.role in ["admin"] %}
     <a href="{{ url_for('history_view') }}" class="sidebar-link">
       <i class="bi bi-clock-history"></i>
       <span class="sidebar-text">Import History</span>
     </a>
+    {% endif %}
 
+    {% if session.role in ["admin", "manager", "team_lead"] %}
     <a href="{{ url_for('admin_logs') }}" class="sidebar-link">
       <i class="bi bi-file-earmark-text"></i>
       <span class="sidebar-text">Activity Logs</span>
     </a>
     {% endif %}
 
-    {% if session.role in ["admin","manager","team_lead"] %}
+    {% if session.role in ["admin", "manager"] %}
     <a href="{{ url_for('list_users') }}"
       class="sidebar-link{% if request.endpoint == 'list_users' %} active{% endif %}">
       <i class="bi bi-people"></i>
       <span class="sidebar-text">Users</span>
     </a>
-    {% endif %}
-
-    {% if session.role in ["admin","manager"] %}
+    
     <a href="{{ url_for('admin_create_user') }}"
       class="sidebar-link{% if request.endpoint == 'admin_create_user' %} active{% endif %}">
       <i class="bi bi-person-plus"></i>
       <span class="sidebar-text">Create User</span>
     </a>
+    {% endif %}
 
+    {% if session.role in ["admin"] %}
     <a href="{{ url_for('manage_users') }}"
       class="sidebar-link{% if request.endpoint == 'manage_users' %} active{% endif %}">
       <i class="bi bi-person-gear"></i>

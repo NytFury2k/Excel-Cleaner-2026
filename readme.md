@@ -104,11 +104,39 @@ ________________________________________
 
 10. How to Run
 
-(1)	Create a MySQL database.
-(2)	Import schema.sql 
-(3) Install dependencies:   pip install -r requirements.txt
-(4) Run:   python app.py
-(5) Access:   http://127.0.0.1:5000
+(1)	Provision the Supabase PostgreSQL database and set the SUPABASE_DB_* environment variables.
+(2)	Run the migration:   python migrate_mysql_to_supabase.py
+(3)	Install dependencies:   pip install -r requirements.txt
+(4)	Run:   python app.py
+(5)	Access:   http://127.0.0.1:5000
+________________________________________
+
+11. What To Give Teammates
+
+Send them these details when they pull the project:
+
+(1)	Python version: use the same interpreter that runs the app locally.
+(2)	Install command:   pip install -r requirements.txt
+(3)	Required environment variables:
+		FLASK_SECRET_KEY
+		MYSQL_HOST
+		MYSQL_PORT
+		MYSQL_DATABASE
+		MYSQL_USER
+		MYSQL_PASSWORD
+		SUPABASE_DB_HOST
+		SUPABASE_DB_PORT
+		SUPABASE_DB_NAME
+		SUPABASE_DB_USER
+		SUPABASE_DB_PASSWORD
+(4)	Migration step:   python migrate_mysql_to_supabase.py
+(5)	Start command:   python app.py
+(6)	Default login after migration: admin / Admin@123
+
+Notes for peers:
+- Do not commit `.env`.
+- If they only need to run the app against Supabase, they only need the SUPABASE_DB_* values and the Flask secret key.
+- If they need to re-run the migration, they also need access to the source MySQL credentials.
 ________________________________________
 
 11. Design Decisions

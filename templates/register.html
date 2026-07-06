@@ -173,7 +173,7 @@
           </select>
         </div>
 
-        {% if session.get('role') in ('admin', 'manager') %}
+        {% if session.get('role') == 'admin' %}
         <!-- Shown when role=team_lead:pick a manager -->
         <div class="mb-3" id="assign-manager-div" style="display:none;">
           <label class="form-label">
@@ -186,6 +186,9 @@
             {% endfor %}
           </select>
         </div>
+        {% endif %}
+
+        {% if session.get('role') in ('admin', 'manager') %}
 
         <!-- Shown when role = user: pick a team lead -->
          <div class="mb-3" id="assign-tl-div" style="display:none;">
@@ -236,8 +239,7 @@
     });
 
     var roleSelect   = document.getElementById("role-select");
-    var assignMgrDiv = document.getElementById("assign-manager-div");
-    if (roleSelect && assignMgrDiv) {
+    if (roleSelect) {
       function toggleManagerDiv() {
         var val = roleSelect.value;
         var mgrDiv = document.getElementById("assign-manager-div");

@@ -1,28 +1,33 @@
-import mysql.connector
-from mysql.connector import Error
+import psycopg2
+from psycopg2 import Error
 import traceback
+import os
+from dotenv import load_dotenv
 
-HOST = '127.0.0.1'
-USER = 'excel_cleaner_app'
-PASSWORD = 'excelapppass'
-DATABASE = 'excel_cleaner_db'
+load_dotenv()
+
+HOST = os.environ.get("SUPABASE_DB_HOST", "127.0.0.1")
+USER = os.environ.get("SUPABASE_DB_USER", "postgres")
+PASSWORD = os.environ.get("SUPABASE_DB_PASSWORD", "")
+DATABASE = os.environ.get("SUPABASE_DB_NAME", "postgres")
+PORT = os.environ.get("SUPABASE_DB_PORT", "5432")
 
 sql_statements = [
     """
     CREATE TABLE IF NOT EXISTS users (
-        id INT AUTO_INCREMENT PRIMARY KEY,
+        id SERIAL PRIMARY KEY,
         username VARCHAR(255) NOT NULL UNIQUE,
         password VARCHAR(255) NOT NULL,
         role VARCHAR(50) NOT NULL DEFAULT 'user',
-        is_active TINYINT(1) NOT NULL DEFAULT 1,
+        is_active SMALLINT NOT NULL DEFAULT 1,
         manager_id INT NULL,
         email VARCHAR(255) NULL,
-        requires_password_change TINYINT(1) NOT NULL DEFAULT 0
+        requires_password_change SMALLINT NOT NULL DEFAULT 0
     )
     """,
     """
     CREATE TABLE IF NOT EXISTS logs (
-        id INT AUTO_INCREMENT PRIMARY KEY,
+        id SERIAL PRIMARY KEY,
         user_id INT NOT NULL,
         action TEXT NULL,
         total_rows INT NOT NULL DEFAULT 0,
@@ -36,54 +41,51 @@ sql_statements = [
     """,
     """
     CREATE TABLE IF NOT EXISTS login_attempts (
-        id INT AUTO_INCREMENT PRIMARY KEY,
+        id SERIAL PRIMARY KEY,
         username VARCHAR(100) NOT NULL,
-        attempted_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        success TINYINT(1) DEFAULT 0,
-        INDEX idx_username_time (username, attempted_at)
+        attempted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        success SMALLINT DEFAULT 0
     )
     """,
     """
     CREATE TABLE IF NOT EXISTS api_tokens (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        user_id INT NOT NULL,
+        id SERIAL PRIMARY KEY,
+        user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         token VARCHAR(64) NOT NULL UNIQUE,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        expires_at DATETIME NOT NULL,
-        is_active TINYINT(1) DEFAULT 1,
-        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        expires_at TIMESTAMP NOT NULL,
+        is_active SMALLINT DEFAULT 1
     )
     """,
     """
     CREATE TABLE IF NOT EXISTS uploaded_files (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        user_id INT NOT NULL,
+        id SERIAL PRIMARY KEY,
+        user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         filename VARCHAR(255) NOT NULL,
         original_filename VARCHAR(255) NOT NULL,
         uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         total_rows INT DEFAULT 0,
         rows_imported INT DEFAULT 0,
         rows_rejected INT DEFAULT 0,
-        status VARCHAR(50) NOT NULL DEFAULT 'pending',
-        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        status VARCHAR(50) NOT NULL DEFAULT 'pending'
     )
     """,
     """
     CREATE TABLE IF NOT EXISTS field_registry (
-        id INT AUTO_INCREMENT PRIMARY KEY,
+        id SERIAL PRIMARY KEY,
         field_name VARCHAR(150) NOT NULL UNIQUE,
         normalized_name VARCHAR(150) NOT NULL UNIQUE,
         data_type VARCHAR(50) NOT NULL DEFAULT 'VARCHAR',
-        is_active TINYINT(1) DEFAULT 1,
-        searchable TINYINT(1) DEFAULT 1,
-        filterable TINYINT(1) DEFAULT 1,
+        is_active SMALLINT DEFAULT 1,
+        searchable SMALLINT DEFAULT 1,
+        filterable SMALLINT DEFAULT 1,
         usage_count INT DEFAULT 0,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
     """,
     """
     CREATE TABLE IF NOT EXISTS field_aliases (
-        id INT AUTO_INCREMENT PRIMARY KEY,
+        id SERIAL PRIMARY KEY,
         alias VARCHAR(150) NOT NULL UNIQUE,
         normalized_alias VARCHAR(150) NOT NULL,
         target_type VARCHAR(50) NOT NULL,
@@ -93,8 +95,8 @@ sql_statements = [
     """,
     """
     CREATE TABLE IF NOT EXISTS master_records (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        file_id INT NOT NULL,
+        id SERIAL PRIMARY KEY,
+        file_id INT NOT NULL REFERENCES uploaded_files(id) ON DELETE CASCADE,
         full_name VARCHAR(255) NULL,
         email_address VARCHAR(255) NULL,
         primary_phone_number VARCHAR(100) NULL,
@@ -117,55 +119,141 @@ sql_statements = [
         gender VARCHAR(50) NULL,
         company_size VARCHAR(100) NULL,
         annual_revenue VARCHAR(100) NULL,
-        custom_fields JSON NULL,
+        custom_fields JSONB NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        imported_by VARCHAR(255) NULL,
-        FOREIGN KEY (file_id) REFERENCES uploaded_files(id) ON DELETE CASCADE,
-        INDEX idx_full_name (full_name),
-        INDEX idx_email (email_address),
-        INDEX idx_phone (primary_phone_number),
-        INDEX idx_company (company_name),
-        INDEX idx_city (city)
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        imported_by VARCHAR(255) NULL
     )
     """,
     """
     CREATE TABLE IF NOT EXISTS rejected_records (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        file_id INT NOT NULL,
-        row_data JSON NULL,
-        rejected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (file_id) REFERENCES uploaded_files(id) ON DELETE CASCADE
+        id SERIAL PRIMARY KEY,
+        file_id INT NOT NULL REFERENCES uploaded_files(id) ON DELETE CASCADE,
+        row_data JSONB NULL,
+        rejected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS cleaning_jobs (
+        id SERIAL PRIMARY KEY,
+        user_id INT NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+        temp_file VARCHAR(500) DEFAULT NULL,
+        uploaded_file VARCHAR(500) DEFAULT NULL,
+        cleaned_file VARCHAR(500) DEFAULT NULL,
+        invalid_file VARCHAR(500) DEFAULT NULL,
+        removed_file VARCHAR(500) DEFAULT NULL,
+        rules_json TEXT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS rule_presets (
+        id SERIAL PRIMARY KEY,
+        user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        name VARCHAR(100) NOT NULL,
+        rules_json TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE (user_id, name)
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS search_logs (
+        id SERIAL PRIMARY KEY,
+        user_id INT NOT NULL,
+        username VARCHAR(255) NOT NULL,
+        search_term TEXT NOT NULL,
+        searched_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS roles (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(50) NOT NULL UNIQUE
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS permissions (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(100) NOT NULL UNIQUE
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS role_permissions (
+        id SERIAL PRIMARY KEY,
+        role_id INT NOT NULL REFERENCES roles(id) ON DELETE CASCADE,
+        permission_id INT NOT NULL REFERENCES permissions(id) ON DELETE CASCADE,
+        UNIQUE (role_id, permission_id)
     )
     """
 ]
 
+# Separate index and trigger statements (Postgres doesn't support inline INDEX in CREATE TABLE)
+sql_statements.extend([
+    "CREATE INDEX IF NOT EXISTS idx_full_name ON master_records(full_name)",
+    "CREATE INDEX IF NOT EXISTS idx_email ON master_records(email_address)",
+    "CREATE INDEX IF NOT EXISTS idx_phone ON master_records(primary_phone_number)",
+    "CREATE INDEX IF NOT EXISTS idx_company ON master_records(company_name)",
+    "CREATE INDEX IF NOT EXISTS idx_city ON master_records(city)",
+    "CREATE INDEX IF NOT EXISTS idx_login_username_time ON login_attempts(username, attempted_at)",
+    # Trigger function for auto-updating updated_at columns
+    """
+    CREATE OR REPLACE FUNCTION update_modified_column()
+    RETURNS TRIGGER AS $$
+    BEGIN
+        NEW.updated_at = now();
+        RETURN NEW;
+    END;
+    $$ language 'plpgsql'
+    """,
+    "DROP TRIGGER IF EXISTS update_master_records_modtime ON master_records",
+    """
+    CREATE TRIGGER update_master_records_modtime
+        BEFORE UPDATE ON master_records
+        FOR EACH ROW
+        EXECUTE FUNCTION update_modified_column()
+    """,
+    "DROP TRIGGER IF EXISTS update_cleaning_jobs_modtime ON cleaning_jobs",
+    """
+    CREATE TRIGGER update_cleaning_jobs_modtime
+        BEFORE UPDATE ON cleaning_jobs
+        FOR EACH ROW
+        EXECUTE FUNCTION update_modified_column()
+    """
+])
+
 conn = None
 try:
-    conn = mysql.connector.connect(
+    conn = psycopg2.connect(
         host=HOST,
+        database=DATABASE,
         user=USER,
         password=PASSWORD,
-        database=DATABASE,
-        auth_plugin='mysql_native_password',
-        connect_timeout=5,
+        port=PORT
     )
     cur = conn.cursor()
 
-    # Drop master_records, uploaded_files, and custom registry tables to align schemas cleanly
+    # Drop tables cleanly (CASCADE handles FK dependencies)
     try:
-        cur.execute("SET FOREIGN_KEY_CHECKS = 0")
-        cur.execute("DROP TABLE IF EXISTS master_records")
-        cur.execute("DROP TABLE IF EXISTS rejected_records")
-        cur.execute("DROP TABLE IF EXISTS uploaded_files")
-        cur.execute("DROP TABLE IF EXISTS field_registry")
-        cur.execute("DROP TABLE IF EXISTS field_aliases")
-        cur.execute("SET FOREIGN_KEY_CHECKS = 1")
+        cur.execute("DROP TABLE IF EXISTS master_records CASCADE")
+        cur.execute("DROP TABLE IF EXISTS rejected_records CASCADE")
+        cur.execute("DROP TABLE IF EXISTS uploaded_files CASCADE")
+        cur.execute("DROP TABLE IF EXISTS field_registry CASCADE")
+        cur.execute("DROP TABLE IF EXISTS field_aliases CASCADE")
+        cur.execute("DROP TABLE IF EXISTS rule_presets CASCADE")
+        cur.execute("DROP TABLE IF EXISTS api_tokens CASCADE")
+        cur.execute("DROP TABLE IF EXISTS logs CASCADE")
+        cur.execute("DROP TABLE IF EXISTS login_attempts CASCADE")
+        cur.execute("DROP TABLE IF EXISTS cleaning_jobs CASCADE")
+        cur.execute("DROP TABLE IF EXISTS search_logs CASCADE")
+        cur.execute("DROP TABLE IF EXISTS users CASCADE")
+        conn.commit()
     except Exception:
-        pass
+        conn.rollback()
 
     for stmt in sql_statements:
         cur.execute(stmt)
+    conn.commit()
 
     # Ensure the admin user exists with the expected password hash.
     cur.execute("SELECT COUNT(*) FROM users WHERE username = %s", ('admin',))
@@ -188,10 +276,10 @@ try:
         res = cur.fetchone()
         if not res:
             cur.execute(
-                "INSERT INTO field_registry (field_name, normalized_name, data_type, usage_count) VALUES (%s, %s, %s, %s)",
+                "INSERT INTO field_registry (field_name, normalized_name, data_type, usage_count) VALUES (%s, %s, %s, %s) RETURNING id",
                 (f["name"], f["norm"], f["type"], 0)
             )
-            registered_fields[f["norm"]] = cur.lastrowid
+            registered_fields[f["norm"]] = cur.fetchone()[0]
         else:
             registered_fields[f["norm"]] = res[0]
 
@@ -255,11 +343,11 @@ try:
                     (alias, norm, t_type, resolved_id)
                 )
             except Error:
-                pass
+                conn.rollback()
 
     conn.commit()
     print('Database schema setup completed successfully.')
-    cur.execute("SHOW TABLES")
+    cur.execute("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'")
     print('Tables:', [row[0] for row in cur.fetchall()])
 except Error as e:
     if conn is not None:
@@ -272,5 +360,5 @@ except Exception as e:
     print(f'Unexpected error: {e}')
     traceback.print_exc()
 finally:
-    if conn is not None and conn.is_connected():
+    if conn is not None:
         conn.close()
