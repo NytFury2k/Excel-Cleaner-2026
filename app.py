@@ -1006,8 +1006,9 @@ def data_health():
 @app.route('/api/clean-existing-data', methods=['GET'])
 @login_required()
 def api_clean_existing_data():
-    if "user_id" not in session or session.get("role") not in ROLE_PERMISSIONS:
-        return redirect(url_for("login"))
+    if session.get("role") != "admin":
+        flash("Access denied.", "warning")
+        return redirect(url_for("upload"))
         
     try:
         conn = get_db_connection()
