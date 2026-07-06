@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Downloads — Paramantra</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <link rel="icon" href="https://paramantra.us/aldius/images/favicon.png" type="image/gif">
+  <style>
+    :root {
+      --red: #b91c1c;
+      --border: #e5e7eb;
+      --surface: #f9fafb;
+      --bg-primary: #f4f5f7;
+      --text-main: #111827;
+      --text-muted: #6b7280;
+      --input-bg: #ffffff;
+      --input-text: #111827;
+      --red-accent: #b91c1c;
+      --red-hover: #991b1b;
+      --red-light: #fee2e2;
+      --hover-bg: #fef2f2;
+    }
+
+    [data-theme="dark"] {
+      --red: #ef4444;
+      --border: #2d2d34;
+      --surface: #18181c;
+      --bg-primary: #0f0f12;
+      --text-main: #f3f4f6;
+      --text-muted: #9ca3af;
+      --input-bg: #222227;
+      --input-text: #f3f4f6;
+      --red-accent: #ef4444;
+      --red-hover: #dc2626;
+      --red-light: #451a1a;
+      --hover-bg: #2d2020;
+    }
+
+    body {
+      background: var(--bg-primary);
+      font-family: system-ui, -apple-system, sans-serif;
+      color: var(--text-main);
+    }
+
+    .card {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--input-bg);
+      color: var(--text-main);
+    }
+
+    .card-header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 20px;
+      font-weight: 600;
+      border-radius: 12px 12px 0 0 !important;
+      color: var(--text-main);
+    }
+
+    .filter-label {
+      font-size: 0.78rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+
+    .filter-section {
+      padding: 14px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .filter-section:last-child {
+      border-bottom: none;
+    }
+
+    .type-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 0.2rem 0.65rem;
+      border-radius: 999px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: 1px solid var(--border);
+      background: var(--input-bg);
+      color: var(--text-main);
+      transition: all 0.15s;
+      user-select: none;
+      min-height: 2rem;
+    }
+
+    .type-pill input[type="checkbox"] {
+      display: none;
+    }
+
+    .type-pill.selected {
+      border-color: #fecaca;
+      background-color: #fee2e2;
+      color: #991b1b;
+    }
+
+    [data-theme="dark"] .type-pill.selected {
+      border-color: #582424;
+      background-color: #3c1e1e;
+      color: #f87171;
+    }
+
+    .file-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--input-bg);
+      margin-bottom: 8px;
+      cursor: pointer;
+      transition: border-color 0.15s, box-shadow 0.15s;
+      color: var(--text-main);
+    }
+
+    .file-item:hover {
+      border-color: #fca5a5;
+      box-shadow: 0 0 0 3px rgba(185, 28, 28, 0.06);
+    }
+
+    [data-theme="dark"] .file-item:hover {
+      border-color: #dc2626;
+      box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15);
+    }
+
+    .file-item input[type="checkbox"] {
+      accent-color: var(--red-accent);
+      width: 15px;
+      height: 15px;
+      flex-shrink: 0;
+    }
+
+    .file-item-name {
+      font-size: 0.83rem;
+      font-weight: 500;
+      color: var(--text-main);
+      word-break: break-all;
+      flex: 1;
+    }
+
+    .file-item-meta {
+      font-size: 0.73rem;
+      color: var(--text-muted);
+      white-space: nowrap;
+    }
+
+    .file-type-tag,
+    .hist-badge {
+      font-size: 0.7rem;
+      font-weight: 600;
+      padding: 0.2rem 0.65rem;
+      border-radius: 999px;
+      flex-shrink: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 2rem;
+      border: 1px solid;
+    }
+
+    .file-type-tag.tag-cleaned,
+    .hist-badge.badge-cleaned {
+      background-color: #dcfce7 !important;
+      color: #15803d !important;
+      border-color: #c7f0d8 !important;
+    }
+
+    [data-theme="dark"] .file-type-tag.tag-cleaned,
+    [data-theme="dark"] .hist-badge.badge-cleaned {
+      background-color: #143522 !important;
+      color: #4ade80 !important;
+      border-color: #1b4d32 !important;
+    }
+
+    .file-type-tag.tag-invalid,
+    .hist-badge.badge-invalid {
+      background-color: #fef9c3 !important;
+      color: #a16207 !important;
+      border-color: #fde68a !important;
+    }
+
+    [data-theme="dark"] .file-type-tag.tag-invalid,
+    [data-theme="dark"] .hist-badge.badge-invalid {
+      background-color: #78350f !important;
+      color: #fbbf24 !important;
+      border-color: #92400e !important;
+    }
+
+    .file-type-tag.tag-removed,
+    .hist-badge.badge-removed {
+      background-color: #fee2e2 !important;
+      color: #991b1b !important;
+      border-color: #fecaca !important;
+    }
+
+    [data-theme="dark"] .file-type-tag.tag-removed,
+    [data-theme="dark"] .hist-badge.badge-removed {
+      background-color: #3c1e1e !important;
+      color: #f87171 !important;
+      border-color: #582424 !important;
+    }
+
+    .hist-table thead th {
+      background: var(--surface);
+      font-size: 0.76rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      border-bottom: 2px solid var(--border);
+      padding: 10px 14px;
+    }
+
+    .hist-table td {
+      font-size: 0.83rem;
+      vertical-align: middle;
+      padding: 10px 14px;
+      border-color: var(--border);
+      color: var(--text-main);
+    }
+
+    .hist-table tbody tr:hover {
+      background: var(--hover-bg);
+    }
+
+    .hist-badge {
+      font-size: 0.7rem;
+      font-weight: 600;
+      padding: 0.2rem 0.65rem;
+      border-radius: 999px;
+      border: 1px solid;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .badge-cleaned {
+      background-color: #dcfce7 !important;
+      color: #15803d !important;
+      border-color: #c7f0d8 !important;
+    }
+
+    [data-theme="dark"] .badge-cleaned {
+      background-color: #143522 !important;
+      color: #4ade80 !important;
+      border-color: #1b4d32 !important;
+    }
+
+    .badge-invalid {
+      background-color: #fef9c3 !important;
+      color: #a16207 !important;
+      border-color: #fde68a !important;
+    }
+
+    [data-theme="dark"] .badge-invalid {
+      background-color: #78350f !important;
+      color: #fbbf24 !important;
+      border-color: #92400e !important;
+    }
+
+    .badge-removed {
+      background-color: #fee2e2 !important;
+      color: #991b1b !important;
+      border-color: #fecaca !important;
+    }
+
+    [data-theme="dark"] .badge-removed {
+      background-color: #3c1e1e !important;
+      color: #f87171 !important;
+      border-color: #582424 !important;
+    }
+
+    .left-panel-scroll {
+      max-height: calc(100vh - 340px);
+      overflow-y: auto;
+      padding-right: 2px;
+    }
+
+    .left-panel-scroll::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    .left-panel-scroll::-webkit-scrollbar-thumb {
+      background: #d1d5db;
+      border-radius: 4px;
+    }
+
+    [data-theme="dark"] .left-panel-scroll::-webkit-scrollbar-thumb {
+      background: #4b5563;
+      border-radius: 4px;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--text-muted);
+    }
+
+    .empty-state i {
+      font-size: 2rem;
+      margin-bottom: 10px;
+      display: block;
+    }
+
+    .pagination .page-link {
+      border-radius: 6px !important;
+      font-size: 0.82rem;
+      padding: 4px 10px;
+      margin: 0 2px;
+      border-color: var(--border);
+      color: var(--red-accent);
+      background: var(--input-bg);
+    }
+
+    .pagination .page-link:hover {
+      background: var(--hover-bg);
+      border-color: var(--red-accent);
+    }
+
+    .pagination .page-item.active .page-link {
+      background: var(--red-accent);
+      border-color: var(--red-accent);
+      color: #fff;
+    }
+
+    .pagination .page-item.disabled .page-link {
+      color: var(--text-muted);
+      background: var(--input-bg);
+    }
+
+    .select-bar {
+      background: var(--red-light);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: 0.82rem;
+      color: var(--red-accent);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+
+    [data-theme="dark"] .select-bar {
+      background: rgba(60, 30, 30, 0.5);
+      border: 1px solid var(--border);
+      color: #f87171;
+    }
+
+    .form-control,
+    .form-select,
+    .input-group-text {
+      background: var(--input-bg);
+      color: var(--input-text);
+      border-color: var(--border);
+    }
+
+    .form-control:focus,
+    .form-select:focus {
+      background: var(--input-bg);
+      color: var(--input-text);
+      border-color: var(--red-accent);
+      box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15);
+    }
+
+    .form-control::placeholder {
+      color: var(--text-muted);
+      opacity: 0.7;
+    }
+
+    .btn-danger,
+    .btn-danger:focus {
+      background: var(--red-accent);
+      border-color: var(--red-accent);
+      color: #fff;
+    }
+
+    .btn-danger:hover {
+      background: var(--red-hover);
+      border-color: var(--red-hover);
+    }
+
+    .btn-outline-danger {
+      color: var(--red-accent);
+      border-color: var(--red-accent);
+    }
+
+    .btn-outline-danger:hover {
+      background: var(--red-accent);
+      border-color: var(--red-accent);
+      color: #fff;
+    }
+
+    .badge {
+      color: var(--text-main);
+    }
+
+    .badge.text-bg-secondary {
+      background-color: var(--text-muted) !important;
+      color: var(--input-bg) !important;
+    }
+
+    .text-muted {
+      color: var(--text-muted) !important;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="app-layout">
+    {% include '_sidebar.html' %}
+
+    <main class="content-area">
+      <div class="container">
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}{% for category, message in messages %}
+        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+          {{ message|safe }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        {% endfor %}{% endif %}{% endwith %}
+
+        <!-- Page Header -->
+        <div class="mb-4">
+          <h3 style="font-size:1.35rem;font-weight:700;color:var(--text-main);margin-bottom:4px;">Downloads</h3>
+          <p class="text-muted mb-0" style="font-size:0.875rem;">Browse, filter, and download previously generated data
+            files from cleaning sessions.</p>
+        </div>
+
+        <div class="row g-4 align-items-start">
+
+          <!-- LEFT PANEL -->
+          <div class="col-lg-5">
+            <div class="card shadow-sm">
+              <div class="card-header d-flex align-items-center justify-content-between">
+                <span>Select Files</span>
+                <span class="badge text-bg-secondary" style="font-size:0.72rem;">
+                  {{ total_files }} file{{ 's' if total_files != 1 else '' }}
+                </span>
+              </div>
+              <div class="card-body pb-2">
+
+                <!-- Filter Form (GET) -->
+                <form method="get" action="{{ url_for('downloads') }}" id="filterForm">
+                  <div class="filter-section pt-0">
+                    <div class="filter-label mb-2">File Type</div>
+                    <div class="d-flex flex-wrap gap-2">
+                      <label class="type-pill{% if 'cleaned' in selected_types %} selected{% endif %}">
+                        <input type="checkbox" name="types" value="cleaned" {% if 'cleaned' in selected_types
+                          %}checked{% endif %} onchange="this.form.submit()">
+                        <i class="bi bi-check-circle-fill text-success"></i> Cleaned
+                      </label>
+                      <label class="type-pill{% if 'invalid' in selected_types %} selected{% endif %}">
+                        <input type="checkbox" name="types" value="invalid" {% if 'invalid' in selected_types
+                          %}checked{% endif %} onchange="this.form.submit()">
+                        <i class="bi bi-exclamation-triangle-fill text-warning"></i> Invalid
+                      </label>
+                      <label class="type-pill{% if 'removed' in selected_types %} selected{% endif %}">
+                        <input type="checkbox" name="types" value="removed" {% if 'removed' in selected_types
+                          %}checked{% endif %} onchange="this.form.submit()">
+                        <i class="bi bi-trash-fill text-danger"></i> Removed
+                      </label>
+                    </div>
+                  </div>
+
+                  {% if session.role in ['admin', 'manager'] %}
+                  <div class="filter-section">
+                    <div class="filter-label mb-2">User</div>
+                    <select name="user_id" class="form-select form-select-sm" onchange="this.form.submit()"
+                      style="border-radius:7px;">
+                      <option value="">All users</option>
+                      {% for u in visible_users %}
+                      <option value="{{ u.id }}" {% if selected_user==u.id|string %}selected{% endif %}>
+                        {{ u.username }} ({{ u.role }})
+                      </option>
+                      {% endfor %}
+                    </select>
+                  </div>
+                  {% endif %}
+
+                  <div class="filter-section">
+                    <div class="filter-label mb-1">Date Range</div>
+                    <div class="row g-2">
+                      <div class="col-6">
+                        <label class="form-label" style="font-size:0.75rem;color:#6b7280;">From</label>
+                        <input type="date" name="from_date" value="{{ from_date }}" class="form-control form-control-sm"
+                          style="border-radius:7px;" onchange="this.form.submit()">
+                      </div>
+                      <div class="col-6">
+                        <label class="form-label" style="font-size:0.75rem;color:#6b7280;">To</label>
+                        <input type="date" name="to_date" value="{{ to_date }}" class="form-control form-control-sm"
+                          style="border-radius:7px;" onchange="this.form.submit()">
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="filter-section">
+                    <div class="filter-label mb-1">Search Filename</div>
+                    <div class="input-group input-group-sm">
+                      <span class="input-group-text bg-white"
+                        style="border-radius:7px 0 0 7px;border-color:var(--border);">
+                        <i class="bi bi-search text-muted" style="font-size:0.78rem;"></i>
+                      </span>
+                      <input type="text" name="search" value="{{ search }}" id="searchInput"
+                        class="form-control border-start-0" placeholder="e.g. crm_data_cleaned…"
+                        style="border-radius:0 7px 7px 0;border-color:var(--border);">
+                    </div>
+                    <button type="submit" class="btn btn-sm btn-danger mt-2 w-100"
+                      style="border-radius:7px;font-size:0.82rem;">
+                      <i class="bi bi-search me-1"></i>Apply Filters
+                    </button>
+                    {% if search or from_date or to_date or selected_types or selected_user %}
+                    <a href="{{ url_for('downloads') }}" class="btn btn-sm btn-secondary mt-1 w-100"
+                      style="border-radius:7px;font-size:0.82rem;">
+                      <i class="bi bi-x-circle me-1"></i>Clear Filters
+                    </a>
+                    {% endif %}
+                  </div>
+                </form>
+
+                <!-- File Selection Form (POST to download) -->
+                <form method="post" action="{{ url_for('download_selected') }}" id="downloadForm">
+
+                  {% if files %}
+                  <div class="select-bar">
+                    <label style="cursor:pointer;display:flex;align-items:center;gap:6px;">
+                      <input type="checkbox" id="selectAll"> Select all {{ files|length }}
+                    </label>
+                    <button type="submit" class="btn btn-danger btn-sm" style="font-size:0.78rem;border-radius:6px;">
+                      <i class="bi bi-download me-1"></i>Download Selected
+                    </button>
+                  </div>
+
+                  <div class="left-panel-scroll">
+                    {% for f in files %}
+                    <label class="file-item w-100 mb-0">
+                      <input type="checkbox" name="filenames" value="{{ f.rel_path }}" class="file-checkbox">
+                      <span class="file-type-tag tag-{{ f.type }}">{{ f.type | upper }}</span>
+                      <span class="file-item-name">{{ f.display_name }}</span>
+                      <span class="file-item-meta">{{ f.size_kb }} KB<br>{{ f.date }}</span>
+                    </label>
+                    {% endfor %}
+                  </div>
+
+                  {% else %}
+                  <div class="empty-state">
+                    <i class="bi bi-inbox"></i>
+                    <div style="font-weight:500;">No files found</div>
+                    <div style="font-size:0.82rem;margin-top:4px;">Try adjusting the filters above</div>
+                  </div>
+                  {% endif %}
+
+                </form>
+
+              </div>
+            </div>
+          </div>
+
+          <!-- RIGHT PANEL: Recent Download History -->
+          <div class="col-lg-7">
+            <div class="card shadow-sm">
+              <div class="card-header d-flex align-items-center justify-content-between">
+                <span><i class="bi bi-clock-history me-2" style="color:#b91c1c;"></i>Recent Downloads</span>
+                <span class="text-muted" style="font-size:0.78rem;">
+                  {% if total_exports > 0 %}
+                  Showing {{ hist_start }}–{{ hist_end }} of {{ total_exports }}
+                  {% endif %}
+                </span>
+              </div>
+
+              {% if export_logs %}
+              <div class="table-responsive" style="border-radius:0 0 12px 12px;overflow:hidden;">
+                <table class="table hist-table mb-0">
+                  <thead>
+                    <tr>
+                      <th>File</th>
+                      <th>Type</th>
+                      <th>User</th>
+                      <th>Downloaded At</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for log in export_logs %}
+                    <tr>
+                      <td style="max-width:200px;">
+                        <div style="font-weight:500;word-break:break-all;font-size:0.82rem;">
+                          {{ log.display_name }}
+                        </div>
+                      </td>
+                      <td>
+                        <span class="hist-badge badge-{{ log.file_type }}">{{ log.file_type | upper }}</span>
+                      </td>
+                      <td>
+                        <div style="font-size:0.82rem;">{{ log.username }}</div>
+                        <div style="font-size:0.72rem;color:#9ca3af;">{{ log.role }}</div>
+                      </td>
+                      <td style="white-space:nowrap;font-size:0.78rem;color:#6b7280;">
+                        {{ log.created_at.strftime('%Y-%m-%d') }}<br>
+                        <span style="color:#9ca3af;">{{ log.created_at.strftime('%H:%M') }}</span>
+                      </td>
+                      <td>
+                        {% if log.file_exists %}
+                        <a href="{{ url_for('download_admin', filename=log.rel_path) }}"
+                          class="btn btn-sm btn-outline-danger" style="border-radius:6px;font-size:0.75rem;"
+                          title="Re-download">
+                          <i class="bi bi-download"></i>
+                        </a>
+                        {% else %}
+                        <span class="text-muted" title="File no longer on disk">
+                          <i class="bi bi-x-circle" style="font-size:0.85rem;"></i>
+                        </span>
+                        {% endif %}
+                      </td>
+                    </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+
+              <!-- History Pagination -->
+              {% if hist_total_pages > 1 %}
+              <div class="d-flex align-items-center justify-content-between px-3 py-2 border-top">
+                <small class="text-muted">Page {{ hist_page }} of {{ hist_total_pages }}</small>
+                <nav>
+                  <ul class="pagination pagination-sm mb-0">
+                    <li class="page-item {% if hist_page <= 1 %}disabled{% endif %}">
+                      <a class="page-link" href="{{ hist_page_url(hist_page - 1) }}">
+                        <i class="bi bi-chevron-left"></i>
+                      </a>
+                    </li>
+                    {% set ns = namespace(last=0) %}
+                    {% for p in range(1, hist_total_pages + 1) %}
+                    {% if p == 1 or p == hist_total_pages or (p >= hist_page - 2 and p <= hist_page + 2) %} {% if
+                      ns.last> 0 and p - ns.last > 1 %}
+                      <li class="page-item disabled"><span class="page-link">…</span></li>
+                      {% endif %}
+                      <li class="page-item {% if p == hist_page %}active{% endif %}">
+                        <a class="page-link" href="{{ hist_page_url(p) }}">{{ p }}</a>
+                      </li>
+                      {% set ns.last = p %}
+                      {% endif %}
+                      {% endfor %}
+                      <li class="page-item {% if hist_page >= hist_total_pages %}disabled{% endif %}">
+                        <a class="page-link" href="{{ hist_page_url(hist_page + 1) }}">
+                          <i class="bi bi-chevron-right"></i>
+                        </a>
+                      </li>
+                  </ul>
+                </nav>
+              </div>
+              {% endif %}
+
+              {% else %}
+              <div class="empty-state py-5">
+                <i class="bi bi-cloud-download"
+                  style="font-size:2rem;color:#d1d5db;display:block;margin-bottom:10px;"></i>
+                <div style="font-weight:500;color:#9ca3af;">No downloads recorded yet</div>
+                <div style="font-size:0.82rem;color:#d1d5db;margin-top:4px;">
+                  Download history will appear here after files are exported.
+                </div>
+              </div>
+              {% endif %}
+            </div>
+          </div>
+
+        </div><!-- /row -->
+      </div><!-- /container -->
+
+      <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+      <script>
+        // Select all / deselect all
+        const selectAll = document.getElementById('selectAll');
+        if (selectAll) {
+          selectAll.addEventListener('change', function () {
+            document.querySelectorAll('.file-checkbox').forEach(cb => cb.checked = this.checked);
+          });
+          document.querySelectorAll('.file-checkbox').forEach(cb => {
+            cb.addEventListener('change', () => {
+              const all = document.querySelectorAll('.file-checkbox');
+              const checked = document.querySelectorAll('.file-checkbox:checked');
+              selectAll.indeterminate = checked.length > 0 && checked.length < all.length;
+              selectAll.checked = checked.length === all.length;
+            });
+          });
+        }
+
+        // Guard: nothing selected
+        const downloadForm = document.getElementById('downloadForm');
+        if (downloadForm) {
+          downloadForm.addEventListener('submit', function (e) {
+            const checked = document.querySelectorAll('.file-checkbox:checked');
+            if (checked.length === 0) {
+              e.preventDefault();
+              alert('Please select at least one file to download.');
+            }
+          });
+        }
+
+        // Debounced live search
+        const searchInput = document.getElementById('searchInput');
+        if (searchInput) {
+          let timer;
+          searchInput.addEventListener('input', () => {
+            clearTimeout(timer);
+            timer = setTimeout(() => document.getElementById('filterForm').submit(), 500);
+          });
+        }
+      </script>
+    </main>
+  </div>
+</body>
+
+</html>

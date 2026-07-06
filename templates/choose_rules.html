@@ -342,7 +342,7 @@
 </head>
 
 <body>
-  <div id="chooseRulesData" data-custom-fields='{{ custom_fields_registry|tojson }}' data-saved-custom-rules='{{ session.get("custom_rules_saved", {})|tojson }}' style="display:none;"></div>
+  <div id="chooseRulesData" data-custom-fields='{{ (custom_fields_registry|default({}))|tojson }}' data-saved-custom-rules='{{ session.get("custom_rules_saved", {})|tojson }}' style="display:none;"></div>
   <div class="app-layout">
 
     {% include '_sidebar.html' %}
@@ -367,13 +367,13 @@
           <!-- Global type toggles -->
           <div class="d-flex align-items-center gap-2 flex-wrap type-toggle-group">
             <div class="d-flex flex-wrap gap-1">
-              <button type="button" class="btn btn-outline-secondary" onclick="toggleText()">Text</button>
-              <button type="button" class="btn btn-outline-primary" onclick="toggleEmail()">Email</button>
-              <button type="button" class="btn btn-outline-info" onclick="togglePhone()">Phone</button>
-              <button type="button" class="btn btn-outline-success" onclick="toggleUrl()">URL</button>
-              <button type="button" class="btn btn-outline-warning" onclick="toggleNumeric()">Numeric</button>
-              <button type="button" class="btn btn-outline-danger" onclick="toggleDuplicates()">Dupes</button>
-              <button type="button" class="btn btn-outline-dark" onclick="toggleDate()">Date</button>
+              <button type="button" class="btn btn-secondary" data-toggle="text" onclick="toggleText()">Text</button>
+              <button type="button" class="btn btn-primary" data-toggle="email" onclick="toggleEmail()">Email</button>
+              <button type="button" class="btn btn-info" data-toggle="phone" onclick="togglePhone()">Phone</button>
+              <button type="button" class="btn btn-success" data-toggle="url" onclick="toggleUrl()">URL</button>
+              <button type="button" class="btn btn-warning" data-toggle="numeric" onclick="toggleNumeric()">Numeric</button>
+              <button type="button" class="btn btn-danger" data-toggle="duplicates" onclick="toggleDuplicates()">Dupes</button>
+              <button type="button" class="btn btn-dark" data-toggle="date" onclick="toggleDate()">Date</button>
             </div>
             <button type="button" class="btn btn-sm btn-outline-dark" onclick="clearAll()" style="border-radius:6px;">
               <i class="bi bi-arrow-counterclockwise me-1"></i>Reset
@@ -401,7 +401,7 @@
                 <div class="d-flex gap-2">
                   <input type="text" name="preset_name" class="form-control form-control-sm" placeholder="Preset name…"
                     style="width:180px;" required>
-                  <button type="submit" class="btn btn-sm btn-outline-success" onclick="return serializeRules()">
+                  <button type="submit" class="btn btn-sm btn-success" onclick="return serializeRules()">
                     <i class="bi bi-floppy me-1"></i>Save
                   </button>
                 </div>
@@ -584,6 +584,7 @@
           });
           // Initialise select-all states
           initSelectAlls();
+          updateToggleButtonStyles();
           // Initialize strategy dropowns to match auto-detected types
           document.querySelectorAll("select[data-auto]").forEach(function (sel) {
             var colId = sel.dataset.col;
@@ -757,6 +758,26 @@
         // Global type toggles
         var toggles = { text: false, email: false, phone: false, url: false, numeric: false, duplicates: false, date: false };
 
+        var toggleButtonStyles = {
+          text: { filled: "btn-secondary", outline: "btn-outline-secondary" },
+          email: { filled: "btn-primary", outline: "btn-outline-primary" },
+          phone: { filled: "btn-info", outline: "btn-outline-info" },
+          url: { filled: "btn-success", outline: "btn-outline-success" },
+          numeric: { filled: "btn-warning", outline: "btn-outline-warning" },
+          duplicates: { filled: "btn-danger", outline: "btn-outline-danger" },
+          date: { filled: "btn-dark", outline: "btn-outline-dark" }
+        };
+
+        function updateToggleButtonStyles() {
+          Object.keys(toggleButtonStyles).forEach(function (key) {
+            var btn = document.querySelector('button[data-toggle="' + key + '"]');
+            if (!btn) return;
+            var active = !!toggles[key];
+            btn.classList.remove(toggleButtonStyles[key].filled, toggleButtonStyles[key].outline);
+            btn.classList.add(active ? toggleButtonStyles[key].outline : toggleButtonStyles[key].filled);
+          });
+        }
+
         function getVisibleCheckboxes(value) {
           // Only target checkboxes that are currently visible (not hidden by type override)
           return Array.from(document.querySelectorAll('input[value="' + value + '"]')).filter(function (cb) {
@@ -764,18 +785,19 @@
           });
         }
 
-        function toggleText() { toggles.text = !toggles.text;["trim_whitespace", "clean_special_chars", "validate_not_empty"].forEach(function (v) { getVisibleCheckboxes(v).forEach(function (cb) { cb.checked = toggles.text; }); }); syncSelectAlls(); }
-        function toggleEmail() { toggles.email = !toggles.email;["validate_email", "validate_email_domain", "validate_not_empty"].forEach(function (v) { getVisibleCheckboxes(v).forEach(function (cb) { cb.checked = toggles.email; }); }); syncSelectAlls(); }
-        function togglePhone() { toggles.phone = !toggles.phone;["validate_phone", "validate_not_empty"].forEach(function (v) { getVisibleCheckboxes(v).forEach(function (cb) { cb.checked = toggles.phone; }); }); syncSelectAlls(); }
-        function toggleUrl() { toggles.url = !toggles.url;["validate_url", "validate_not_empty"].forEach(function (v) { getVisibleCheckboxes(v).forEach(function (cb) { cb.checked = toggles.url; }); }); syncSelectAlls(); }
-        function toggleNumeric() { toggles.numeric = !toggles.numeric;["validate_numeric", "validate_numeric_range", "validate_not_empty"].forEach(function (v) { getVisibleCheckboxes(v).forEach(function (cb) { cb.checked = toggles.numeric; }); }); syncSelectAlls(); }
-        function toggleDuplicates() { toggles.duplicates = !toggles.duplicates; getVisibleCheckboxes("drop_duplicates").forEach(function (cb) { cb.checked = toggles.duplicates; }); syncSelectAlls(); }
-        function toggleDate() { toggles.date = !toggles.date;["validate_date", "validate_not_empty"].forEach(function (v) { getVisibleCheckboxes(v).forEach(function (cb) { cb.checked = toggles.date; }); }); syncSelectAlls(); }
+        function toggleText() { toggles.text = !toggles.text;["trim_whitespace", "clean_special_chars", "validate_not_empty"].forEach(function (v) { getVisibleCheckboxes(v).forEach(function (cb) { cb.checked = toggles.text; }); }); syncSelectAlls(); updateToggleButtonStyles(); }
+        function toggleEmail() { toggles.email = !toggles.email;["validate_email", "validate_email_domain", "validate_not_empty"].forEach(function (v) { getVisibleCheckboxes(v).forEach(function (cb) { cb.checked = toggles.email; }); }); syncSelectAlls(); updateToggleButtonStyles(); }
+        function togglePhone() { toggles.phone = !toggles.phone;["validate_phone", "validate_not_empty"].forEach(function (v) { getVisibleCheckboxes(v).forEach(function (cb) { cb.checked = toggles.phone; }); }); syncSelectAlls(); updateToggleButtonStyles(); }
+        function toggleUrl() { toggles.url = !toggles.url;["validate_url", "validate_not_empty"].forEach(function (v) { getVisibleCheckboxes(v).forEach(function (cb) { cb.checked = toggles.url; }); }); syncSelectAlls(); updateToggleButtonStyles(); }
+        function toggleNumeric() { toggles.numeric = !toggles.numeric;["validate_numeric", "validate_numeric_range", "validate_not_empty"].forEach(function (v) { getVisibleCheckboxes(v).forEach(function (cb) { cb.checked = toggles.numeric; }); }); syncSelectAlls(); updateToggleButtonStyles(); }
+        function toggleDuplicates() { toggles.duplicates = !toggles.duplicates; getVisibleCheckboxes("drop_duplicates").forEach(function (cb) { cb.checked = toggles.duplicates; }); syncSelectAlls(); updateToggleButtonStyles(); }
+        function toggleDate() { toggles.date = !toggles.date;["validate_date", "validate_not_empty"].forEach(function (v) { getVisibleCheckboxes(v).forEach(function (cb) { cb.checked = toggles.date; }); }); syncSelectAlls(); updateToggleButtonStyles(); }
 
         function clearAll() {
           document.querySelectorAll('input[type="checkbox"]').forEach(function (cb) { cb.checked = false; });
           document.querySelectorAll("[id^='strategy_wrapper_']").forEach(function (w) { w.style.display = "none"; w.classList.remove("visible"); });
           toggles = { text: false, email: false, phone: false, url: false, numeric: false, duplicates: false, date: false };
+          updateToggleButtonStyles();
         }
 
         // Select-all per column

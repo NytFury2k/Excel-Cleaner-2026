@@ -1,10 +1,10 @@
 <!-- templates/_sidebar.html -->
 <script>
   // Immediate execution script to prevent theme flash on load
-  (function() {
+  (function () {
     const currentTheme = localStorage.getItem('theme') || 'light';
     document.documentElement.setAttribute('data-theme', currentTheme);
-    
+
     const savedWidth = localStorage.getItem('sidebar-width') || '260px';
     const isCollapsed = localStorage.getItem('sidebar-collapsed') === 'true';
     document.documentElement.style.setProperty('--sidebar-width', isCollapsed ? '64px' : savedWidth);
@@ -16,7 +16,7 @@
   :root {
     --sidebar-width: 260px;
     --header-height: 60px;
-    
+
     /* Light Mode colors */
     --bg-primary: #f4f5f7;
     --bg-card: #ffffff;
@@ -61,15 +61,16 @@
     top: 0 !important;
     left: 0 !important;
     bottom: 0 !important;
-    overflow: visible !important; /* Allow the mini toggle to overhang */
+    overflow: visible !important;
+    /* Allow the mini toggle to overhang */
     z-index: 1000 !important;
-    transition: width 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: width 180ms cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   .content-area {
     margin-left: var(--sidebar-width) !important;
     padding-top: calc(var(--header-height) + 24px) !important;
-    transition: margin-left 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: margin-left 180ms cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   /* Resizer handle styling */
@@ -91,21 +92,25 @@
   }
 
   .sidebar.collapsed .sidebar-resizer {
-    pointer-events: none; /* Disable resizing when collapsed */
+    pointer-events: none;
+    /* Disable resizing when collapsed */
   }
 
   /* Mini Sidebar toggle button (Tab style, centered vertically, flush with edge) */
   .btn-toggle-sidebar-mini {
     position: absolute;
     top: 50%;
-    margin-top: -20px; /* Centers the 40px height button */
-    left: 100%; /* Sits exactly flush on the right edge of sidebar */
+    margin-top: -20px;
+    /* Centers the 40px height button */
+    left: 100%;
+    /* Sits exactly flush on the right edge of sidebar */
     width: 18px;
     height: 40px;
     background-color: var(--red-accent);
     color: #fff !important;
     border: 1px solid var(--border-color);
-    border-left: none; /* Merges cleanly into sidebar edge */
+    border-left: none;
+    /* Merges cleanly into sidebar edge */
     border-top-left-radius: 0 !important;
     border-bottom-left-radius: 0 !important;
     border-top-right-radius: 6px !important;
@@ -116,14 +121,15 @@
     cursor: pointer;
     z-index: 1020;
     font-size: 0.7rem;
-    box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
+    box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.1);
     transition: width 0.15s, background-color 0.2s;
     padding: 0;
   }
 
   .btn-toggle-sidebar-mini:hover {
     background-color: var(--red-hover);
-    width: 22px; /* Expands outwards on hover */
+    width: 22px;
+    /* Expands outwards on hover */
   }
 
   /* Link & Brand style overrides */
@@ -133,7 +139,7 @@
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 12px 16px;
+    padding: 8px 12px;
     text-decoration: none;
     border-radius: 8px;
     margin: 4px 10px;
@@ -141,6 +147,16 @@
 
   .sidebar-link:hover {
     background: var(--hover-bg) !important;
+    color: var(--red-accent) !important;
+  }
+
+  .sidebar-link.active {
+    background: var(--red-light) !important;
+    color: var(--red-accent) !important;
+    font-weight: 600;
+  }
+
+  .sidebar-link.active i {
     color: var(--red-accent) !important;
   }
 
@@ -153,39 +169,80 @@
     align-items: center;
     transition: padding 0.15s;
   }
-
+  .sidebar-brand {
+    position: relative;
+    overflow: hidden;
+  }
   /* Collapsed sidebar adjustments */
   .sidebar.collapsed {
     width: 64px !important;
   }
 
+  .sidebar-text {
+    transition: opacity 160ms ease, width 160ms ease, visibility 160ms ease;
+    white-space: nowrap;
+    overflow: hidden;
+    display: inline-block;
+    vertical-align: middle;
+  }
+
   .sidebar.collapsed .sidebar-text {
-    display: none !important;
+    opacity: 0 !important;
+    width: 0 !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
   }
 
   .sidebar.collapsed .sidebar-link {
     justify-content: center !important;
-    padding: 12px 0 !important;
-    margin: 4px 5px !important;
+    /* match expanded vertical padding so icons align */
+    padding: 8px 0 !important;
+    /* keep same horizontal gutter as expanded state */
+    margin: 4px 10px !important;
   }
 
-  .sidebar.collapsed .sidebar-link i {
+  /* Make all sidebar icons a consistent size whether collapsed or not */
+  .sidebar-link i {
     font-size: 1.25rem !important;
   }
 
-  .sidebar.collapsed .sidebar-logo-full {
-    display: none !important;
+  /* Smoothly fade between full and collapsed logos to avoid layout jitter */
+  .sidebar-brand img {
+    display: block;
+    max-height: 44px;
+    height: auto;
+    width: auto;
+    transition: opacity 180ms ease, transform 180ms ease;
   }
 
-  .sidebar.collapsed .sidebar-logo-collapsed {
-    display: block !important;
+  .sidebar-logo-full {
+    opacity: 1;
+    transform: translateY(0);
+    position: relative;
   }
 
   .sidebar-logo-collapsed {
-    display: none;
+    opacity: 0;
+    transform: translateY(-4px);
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform-origin: center;
+    transform: translate(-50%, -50%) scale(0.9);
     max-width: 32px;
     height: auto;
-    margin: 0 auto;
+  }
+
+  .sidebar.collapsed .sidebar-logo-full {
+    opacity: 0;
+    transform: translateY(4px) scale(0.95);
+    pointer-events: none;
+  }
+
+  .sidebar.collapsed .sidebar-logo-collapsed {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+    pointer-events: auto;
   }
 
   /* Top Header styling */
@@ -205,7 +262,8 @@
     transition: left 0.15s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
-  .header-left, .header-right {
+  .header-left,
+  .header-right {
     display: flex;
     align-items: center;
     gap: 12px;
@@ -263,17 +321,32 @@
   }
 
   /* Target headings globally for a consistent color mode experience */
-  h1, h2, h3, h4, h5, h6 {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
     color: var(--text-main) !important;
   }
 
   /* Specific elements text overrides */
-  .reports-to-cell .name, .rt-name, .dz-title, .step-title {
+  .reports-to-cell .name,
+  .rt-name,
+  .dz-title,
+  .step-title {
     color: var(--text-main) !important;
   }
 
   /* Cards and UI boxes, including those on upload and register pages */
-  .card, .welcome-strip, .metric-card, .stat-card, .login-card, .upload-card, .how-card, .reg-card {
+  .card,
+  .welcome-strip,
+  .metric-card,
+  .stat-card,
+  .login-card,
+  .upload-card,
+  .how-card,
+  .reg-card {
     background-color: var(--bg-card) !important;
     border-color: var(--border-color) !important;
     color: var(--text-main) !important;
@@ -294,7 +367,8 @@
     color: var(--text-main) !important;
   }
 
-  .drop-zone:hover, .drop-zone.dragover {
+  .drop-zone:hover,
+  .drop-zone.dragover {
     background-color: var(--hover-bg) !important;
     border-color: var(--red-accent) !important;
   }
@@ -318,7 +392,8 @@
     border-bottom: 2px solid var(--border-color) !important;
   }
 
-  .table td, .table th {
+  .table td,
+  .table th {
     background-color: var(--bg-card) !important;
     border-color: var(--border-color) !important;
     color: var(--text-main) !important;
@@ -329,20 +404,26 @@
   }
 
   /* Form controls and input groups */
-  .form-control, .form-select, .input-group-text, .input-group-text.bg-white {
+  .form-control,
+  .form-select,
+  .input-group-text,
+  .input-group-text.bg-white {
     background-color: var(--input-bg) !important;
     color: var(--input-text) !important;
     border-color: var(--border-color) !important;
   }
 
-  .form-control:focus, .form-select:focus {
+  .form-control:focus,
+  .form-select:focus {
     border-color: var(--red-accent) !important;
     background-color: var(--input-bg) !important;
     color: var(--input-text) !important;
     box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15) !important;
   }
 
-  .text-muted, small.text-muted, p.text-muted {
+  .text-muted,
+  small.text-muted,
+  p.text-muted {
     color: var(--text-muted) !important;
   }
 
@@ -447,7 +528,8 @@
     color: var(--text-main) !important;
   }
 
-  .modal-header, .modal-footer {
+  .modal-header,
+  .modal-footer {
     border-color: var(--border-color) !important;
   }
 
@@ -473,28 +555,96 @@
     color: var(--text-muted) !important;
     border-color: var(--border-color) !important;
   }
+
+  /* Dashboard metric numbers — fix black text in dark mode */
+  [data-theme="dark"] .metric-value {
+    color: var(--text-main) !important;
+  }
+
+  /* Calendar icon in recent activity / logs table */
+  [data-theme="dark"] .bi-calendar,
+  [data-theme="dark"] .bi-calendar-event,
+  [data-theme="dark"] .bi-calendar3,
+  [data-theme="dark"] .bi-clock,
+  [data-theme="dark"] .bi-clock-history {
+    color: var(--text-muted) !important;
+  }
+
+  /* Native date input calendar picker icon — make it light in dark mode */
+  [data-theme="dark"] input[type="date"] {
+    color-scheme: dark;
+  }
+
+  [data-theme="dark"] input[type="date"]::-webkit-calendar-picker-indicator {
+    filter: invert(0.8) brightness(1.4);
+    cursor: pointer;
+  }
+
+  /* Filter row labels in admin_logs (form-label) — dark mode only */
+  [data-theme="dark"] .form-label {
+    color: var(--text-muted) !important;
+  }
+
+  /* Unselected tab buttons in admin_logs nav — dark mode only */
+  [data-theme="dark"] #logTabs .nav-link:not(.active) {
+    color: #d1d5db !important;
+  }
+
+  [data-theme="dark"] #logTabs .nav-link:not(.active):hover {
+    background: var(--hover-bg) !important;
+    color: #f3f4f6 !important;
+  }
+
+  /* Active log tab — dark mode */
+  [data-theme="dark"] #logTabs .nav-link.active {
+    background: #1e3a5f !important;
+    color: #93c5fd !important;
+  }
+
+  /* Details collapse panel in admin_logs — dark mode */
+  [data-theme="dark"] .log-detail-panel {
+    background: var(--bg-primary) !important;
+    color: var(--text-main) !important;
+    border-color: var(--border-color) !important;
+  }
+
+  [data-theme="dark"] .log-detail-panel strong {
+    color: var(--text-main) !important;
+  }
+
+  [data-theme="dark"] .log-detail-panel hr {
+    border-color: var(--border-color) !important;
+    opacity: 0.4;
+  }
+
+  [data-theme="dark"] .log-detail-panel .text-muted {
+    color: var(--text-muted) !important;
+  }
 </style>
 
 <aside class="sidebar">
   <div class="sidebar-brand text-center">
-    <img
-      src="https://paramantra.com/wp-content/uploads/2022/04/Paramantra-Logo-white-PNG-431X88.webp"
-      alt="Paramantra"
-      class="sidebar-logo-full"
-      style="max-width:180px;height:auto;">
-    <img
-      src="https://paramantra.us/aldius/images/favicon.png"
-      alt="Paramantra"
-      class="sidebar-logo-collapsed">
+    <img src="https://paramantra.com/wp-content/uploads/2022/04/Paramantra-Logo-white-PNG-431X88.webp" alt="Paramantra"
+      class="sidebar-logo-full" style="max-width:180px;height:auto;">
+    <img src="https://paramantra.us/aldius/images/favicon.png" alt="Paramantra" class="sidebar-logo-collapsed">
   </div>
 
+  <div id="sidebarData" data-role='{{ session.role|default("") }}' style="display:none;"></div>
+
   <div class="py-2">
-    <a href="{{ url_for('dashboard') }}" class="sidebar-link">
+    <a href="{{ url_for('dashboard') }}" class="sidebar-link{% if request.endpoint == 'dashboard' %} active{% endif %}">
       <i class="bi bi-grid"></i>
       <span class="sidebar-text">Dashboard</span>
     </a>
 
-    <a href="{{ url_for('upload') }}" class="sidebar-link">
+    <a href="{{ url_for('data_health') }}"
+      class="sidebar-link{% if request.endpoint == 'data_health' %} active{% endif %}">
+      <i class="bi bi-heart-pulse"></i>
+      <span class="sidebar-text">Data Health</span>
+    </a>
+
+    <a href="{{ url_for('upload') }}"
+      class="sidebar-link{% if request.endpoint in ['upload', 'choose_rules', 'preview_results'] %} active{% endif %}">
       <i class="bi bi-cloud-upload"></i>
       <span class="sidebar-text">Upload File</span>
     </a>
@@ -509,6 +659,15 @@
       <span class="sidebar-text">Alias Manager</span>
     </a>
 
+    {% if session.role in ["admin","manager","team_lead"] %}
+    <a href="{{ url_for('downloads') }}"
+      class="sidebar-link{% if request.endpoint in ['downloads','download_selected','download_admin'] %} active{% endif %}">
+      <i class="bi bi-download"></i>
+      <span class="sidebar-text">Download File</span>
+    </a>
+    {% endif %}
+
+    {% if session.role in ["admin","manager"] %}
     <a href="{{ url_for('history_view') }}" class="sidebar-link">
       <i class="bi bi-clock-history"></i>
       <span class="sidebar-text">Import History</span>
@@ -518,28 +677,33 @@
       <i class="bi bi-file-earmark-text"></i>
       <span class="sidebar-text">Activity Logs</span>
     </a>
+    {% endif %}
 
     {% if session.role in ["admin","manager","team_lead"] %}
-    <a href="{{ url_for('list_users') }}" class="sidebar-link">
+    <a href="{{ url_for('list_users') }}"
+      class="sidebar-link{% if request.endpoint == 'list_users' %} active{% endif %}">
       <i class="bi bi-people"></i>
       <span class="sidebar-text">Users</span>
     </a>
     {% endif %}
 
     {% if session.role in ["admin","manager"] %}
-    <a href="{{ url_for('admin_create_user') }}" class="sidebar-link">
+    <a href="{{ url_for('admin_create_user') }}"
+      class="sidebar-link{% if request.endpoint == 'admin_create_user' %} active{% endif %}">
       <i class="bi bi-person-plus"></i>
       <span class="sidebar-text">Create User</span>
     </a>
 
-    <a href="{{ url_for('manage_users') }}" class="sidebar-link">
+    <a href="{{ url_for('manage_users') }}"
+      class="sidebar-link{% if request.endpoint == 'manage_users' %} active{% endif %}">
       <i class="bi bi-person-gear"></i>
       <span class="sidebar-text">Manage Users</span>
     </a>
     {% endif %}
 
     {% if session.role == "admin" %}
-    <a href="{{ url_for('access_control') }}" class="sidebar-link">
+    <a href="{{ url_for('access_control') }}"
+      class="sidebar-link{% if request.endpoint == 'access_control' %} active{% endif %}">
       <i class="bi bi-shield-lock"></i>
       <span class="sidebar-text">Permissions</span>
     </a>
@@ -556,7 +720,7 @@
 </aside>
 
 <script>
-  (function() {
+  (function () {
     // 1. Inject Top Header Bar (No collapse button on the left)
     if (!document.querySelector('.top-header')) {
       const header = document.createElement('header');
@@ -574,7 +738,7 @@
           </a>
         </div>
       `;
-      
+
       const layout = document.querySelector('.app-layout');
       if (layout) {
         layout.parentNode.insertBefore(header, layout);
@@ -586,7 +750,7 @@
     // 2. Setup theme toggle
     const currentTheme = localStorage.getItem('theme') || 'light';
     document.documentElement.setAttribute('data-theme', currentTheme);
-    
+
     function updateThemeUI(theme) {
       const sunIcon = document.getElementById('themeIconSun');
       const moonIcon = document.getElementById('themeIconMoon');
@@ -600,12 +764,12 @@
         }
       }
     }
-    
+
     updateThemeUI(currentTheme);
-    
+
     const btnThemeToggle = document.getElementById('btnThemeToggle');
     if (btnThemeToggle) {
-      btnThemeToggle.addEventListener('click', function() {
+      btnThemeToggle.addEventListener('click', function () {
         const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
         document.documentElement.setAttribute('data-theme', theme);
         localStorage.setItem('theme', theme);
@@ -641,7 +805,7 @@
     applyCollapseState(startCollapsed);
 
     if (btnToggleSidebar) {
-      btnToggleSidebar.addEventListener('click', function() {
+      btnToggleSidebar.addEventListener('click', function () {
         const currentlyCollapsed = sidebar.classList.contains('collapsed');
         const nextCollapsed = !currentlyCollapsed;
         localStorage.setItem('sidebar-collapsed', nextCollapsed);
@@ -654,34 +818,34 @@
     let isResizing = false;
 
     if (resizer) {
-      resizer.addEventListener('mousedown', function(e) {
+      resizer.addEventListener('mousedown', function (e) {
         // Only resize if not collapsed
         if (sidebar.classList.contains('collapsed')) return;
-        
+
         isResizing = true;
         resizer.classList.add('resizing');
         document.body.style.cursor = 'col-resize';
         document.body.style.userSelect = 'none'; // Prevent text selection
-        
+
         e.preventDefault();
       });
 
-      document.addEventListener('mousemove', function(e) {
+      document.addEventListener('mousemove', function (e) {
         if (!isResizing) return;
-        
+
         // Calculate width based on mouse horizontal position
         let newWidth = e.clientX;
-        
+
         // Boundaries
         if (newWidth < 200) newWidth = 200;
         if (newWidth > 450) newWidth = 450;
-        
+
         const widthStr = newWidth + 'px';
         document.documentElement.style.setProperty('--sidebar-width', widthStr);
         localStorage.setItem('sidebar-width', widthStr);
       });
 
-      document.addEventListener('mouseup', function() {
+      document.addEventListener('mouseup', function () {
         if (!isResizing) return;
         isResizing = false;
         resizer.classList.remove('resizing');

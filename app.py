@@ -1,4 +1,5 @@
 from flask import Flask, render_template, request, redirect, url_for, session, flash, send_file, abort, get_flashed_messages, jsonify
+import json
 import mysql.connector
 import bcrypt
 import pandas as pd
@@ -258,7 +259,7 @@ def admin_logs():
     from_date = request.args.get("from_date","")           
     to_date = request.args.get("to_date","") 
     log_type = (request.args.get("log_type", "login") or "login").strip().lower()
-    if log_type not in {"login", "cleaning", "search"}:
+    if log_type not in {"login", "cleaning", "search", "all"}:
         log_type = "login"
 
     if not from_date or not from_date.strip():
@@ -792,6 +793,173 @@ def dashboard():
                            last_upload=last_upload,
                            custom_fields=custom_fields
                            )
+
+
+@app.route("/data-health")
+@login_required()
+def data_health():
+    role = session.get("role")
+    user_id = session.get("user_id")
+    page = request.args.get("page", 1, type=int) or 1
+    per_page = 10
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    visible_ids = get_visible_user_ids(cursor, role=role, user_id=user_id)
+    if visible_ids:
+        placeholders = ", ".join(["%s"] * len(visible_ids))
+        cursor.execute(
+            f"""
+            SELECT action, total_rows, valid_rows, invalid_rows, removed_rows,
+                   rules_applied, rule_counts, created_at
+            FROM logs
+            WHERE action LIKE 'Cleaned file%%'
+              AND user_id IN ({placeholders})
+            ORDER BY created_at DESC
+            """,
+            visible_ids,
+        )
+        health_rows = cursor.fetchall()
+    else:
+        health_rows = []
+
+    conn.close()
+
+    entries = []
+    for row in health_rows:
+        action = row.get("action", "") or ""
+        file_name = re.sub(r"^Cleaned file\s+", "", action).split(" using rules:", 1)[0].strip()
+
+        try:
+            rule_counts = json.loads(row.get("rule_counts") or "{}") or {}
+        except Exception:
+            rule_counts = {}
+
+        total_rows = int(row.get("total_rows") or 0)
+        valid_rows = int(row.get("valid_rows") or 0)
+        invalid_rows = int(row.get("invalid_rows") or 0)
+        removed_rows = int(row.get("removed_rows") or 0)
+
+        blank_required = int(rule_counts.get("validate_not_empty", 0)) + int(rule_counts.get("handle_missing", 0))
+        duplicates_flagged = int(rule_counts.get("duplicate_identifier", 0)) + int(rule_counts.get("fuzzy_duplicate", 0)) + int(rule_counts.get("duplicate_removal", 0))
+        format_errors = sum(
+            int(v) for k, v in rule_counts.items()
+            if k.startswith("validate_") and k not in {"validate_not_empty"}
+        )
+
+        issue_labels = []
+        issue_map = {
+            "validate_not_empty": "Blank required field",
+            "handle_missing": "Blank required field",
+            "duplicate_identifier": "Duplicates flagged",
+            "fuzzy_duplicate": "Duplicates flagged",
+            "duplicate_removal": "Duplicates flagged",
+            "validate_email": "Format errors",
+            "validate_email_domain": "Format errors",
+            "validate_phone": "Format errors",
+            "validate_url": "Format errors",
+            "validate_numeric": "Format errors",
+            "validate_date": "Format errors",
+        }
+
+        for key, value in sorted(rule_counts.items()):
+            if int(value or 0) > 0:
+                issue_labels.append(f"{issue_map.get(key, key.replace('_', ' ').title())} ({int(value)})")
+
+        score = round((valid_rows / total_rows) * 100, 1) if total_rows else 0
+        processed_at = row.get("created_at")
+        if hasattr(processed_at, "strftime"):
+            processed_at_display = processed_at.strftime("%Y-%m-%d %H:%M")
+        else:
+            processed_at_display = str(processed_at) if processed_at else "N/A"
+
+        entries.append({
+            "file_name": file_name or "Unknown file",
+            "processed_at": processed_at_display,
+            "created_at": processed_at,
+            "total_rows": total_rows,
+            "valid_rows": valid_rows,
+            "invalid_rows": invalid_rows,
+            "removed_rows": removed_rows,
+            "score": score,
+            "blank_required": blank_required,
+            "duplicates_flagged": duplicates_flagged,
+            "format_errors": format_errors,
+            "issues": issue_labels,
+        })
+
+    issue_entries = [e for e in entries if e.get("issues")]
+    total_issue_files = len(issue_entries)
+    total_pages = max(1, (total_issue_files + per_page - 1) // per_page)
+    page = max(1, min(page, total_pages))
+    start = (page - 1) * per_page
+    paginated_entries = issue_entries[start:start + per_page]
+
+    overall_total = sum(e["total_rows"] for e in entries)
+    overall_valid = sum(e["valid_rows"] for e in entries)
+    overall_score = round((overall_valid / overall_total) * 100, 1) if overall_total else 0
+
+    now = datetime.now()
+    current_period_start = now - timedelta(days=7)
+    previous_period_start = now - timedelta(days=14)
+
+    current_entries = [e for e in entries if isinstance(e.get("created_at"), datetime) and e["created_at"] >= current_period_start]
+    previous_entries = [e for e in entries if isinstance(e.get("created_at"), datetime) and previous_period_start <= e["created_at"] < current_period_start]
+
+    def compare_period(current_value, previous_value):
+        if previous_value is None:
+            return {
+                "icon": "bi-dash",
+                "color": "text-warning",
+                "label": "No last week data",
+            }
+        if current_value < previous_value:
+            return {
+                "icon": "bi-arrow-down-short",
+                "color": "text-success",
+                "label": f"{current_value} vs last week",
+            }
+        if current_value == previous_value:
+            return {
+                "icon": "bi-dash",
+                "color": "text-warning",
+                "label": f"{current_value} vs last week",
+            }
+        return {
+            "icon": "bi-arrow-up-short",
+            "color": "text-danger",
+            "label": f"{current_value} vs last week",
+        }
+
+    current_blank_required = sum(e["blank_required"] for e in current_entries)
+    previous_blank_required = sum(e["blank_required"] for e in previous_entries) if previous_entries else None
+    blank_compare = compare_period(current_blank_required, previous_blank_required)
+
+    current_duplicates = sum(e["duplicates_flagged"] for e in current_entries)
+    previous_duplicates = sum(e["duplicates_flagged"] for e in previous_entries) if previous_entries else None
+    duplicates_compare = compare_period(current_duplicates, previous_duplicates)
+
+    current_format_errors = sum(e["format_errors"] for e in current_entries)
+    previous_format_errors = sum(e["format_errors"] for e in previous_entries) if previous_entries else None
+    format_errors_compare = compare_period(current_format_errors, previous_format_errors)
+
+    return render_template(
+        "data_health.html",
+        entries=paginated_entries,
+        overall_score=overall_score,
+        target_score=85,
+        blank_required_total=sum(e["blank_required"] for e in entries),
+        duplicates_total=sum(e["duplicates_flagged"] for e in entries),
+        format_error_total=sum(e["format_errors"] for e in entries),
+        blank_compare=blank_compare,
+        duplicates_compare=duplicates_compare,
+        format_errors_compare=format_errors_compare,
+        total_files=total_issue_files,
+        page=page,
+        total_pages=total_pages,
+        pagination_url=lambda p: url_for("data_health", page=p),
+    )
 
 
 #Data cleaning
@@ -1362,7 +1530,250 @@ def download(filename):
     return redirect(url_for("upload"))
 
 
+# ── Downloads page ─────────────────────────────────────────────────────────────
+
+@app.route("/downloads")
+@login_required()
+def downloads():
+    role = session.get("role")
+    user_id = session.get("user_id")
+
+    if role not in ("admin", "manager", "team_lead"):
+        flash("Access denied.", "warning")
+        return redirect(url_for("dashboard"))
+
+    # --- Filter params ---
+    selected_types = request.args.getlist("types") or ["cleaned", "invalid", "removed"]
+    selected_user  = request.args.get("user_id", "").strip()
+    from_date      = request.args.get("from_date", "").strip()
+    to_date        = request.args.get("to_date", "").strip()
+    search         = request.args.get("search", "").strip()
+    hist_page      = request.args.get("hist_page", 1, type=int)
+    hist_per_page  = 12
+
+    # --- Fetch visible users for filter dropdown ---
+    conn   = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    visible_ids = get_visible_user_ids(cursor, role=role, user_id=user_id)
+    if role == "admin":
+        visible_ids = visible_ids  # all users
+    # Include the caller themselves
+    if user_id not in visible_ids:
+        visible_ids.append(user_id)
+
+    if visible_ids:
+        placeholders = ", ".join(["%s"] * len(visible_ids))
+        cursor.execute(
+            f"SELECT id, username, role FROM users WHERE id IN ({placeholders}) ORDER BY username",
+            visible_ids
+        )
+        visible_users = cursor.fetchall()
+    else:
+        visible_users = []
+
+    # --- Narrow visible_ids if a specific user is selected ---
+    if selected_user and selected_user.isdigit():
+        filter_ids = [int(selected_user)] if int(selected_user) in visible_ids else []
+    else:
+        filter_ids = visible_ids
+
+    # --- Scan Generated_Files directory for files belonging to visible users ---
+    import glob as _glob
+    from datetime import datetime as _dt
+
+    base_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Generated_Files")
+    type_dirs = {"cleaned": "Cleaned", "invalid": "Invalid", "removed": "Removed"}
+
+    all_files = []
+    for ftype, subdir in type_dirs.items():
+        if ftype not in selected_types:
+            continue
+        pattern = os.path.join(base_dir, subdir, "*.xlsx")
+        for fpath in _glob.glob(pattern):
+            fname = os.path.basename(fpath)
+            rel   = os.path.join("Generated_Files", subdir, fname)
+
+            # Date filter from filename timestamp (format: name_YYYYMMDD_HHMMSS.xlsx)
+            try:
+                parts    = fname.rsplit("_", 2)
+                file_dt  = _dt.strptime(parts[-2] + parts[-1].replace(".xlsx", ""), "%Y%m%d%H%M%S")
+            except Exception:
+                file_dt = _dt.fromtimestamp(os.path.getmtime(fpath))
+
+            if from_date:
+                try:
+                    if file_dt.date() < _dt.strptime(from_date, "%Y-%m-%d").date():
+                        continue
+                except Exception:
+                    pass
+            if to_date:
+                try:
+                    if file_dt.date() > _dt.strptime(to_date, "%Y-%m-%d").date():
+                        continue
+                except Exception:
+                    pass
+            if search and search.lower() not in fname.lower():
+                continue
+
+            size_kb = round(os.path.getsize(fpath) / 1024, 1)
+            all_files.append({
+                "rel_path":    rel,
+                "display_name": fname,
+                "type":        ftype,
+                "size_kb":     size_kb,
+                "date":        file_dt.strftime("%Y-%m-%d %H:%M"),
+                "sort_key":    file_dt,
+            })
+
+    all_files.sort(key=lambda x: x["sort_key"], reverse=True)
+    total_files = len(all_files)
+
+    # --- Export history from logs table ---
+    # Download logs have action text starting with "Downloaded file"
+    if filter_ids:
+        ph2 = ", ".join(["%s"] * len(filter_ids))
+        cursor.execute(f"""
+            SELECT l.id, l.user_id, l.action, l.created_at,
+                   u.username, u.role
+            FROM logs l
+            JOIN users u ON l.user_id = u.id
+            WHERE l.action LIKE 'Downloaded file%%'
+              AND l.user_id IN ({ph2})
+            ORDER BY l.created_at DESC
+            LIMIT %s OFFSET %s
+        """, filter_ids + [hist_per_page, (hist_page - 1) * hist_per_page])
+        export_rows = cursor.fetchall()
+
+        cursor.execute(f"""
+            SELECT COUNT(*) AS cnt FROM logs l
+            WHERE l.action LIKE 'Downloaded file%%'
+              AND l.user_id IN ({ph2})
+        """, filter_ids)
+        total_exports = (cursor.fetchone() or {}).get("cnt", 0)
+    else:
+        export_rows   = []
+        total_exports = 0
+
+    conn.close()
+
+    # Enrich export rows
+    for row in export_rows:
+        # Extract filename from action text
+        raw = row["action"].replace("Downloaded file ", "").strip()
+        row["rel_path"]     = raw
+        row["display_name"] = os.path.basename(raw)
+        row["file_exists"]  = os.path.exists(raw)
+
+        # Derive file type from directory path
+        lower = raw.lower()
+        if "cleaned" in lower:
+            row["file_type"] = "cleaned"
+        elif "invalid" in lower:
+            row["file_type"] = "invalid"
+        elif "removed" in lower:
+            row["file_type"] = "removed"
+        else:
+            row["file_type"] = "logs"
+
+    hist_total_pages = max(1, (total_exports + hist_per_page - 1) // hist_per_page)
+    hist_start = (hist_page - 1) * hist_per_page + 1 if total_exports > 0 else 0
+    hist_end   = min(hist_page * hist_per_page, total_exports)
+
+    return render_template(
+        "downloads.html",
+        files=all_files,
+        total_files=total_files,
+        visible_users=visible_users,
+        selected_types=selected_types,
+        selected_user=selected_user,
+        from_date=from_date,
+        to_date=to_date,
+        search=search,
+        export_logs=export_rows,
+        total_exports=total_exports,
+        hist_page=hist_page,
+        hist_total_pages=hist_total_pages,
+        hist_start=hist_start,
+        hist_end=hist_end,
+        hist_page_url=lambda p: url_for(
+            "downloads",
+            hist_page=p,
+            types=selected_types,
+            user_id=selected_user,
+            from_date=from_date,
+            to_date=to_date,
+            search=search,
+        ),
+    )
+
+
+@app.route("/downloads/selected", methods=["POST"])
+@login_required()
+def download_selected():
+    """Package selected Generated_Files into a ZIP and stream it."""
+    role = session.get("role")
+    if role not in ("admin", "manager", "team_lead"):
+        flash("Access denied.", "warning")
+        return redirect(url_for("dashboard"))
+
+    filenames = request.form.getlist("filenames")
+    if not filenames:
+        flash("No files selected.", "warning")
+        return redirect(url_for("downloads"))
+
+    # Safety: only allow paths inside Generated_Files
+    allowed_base = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Generated_Files")
+    safe_files   = []
+    for rel in filenames:
+        abs_path = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), rel))
+        if abs_path.startswith(allowed_base) and os.path.exists(abs_path):
+            safe_files.append((rel, abs_path))
+
+    if not safe_files:
+        flash("None of the selected files could be found.", "danger")
+        return redirect(url_for("downloads"))
+
+    import zipfile as _zf
+    buf = BytesIO()
+    with _zf.ZipFile(buf, "w", _zf.ZIP_DEFLATED) as zf:
+        for rel, abs_path in safe_files:
+            zf.write(abs_path, os.path.basename(abs_path))
+            log_action(session["user_id"], f"Downloaded file {rel}")
+
+    buf.seek(0)
+    zip_name = f"paramantra_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.zip"
+    return send_file(buf, as_attachment=True, download_name=zip_name,
+                     mimetype="application/zip")
+
+
+@app.route("/downloads/admin/<path:filename>")
+@login_required()
+def download_admin(filename):
+    """Re-download any Generated_File by relative path (admin/manager/team_lead only)."""
+    role = session.get("role")
+    if role not in ("admin", "manager", "team_lead"):
+        flash("Access denied.", "warning")
+        return redirect(url_for("dashboard"))
+
+    abs_path = os.path.normpath(
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), filename)
+    )
+    allowed_base = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Generated_Files")
+
+    if not abs_path.startswith(allowed_base):
+        flash("Invalid file path.", "danger")
+        return redirect(url_for("downloads"))
+
+    if not os.path.exists(abs_path):
+        flash("File no longer exists on disk.", "warning")
+        return redirect(url_for("downloads"))
+
+    log_action(session["user_id"], f"Downloaded file {filename}")
+    return send_file(abs_path, as_attachment=True, download_name=os.path.basename(abs_path))
+
+
 #logout route
+
 @app.route("/logout")
 @login_required()
 def logout():
@@ -1819,29 +2230,41 @@ def list_users():
 
 #permissions route
 @app.route("/access-control")
+@login_required()
 def access_control():
     if not has_permission("manage_roles"):
         flash("Admin permissions required","warning")
         return redirect(url_for('dashboard'))
-    
-    conn =  get_db_connection()
-    cursor = conn.cursor(dictionary=True)
-    cursor.execute("""
-            SELECT r.name AS role, p.name AS permission
-            FROM role_permissions rp
-            JOIN roles r ON rp.role_id = r.id
-            JOIN permissions p ON rp.permission_id = p.id
-            ORDER BY r.name, p.name
-        """)
-    rows = cursor.fetchall()
-    conn.close()
 
-    from collections import defaultdict
-    db_perms = defaultdict(list)
-    for row in rows:
-        db_perms[row["role"]].append(row["permission"])
+    # Try to load from DB; fall back to hardcoded map if tables don't exist yet
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute("""
+                SELECT r.name AS role, p.name AS permission
+                FROM role_permissions rp
+                JOIN roles r ON rp.role_id = r.id
+                JOIN permissions p ON rp.permission_id = p.id
+                ORDER BY r.name, p.name
+            """)
+        rows = cursor.fetchall()
+        conn.close()
 
-    return render_template("access_control.html", role_permissions=dict(db_perms))
+        from collections import defaultdict
+        db_perms = defaultdict(list)
+        for row in rows:
+            db_perms[row["role"]].append(row["permission"])
+        role_permissions = dict(db_perms)
+
+    except Exception:
+        # Tables not yet created — use the hardcoded fallback from rbac.py
+        role_permissions = {
+            role: sorted(perms)
+            for role, perms in ROLE_PERMISSIONS.items()
+        }
+
+    return render_template("access_control.html", role_permissions=role_permissions)
+
 
 
 @app.route("/admin/users")

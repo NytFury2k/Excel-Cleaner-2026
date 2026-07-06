@@ -189,22 +189,24 @@
     .metric-card {
       background: #fff;
       border: 1px solid #e5e7eb;
-      border-radius: 12px;
-      padding: 16px 20px;
+      border-radius: 8px;
+      padding: 10px 14px;
     }
 
     .metric-label {
       font-size: .72rem;
       color: #6b7280;
       font-weight: 600;
-      letter-spacing: .08em;
+      letter-spacing: 0.08em;
+      padding-left: 2px;
     }
 
     .metric-value {
-      font-size: 2rem;
+      font-size: 1.7rem;
       font-weight: 700;
       color: #111827;
       margin-top: 6px;
+      padding-left: 5px;
     }
 
     .metric-icon {
@@ -223,6 +225,7 @@
       font-size: .75rem;
       margin-top: 10px;
       color: #6b7280;
+      padding-left: 2px;
     }
 
     @media (max-width: 575px) {
@@ -354,16 +357,12 @@
 
         <div class="row g-3 mb-4">
 
-          <div class="col-md-4">
+          <div class="col-xl-3 col-lg-3 col-md-6">
             <div class="metric-card">
               <div class="d-flex justify-content-between align-items-start">
                 <div>
                   <div class="metric-label">FILES PROCESSED</div>
                   <div class="metric-value">{{ total_files }}</div>
-                </div>
-
-                <div class="metric-icon">
-                  <i class="bi bi-file-earmark-spreadsheet"></i>
                 </div>
               </div>
 
@@ -374,16 +373,12 @@
             </div>
           </div>
 
-          <div class="col-md-4">
+          <div class="col-xl-3 col-lg-3 col-md-6">
             <div class="metric-card">
               <div class="d-flex justify-content-between align-items-start">
                 <div>
                   <div class="metric-label">ROWS CLEANED</div>
                   <div class="metric-value">{{ total_rows }}</div>
-                </div>
-
-                <div class="metric-icon">
-                  <i class="bi bi-table"></i>
                 </div>
               </div>
 
@@ -393,16 +388,12 @@
             </div>
           </div>
 
-          <div class="col-md-4">
+          <div class="col-xl-3 col-lg-3 col-md-6">
             <div class="metric-card">
               <div class="d-flex justify-content-between align-items-start">
                 <div>
                   <div class="metric-label">ACTIVE USERS</div>
                   <div class="metric-value">{{ active_users }}</div>
-                </div>
-
-                <div class="metric-icon">
-                  <i class="bi bi-people"></i>
                 </div>
               </div>
 
@@ -412,16 +403,12 @@
             </div>
           </div>
 
-          <div class="col-md-4">
+          <div class="col-xl-3 col-lg-3 col-md-6">
             <div class="metric-card">
               <div class="d-flex justify-content-between align-items-start">
                 <div>
                   <div class="metric-label">UPLOADS TODAY</div>
                   <div class="metric-value">{{ uploads_today }}</div>
-                </div>
-
-                <div class="metric-icon">
-                  <i class="bi bi-cloud-upload"></i>
                 </div>
               </div>
 
@@ -431,16 +418,12 @@
             </div>
           </div>
 
-          <div class="col-md-4">
+          <div class="col-xl-3 col-lg-3 col-md-6">
             <div class="metric-card">
               <div class="d-flex justify-content-between align-items-start">
                 <div>
                   <div class="metric-label">DATA QUALITY SCORE</div>
                   <div class="metric-value">87%</div>
-                </div>
-
-                <div class="metric-icon">
-                  <i class="bi bi-patch-check-fill"></i>
                 </div>
               </div>
 
@@ -451,21 +434,17 @@
             </div>
           </div>
 
-          <div class="col-md-4">
+          <div class="col-xl-3 col-lg-3 col-md-6">
             <div class="metric-card">
               <div class="d-flex justify-content-between align-items-start">
                 <div>
                   <div class="metric-label">API CALLS TODAY</div>
                   <div class="metric-value">94.2k</div>
                 </div>
-
-                <div class="metric-icon">
-                  <i class="bi bi-cpu-fill"></i>
-                </div>
               </div>
 
               <div class="metric-trend text-muted">
-                <i class="bi bi-arrow-up-short text-success fw-bold" style="font-size: 1rem;"></i>
+                <i class="bi bi-arrow-up-short text-success fw-bold"></i>
                 6.4% vs yesterday
               </div>
             </div>
@@ -718,8 +697,8 @@
             <div class="card shadow-sm">
               <div class="card-header d-flex justify-content-between align-items-center">
                 <span>Active integrations</span>
-                <a href="#" class="btn btn-sm btn-outline-danger py-0 px-2"
-                  style="font-size: 0.75rem; border-radius: 5px;">Manage</a>
+                <a href="#" class="btn btn-sm btn-danger py-0 px-2"
+                  style="font-size: 0.75rem; border-radius: 3px;">Manage</a>
               </div>
               <div class="card-body p-0">
                 <table class="table table-hover align-middle mb-0" style="font-size: 0.85rem;">
