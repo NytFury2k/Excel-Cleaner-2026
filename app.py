@@ -1382,6 +1382,7 @@ def logout():
 
 #export logs route
 @app.route("/admin/logs/export")
+@app.route("/api/logs/export")
 @login_required()
 def export_logs():
     if "user_id" not in session:
@@ -1391,15 +1392,15 @@ def export_logs():
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
 
-    visible_user_ids=get_visible_user_ids(cursor)
+    visible_user_ids = get_visible_user_ids(cursor)
 
     if not visible_user_ids:
+        conn.close()
         flash("No data available.", "info")
         return redirect(url_for("dashboard"))
 
-    if visible_user_ids:
-        placeholders=",".join(["%s"] * len(visible_user_ids))
-        query= f"""
+    placeholders = ",".join(["%s"] * len(visible_user_ids))
+    query = f"""
         SELECT logs.id, users.username, logs.action, logs.total_rows,
                logs.valid_rows, logs.invalid_rows, logs.created_at
         FROM logs
@@ -1407,17 +1408,294 @@ def export_logs():
         WHERE logs.user_id IN ({placeholders})
         ORDER BY logs.created_at DESC
     """
-        cursor.execute(query + " LIMIT 10000", tuple(visible_user_ids))
-        logs = cursor.fetchall()
-        conn.close()
+    cursor.execute(query + " LIMIT 10000", tuple(visible_user_ids))
+    logs = cursor.fetchall()
+    conn.close()
+
+    # Log action
+    log_action(session["user_id"], f"Exported {len(logs)} system activity logs to Excel")
+
+    # Format dates
+    formatted_logs = []
+    for l in logs:
+        formatted_logs.append({
+            "Log ID": l["id"],
+            "Username": l["username"],
+            "Action Performed": l["action"],
+            "Total Rows": l["total_rows"],
+            "Valid Rows": l["valid_rows"],
+            "Invalid Rows": l["invalid_rows"],
+            "Timestamp": l["created_at"].isoformat() if l["created_at"] else ""
+        })
 
     import pandas as pd
-    df = pd.DataFrame(logs)
+    import io
+    df = pd.DataFrame(formatted_logs)
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df.to_excel(writer, sheet_name='System Logs', index=False)
+    output.seek(0)
 
-    file_path = "logs_export.xlsx"
-    df.to_excel(file_path, index=False)
+    filename = f"system_logs_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+    return send_file(
+        output,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name=filename
+    )
 
-    return send_file(file_path, as_attachment=True)
+
+@app.route('/api/history/file-records/export', methods=['GET'])
+@login_required()
+def export_file_records():
+    file_id = request.args.get('file_id')
+    record_type = request.args.get('type')
+    
+    if not file_id or not record_type:
+        return jsonify({"error": "Missing file_id or type parameter"}), 400
+        
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        
+        cursor.execute("DESCRIBE master_records")
+        cols = [row['Field'] for row in cursor.fetchall() if row['Field'] not in ('id', 'file_id', 'created_at', 'updated_at')]
+        
+        cursor.execute("SELECT id, field_name FROM field_registry WHERE is_active = 1")
+        custom_registry = {str(r['id']): r['field_name'] for r in cursor.fetchall()}
+        
+        records_list = []
+        
+        if record_type == 'imported':
+            cursor.execute("SELECT * FROM master_records WHERE file_id = %s ORDER BY id ASC", (file_id,))
+            rows = cursor.fetchall()
+            for r in rows:
+                flat_r = {}
+                for col in cols:
+                    if col == 'custom_fields':
+                        continue
+                    flat_r[col.replace('_', ' ').title()] = r[col]
+                if r['custom_fields']:
+                    try:
+                        cf_dict = json.loads(r['custom_fields']) if isinstance(r['custom_fields'], str) else r['custom_fields']
+                        for fid, val in cf_dict.items():
+                            flat_r[custom_registry.get(str(fid), f"Custom Field {fid}")] = val
+                    except Exception:
+                        pass
+                records_list.append(flat_r)
+                
+        elif record_type == 'rejected':
+            cursor.execute("SELECT row_data FROM rejected_records WHERE file_id = %s ORDER BY id ASC", (file_id,))
+            rows = cursor.fetchall()
+            for r in rows:
+                if r['row_data']:
+                    try:
+                        item = json.loads(r['row_data']) if isinstance(r['row_data'], str) else r['row_data']
+                        flat_r = {}
+                        for col in cols:
+                            if col == 'custom_fields':
+                                continue
+                            flat_r[col.replace('_', ' ').title()] = item.get(col)
+                        cfields = item.get('custom_fields') or {}
+                        for fid, val in cfields.items():
+                            flat_r[custom_registry.get(str(fid), f"Custom Field {fid}")] = val
+                        records_list.append(flat_r)
+                    except Exception:
+                        pass
+        conn.close()
+        
+        if not records_list:
+            return jsonify({"error": "No records found to export"}), 400
+            
+        df = pd.DataFrame(records_list)
+        import io
+        output = io.BytesIO()
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            df.to_excel(writer, sheet_name='Preview Records', index=False)
+        output.seek(0)
+        
+        log_action(session["user_id"], f"Exported file #{file_id} {record_type} records to Excel")
+        
+        filename = f"file_{file_id}_{record_type}_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+        return send_file(
+            output,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name=filename
+        )
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/history/export', methods=['GET'])
+@login_required()
+def export_import_history():
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute("""
+            SELECT uf.id, u.username, uf.filename, uf.original_filename, uf.uploaded_at, uf.total_rows, uf.rows_imported, uf.rows_rejected, uf.status 
+            FROM uploaded_files uf 
+            JOIN users u ON uf.user_id = u.id 
+            ORDER BY uf.id DESC
+        """)
+        rows = cursor.fetchall()
+        conn.close()
+        
+        flat_rows = []
+        for r in rows:
+            flat_rows.append({
+                "Log ID": r["id"],
+                "Uploaded By": r["username"],
+                "Original Filename": r["original_filename"],
+                "Storage Filename": r["filename"],
+                "Uploaded At": r["uploaded_at"].isoformat() if r["uploaded_at"] else "",
+                "Total Rows": r["total_rows"],
+                "Rows Imported": r["rows_imported"],
+                "Rows Rejected": r["rows_rejected"],
+                "Status": r["status"]
+            })
+            
+        df = pd.DataFrame(flat_rows)
+        import io
+        output = io.BytesIO()
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            df.to_excel(writer, sheet_name='Import History', index=False)
+        output.seek(0)
+        
+        log_action(session["user_id"], "Exported Spreadsheet Ingestion History to Excel")
+        
+        filename = f"import_history_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+        return send_file(
+            output,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name=filename
+        )
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/registry/export', methods=['GET'])
+@login_required()
+def export_registry():
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute("SELECT id, field_name, normalized_name, data_type, usage_count, created_at FROM field_registry ORDER BY id ASC")
+        rows = cursor.fetchall()
+        conn.close()
+        
+        flat_rows = []
+        for r in rows:
+            flat_rows.append({
+                "Field ID": r["id"],
+                "Display Name": r["field_name"],
+                "Normalized Name": r["normalized_name"],
+                "Data Type": r["data_type"],
+                "Usage Count": r["usage_count"],
+                "Created At": r["created_at"].isoformat() if r["created_at"] else ""
+            })
+            
+        df = pd.DataFrame(flat_rows)
+        import io
+        output = io.BytesIO()
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            df.to_excel(writer, sheet_name='Field Registry', index=False)
+        output.seek(0)
+        
+        log_action(session["user_id"], "Exported Custom Fields Registry to Excel")
+        
+        filename = f"field_registry_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+        return send_file(
+            output,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name=filename
+        )
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/aliases/export', methods=['GET'])
+@login_required()
+def export_aliases():
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute("SELECT id, alias, normalized_alias, target_type, target_identifier FROM field_aliases ORDER BY id ASC")
+        rows = cursor.fetchall()
+        conn.close()
+        
+        flat_rows = []
+        for r in rows:
+            flat_rows.append({
+                "Alias ID": r["id"],
+                "Header Alias": r["alias"],
+                "Normalized Alias": r["normalized_alias"],
+                "Target System Layer": r["target_type"],
+                "Mapped Identifier": r["target_identifier"]
+            })
+            
+        df = pd.DataFrame(flat_rows)
+        import io
+        output = io.BytesIO()
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            df.to_excel(writer, sheet_name='Header Aliases', index=False)
+        output.seek(0)
+        
+        log_action(session["user_id"], "Exported Header Schema Aliases to Excel")
+        
+        filename = f"header_aliases_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+        return send_file(
+            output,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name=filename
+        )
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/users/export', methods=['GET'])
+@login_required()
+def export_users():
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute("SELECT id, username, role, is_active, manager_id, email FROM users ORDER BY id ASC")
+        rows = cursor.fetchall()
+        conn.close()
+        
+        flat_rows = []
+        for r in rows:
+            flat_rows.append({
+                "User ID": r["id"],
+                "Username": r["username"],
+                "Role": r["role"],
+                "Is Active": "Yes" if r["is_active"] else "No",
+                "Manager ID": r["manager_id"] or "--",
+                "Email Address": r["email"] or "--"
+            })
+            
+        df = pd.DataFrame(flat_rows)
+        import io
+        output = io.BytesIO()
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            df.to_excel(writer, sheet_name='Users Directory', index=False)
+        output.seek(0)
+        
+        log_action(session["user_id"], "Exported Users Directory to Excel")
+        
+        filename = f"users_directory_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+        return send_file(
+            output,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name=filename
+        )
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 #list registered users route
@@ -2419,6 +2697,213 @@ def get_records():
         "per_page": per_page,
         "missing_stats": missing_stats
     })
+
+@app.route('/api/records/export', methods=['GET'])
+@login_required()
+def export_records():
+    if "user_id" not in session or session.get("role") not in ROLE_PERMISSIONS:
+        return redirect(url_for("login"))
+        
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        
+        # Get physical columns dynamically
+        cursor.execute("DESCRIBE master_records")
+        cols = [row['Field'] for row in cursor.fetchall()]
+        
+        query_parts = ["1=1"]
+        params = []
+        
+        # Support basic mappings
+        search_mappings = {
+            'name': 'full_name',
+            'email': 'email_address',
+            'phone': 'primary_phone_number',
+            'company': 'company_name',
+            'city': 'city'
+        }
+        for arg_name, col_name in search_mappings.items():
+            val = request.args.get(arg_name, '').strip()
+            if val and col_name in cols:
+                query_parts.append(f"`{col_name}` LIKE %s")
+                params.append(f"%{val}%")
+                
+        # Support dynamic search on other master columns
+        for c in cols:
+            if c in ('id', 'file_id', 'custom_fields', 'created_at', 'updated_at', 'imported_by') or c in search_mappings.values():
+                continue
+            val = request.args.get(c, '').strip()
+            if val:
+                query_parts.append(f"`{c}` LIKE %s")
+                params.append(f"%{val}%")
+                
+        # Support dynamic search on multiple custom JSON field values
+        custom_filters_str = request.args.get('custom_filters', '[]')
+        try:
+            custom_filters = json.loads(custom_filters_str)
+            for f in custom_filters:
+                fid = str(f.get('id', '')).strip()
+                fval = str(f.get('val', '')).strip()
+                if fid and fval:
+                    query_parts.append("JSON_UNQUOTE(JSON_EXTRACT(custom_fields, %s)) LIKE %s")
+                    params.append(f"$.\"{fid}\"")
+                    params.append(f"%{fval}%")
+        except Exception as e:
+            app.logger.warning(f"Error parsing custom_filters: {e}")
+            
+        # Support missing_field filter
+        missing_field = request.args.get('missing_field', '').strip()
+        if missing_field and missing_field in cols:
+            query_parts.append(f"({missing_field} IS NULL OR {missing_field} = '')")
+    
+        where_clause = " AND ".join(query_parts)
+        
+        # Query matching records
+        select_query = f"SELECT * FROM master_records WHERE {where_clause} ORDER BY id DESC"
+        cursor.execute(select_query, params)
+        rows = cursor.fetchall()
+        
+        # Fetch active custom fields from registry to resolve names
+        cursor.execute("SELECT id, field_name FROM field_registry WHERE is_active = 1")
+        custom_registry = {str(r['id']): r['field_name'] for r in cursor.fetchall()}
+        
+        flat_rows = []
+        for r in rows:
+            flat_r = {}
+            for col in cols:
+                if col == 'custom_fields':
+                    continue
+                pretty_name = col.replace('_', ' ').title()
+                flat_r[pretty_name] = r[col]
+            
+            if r['custom_fields']:
+                try:
+                    cf_dict = json.loads(r['custom_fields']) if isinstance(r['custom_fields'], str) else r['custom_fields']
+                    for fid, val in cf_dict.items():
+                        header_name = custom_registry.get(str(fid), f"Custom Field {fid}")
+                        flat_r[header_name] = val
+                except Exception:
+                    pass
+            flat_rows.append(flat_r)
+            
+        conn.close()
+        
+        # Log the export action
+        log_action(session["user_id"], f"Exported filtered search query data ({len(rows)} rows) to Excel")
+        
+        # Output DataFrame
+        df = pd.DataFrame(flat_rows)
+        
+        import io
+        output = io.BytesIO()
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            df.to_excel(writer, sheet_name='Filtered Results', index=False)
+        output.seek(0)
+        
+        filename = f"filtered_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+        
+        return send_file(
+            output,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name=filename
+        )
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/history/file-records', methods=['GET'])
+@login_required()
+def get_file_records():
+    file_id = request.args.get('file_id')
+    record_type = request.args.get('type') # 'imported' or 'rejected'
+    
+    if not file_id:
+        return jsonify({"error": "Missing file_id parameter"}), 400
+        
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        
+        # Get physical columns dynamically
+        cursor.execute("DESCRIBE master_records")
+        cols = [row['Field'] for row in cursor.fetchall() if row['Field'] not in ('id', 'file_id', 'created_at', 'updated_at')]
+        
+        # Fetch active custom fields from registry to resolve names
+        cursor.execute("SELECT id, field_name FROM field_registry WHERE is_active = 1")
+        custom_registry = {str(r['id']): r['field_name'] for r in cursor.fetchall()}
+        
+        records_list = []
+        
+        if record_type == 'imported':
+            cursor.execute("SELECT * FROM master_records WHERE file_id = %s ORDER BY id ASC", (file_id,))
+            rows = cursor.fetchall()
+            
+            for r in rows:
+                flat_r = {}
+                for col in cols:
+                    if col == 'custom_fields':
+                        continue
+                    pretty_name = col.replace('_', ' ').title()
+                    flat_r[pretty_name] = r[col]
+                
+                if r['custom_fields']:
+                    try:
+                        cf_dict = json.loads(r['custom_fields']) if isinstance(r['custom_fields'], str) else r['custom_fields']
+                        for fid, val in cf_dict.items():
+                            header_name = custom_registry.get(str(fid), f"Custom Field {fid}")
+                            flat_r[header_name] = val
+                    except Exception:
+                        pass
+                records_list.append(flat_r)
+                
+        elif record_type == 'rejected':
+            cursor.execute("SELECT row_data FROM rejected_records WHERE file_id = %s ORDER BY id ASC", (file_id,))
+            rows = cursor.fetchall()
+            
+            for r in rows:
+                if r['row_data']:
+                    try:
+                        item = json.loads(r['row_data']) if isinstance(r['row_data'], str) else r['row_data']
+                        
+                        flat_r = {}
+                        for col in cols:
+                            if col == 'custom_fields':
+                                continue
+                            pretty_name = col.replace('_', ' ').title()
+                            flat_r[pretty_name] = item.get(col)
+                            
+                        # Extract custom JSON fields
+                        cfields = item.get('custom_fields') or {}
+                        for fid, val in cfields.items():
+                            header_name = custom_registry.get(str(fid), f"Custom Field {fid}")
+                            flat_r[header_name] = val
+                            
+                        records_list.append(flat_r)
+                    except Exception:
+                        pass
+                        
+        conn.close()
+        
+        headers = []
+        if records_list:
+            seen_headers = set()
+            for r in records_list:
+                for k in r.keys():
+                    if k not in seen_headers:
+                        seen_headers.add(k)
+                        headers.append(k)
+        
+        return jsonify({
+            "headers": headers,
+            "records": records_list
+        })
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 
 @app.route('/api/custom-fields', methods=['GET'])
 @login_required()

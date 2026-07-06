@@ -955,18 +955,17 @@ def ingest_uploaded_file_with_mapping(file_id, file_path, username, mapping_conf
             if not has_any_value:
                 continue # Skip completely empty row
                 
-            # Perform Duplicate Check: if every mapped field matches an existing row
+            # Perform Duplicate Check: if row master column and custom field value totally match, then reject them
             dup_query = ["1=1"]
             dup_params = []
             
-            # Add checks for master columns mapped
             for header, target in final_mapping.items():
                 if target.startswith("master:"):
                     col_name = target.split("master:")[1]
                     if col_name in record_dict:
                         val = record_dict[col_name]
                         if val is not None:
-                            dup_query.append(f"`{col_name}` = %s")
+                            dup_query.append(f"TRIM(LOWER(`{col_name}`)) = TRIM(LOWER(%s))")
                             dup_params.append(val)
                         else:
                             dup_query.append(f"(`{col_name}` IS NULL OR `{col_name}` = '')")
@@ -974,11 +973,12 @@ def ingest_uploaded_file_with_mapping(file_id, file_path, username, mapping_conf
                     field_id = target.split("custom:")[1]
                     val = record_dict['custom_fields'].get(field_id)
                     if val is not None:
-                        dup_query.append("JSON_UNQUOTE(JSON_EXTRACT(custom_fields, %s)) = %s")
+                        dup_query.append("TRIM(LOWER(JSON_UNQUOTE(JSON_EXTRACT(custom_fields, %s)))) = TRIM(LOWER(%s))")
                         dup_params.append(f"$.\"{field_id}\"")
                         dup_params.append(val)
                     else:
-                        dup_query.append("(custom_fields IS NULL OR JSON_EXTRACT(custom_fields, %s) IS NULL)")
+                        dup_query.append("(custom_fields IS NULL OR JSON_EXTRACT(custom_fields, %s) IS NULL OR JSON_UNQUOTE(JSON_EXTRACT(custom_fields, %s)) = '')")
+                        dup_params.append(f"$.\"{field_id}\"")
                         dup_params.append(f"$.\"{field_id}\"")
                         
             # Check in-memory duplicates for the current ingestion batch
@@ -986,21 +986,31 @@ def ingest_uploaded_file_with_mapping(file_id, file_path, username, mapping_conf
             for h, t in sorted(final_mapping.items()):
                 if t.startswith("master:"):
                     col_name = t.split("master:")[1]
-                    seen_tuple_list.append((t, record_dict.get(col_name)))
+                    v = record_dict.get(col_name)
+                    seen_tuple_list.append((t, v.strip().lower() if v else ""))
                 elif t.startswith("custom:"):
                     field_id = t.split("custom:")[1]
-                    seen_tuple_list.append((t, record_dict['custom_fields'].get(field_id)))
+                    v = record_dict['custom_fields'].get(field_id)
+                    seen_tuple_list.append((t, v.strip().lower() if v else ""))
             seen_tuple = tuple(seen_tuple_list)
             
+            is_dup = False
             if seen_tuple in seen_in_batch:
+                is_dup = True
+            else:
+                cursor.execute(f"SELECT COUNT(*) as count FROM master_records WHERE {' AND '.join(dup_query)}", dup_params)
+                dup_row = cursor.fetchone()
+                if dup_row and dup_row['count'] > 0:
+                    is_dup = True
+                    
+            if is_dup:
                 rejected_count += 1
-                continue
-                
-            # Execute duplicate query against database
-            cursor.execute(f"SELECT COUNT(*) as count FROM master_records WHERE {' AND '.join(dup_query)}", dup_params)
-            dup_row = cursor.fetchone()
-            if dup_row and dup_row['count'] > 0:
-                rejected_count += 1
+                # Save duplicate records to rejected_records table for subsequent history review
+                row_json = json.dumps(record_dict)
+                cursor.execute(
+                    "INSERT INTO rejected_records (file_id, row_data) VALUES (%s, %s)",
+                    (file_id, row_json)
+                )
             else:
                 records_to_insert.append(record_dict)
                 seen_in_batch.add(seen_tuple)
@@ -1040,6 +1050,18 @@ def ingest_uploaded_file_with_mapping(file_id, file_path, username, mapping_conf
             (len(df), len(records_to_insert), rejected_count, file_id)
         )
         conn.commit()
+        
+        # Log the completed ingestion action
+        cursor.execute("SELECT user_id, original_filename FROM uploaded_files WHERE id = %s", (file_id,))
+        u_info = cursor.fetchone()
+        if u_info:
+            log_action(
+                u_info['user_id'],
+                f"Ingested spreadsheet: {u_info['original_filename']}",
+                total=len(df),
+                valid=len(records_to_insert),
+                removed=rejected_count
+            )
         
     except Exception as e:
         conn.rollback()

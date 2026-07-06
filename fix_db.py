@@ -128,6 +128,15 @@ sql_statements = [
         INDEX idx_company (company_name),
         INDEX idx_city (city)
     )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS rejected_records (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        file_id INT NOT NULL,
+        row_data JSON NULL,
+        rejected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (file_id) REFERENCES uploaded_files(id) ON DELETE CASCADE
+    )
     """
 ]
 
@@ -147,6 +156,7 @@ try:
     try:
         cur.execute("SET FOREIGN_KEY_CHECKS = 0")
         cur.execute("DROP TABLE IF EXISTS master_records")
+        cur.execute("DROP TABLE IF EXISTS rejected_records")
         cur.execute("DROP TABLE IF EXISTS uploaded_files")
         cur.execute("DROP TABLE IF EXISTS field_registry")
         cur.execute("DROP TABLE IF EXISTS field_aliases")

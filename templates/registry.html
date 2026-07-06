@@ -86,9 +86,16 @@
     {% include '_sidebar.html' %}
     <main class="content-area">
       <div class="container my-4 my-md-5">
-        <div class="page-hdr mb-4">
-          <h2><i class="bi bi-tags me-2" style="color:#b91c1c;"></i>Field Registry</h2>
-          <p class="text-muted">Manage dynamic schema definitions and track usage frequency across worksheets</p>
+        <div class="page-hdr mb-4 d-flex justify-content-between align-items-center">
+          <div>
+            <h2><i class="bi bi-tags me-2" style="color:#b91c1c;"></i>Field Registry</h2>
+            <p class="text-muted">Manage dynamic schema definitions and track usage frequency across worksheets</p>
+          </div>
+          <div>
+            <button class="btn btn-success" onclick="window.location.href='/api/registry/export';">
+              <i class="bi bi-file-earmark-excel me-1"></i> Export Registry
+            </button>
+          </div>
         </div>
 
         <div class="card shadow-sm">

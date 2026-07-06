@@ -91,7 +91,10 @@
             <h2><i class="bi bi-clock-history me-2" style="color:#b91c1c;"></i>Import History</h2>
             <p class="text-muted">Audit log trail of all uploaded spreadsheet files and background parsing statuses</p>
           </div>
-          <div>
+          <div class="d-flex gap-2">
+            <button class="btn btn-success" onclick="window.location.href='/api/history/export';">
+              <i class="bi bi-file-earmark-excel me-1"></i> Export History Logs
+            </button>
             <button class="btn btn-outline-danger" onclick="window.location.reload();">
               <i class="bi bi-arrow-clockwise me-1"></i> Refresh Status
             </button>
@@ -139,22 +142,22 @@
                         </strong>
                       </td>
                       <td class="text-center">
-                        <span class="badge bg-success-subtle text-success px-2 py-1">
-                          {% if file.status == 'completed' %}
+                        {% if file.status == 'completed' %}
+                          <span class="badge bg-success-subtle text-success px-2 py-1" style="cursor: pointer;" onclick="showRecords({{ file.id }}, 'imported')" title="Click to view imported rows">
                             {{ file.rows_imported }} rows
-                          {% else %}
-                            --
-                          {% endif %}
-                        </span>
+                          </span>
+                        {% else %}
+                          <span class="text-muted">--</span>
+                        {% endif %}
                       </td>
                       <td class="text-center">
-                        <span class="badge bg-danger-subtle text-danger px-2 py-1">
-                          {% if file.status == 'completed' %}
+                        {% if file.status == 'completed' %}
+                          <span class="badge bg-danger-subtle text-danger px-2 py-1" style="cursor: pointer;" onclick="showRecords({{ file.id }}, 'rejected')" title="Click to view duplicate/rejected rows">
                             {{ file.rows_rejected }} rows
-                          {% else %}
-                            --
-                          {% endif %}
-                        </span>
+                          </span>
+                        {% else %}
+                          <span class="text-muted">--</span>
+                        {% endif %}
                       </td>
                       <td class="text-center">
                         {% if file.status == 'completed' %}
@@ -192,6 +195,117 @@
         </div>
       </div>
       <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+      
+      <!-- File Records Preview Modal -->
+      <div class="modal fade" id="recordsModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+          <div class="modal-content" style="border-radius: 12px; overflow: hidden; border: none; box-shadow: 0 10px 30px rgba(0,0,0,0.15);">
+            <div class="modal-header bg-light border-bottom-0 py-3 px-4">
+              <h5 class="modal-title fw-bold text-dark" id="recordsModalTitle"><i class="bi bi-file-text text-danger me-2"></i>Ingested Rows Preview</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-0">
+              <div class="table-responsive" style="max-height: 65vh; -webkit-overflow-scrolling: touch;">
+                <table class="table table-hover align-middle mb-0" id="modalRecordsTable">
+                  <thead class="sticky-top bg-light shadow-sm" id="modalRecordsHeader" style="z-index: 100;">
+                    <!-- Dynamic columns go here -->
+                  </thead>
+                  <tbody id="modalRecordsBody">
+                    <!-- Dynamic rows go here -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div class="modal-footer bg-light border-top-0 py-3 px-4 d-flex justify-content-between">
+              <button type="button" class="btn btn-success btn-sm px-3 fw-semibold" id="modalExportBtn" style="border-radius: 6px;">
+                <i class="bi bi-file-earmark-excel me-1"></i> Export to Excel
+              </button>
+              <button type="button" class="btn btn-danger btn-sm px-4 fw-semibold" style="border-radius: 6px;" data-bs-dismiss="modal">Close</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <script>
+        function showRecords(fileId, type) {
+            const recordsModalEl = document.getElementById('recordsModal');
+            const modalTitle = document.getElementById('recordsModalTitle');
+            const headerContainer = document.getElementById('modalRecordsHeader');
+            const bodyContainer = document.getElementById('modalRecordsBody');
+            
+            modalTitle.innerHTML = `<i class="bi bi-file-text text-danger me-2"></i>${type.charAt(0).toUpperCase() + type.slice(1)} Rows for Import Log #${fileId}`;
+            
+            headerContainer.innerHTML = '';
+            bodyContainer.innerHTML = `
+                <tr>
+                    <td class="text-center py-5">
+                        <div class="spinner-border text-danger" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="text-muted mt-2 mb-0 small">Fetching records from server...</p>
+                    </td>
+                </tr>
+            `;
+            
+            document.getElementById('modalExportBtn').onclick = function() {
+                window.location.href = `/api/history/file-records/export?file_id=${fileId}&type=${type}`;
+            };
+            
+            const modal = new bootstrap.Modal(recordsModalEl);
+            modal.show();
+            
+            fetch(`/api/history/file-records?file_id=${fileId}&type=${type}`)
+                .then(res => {
+                    if (!res.ok) throw new Error("Could not fetch records");
+                    return res.json();
+                })
+                .then(data => {
+                    if (!data.records || data.records.length === 0) {
+                        headerContainer.innerHTML = '';
+                        bodyContainer.innerHTML = `
+                            <tr>
+                                <td class="text-center py-5 text-muted">
+                                    <i class="bi bi-inbox fs-3 mb-2 d-block text-secondary"></i>
+                                    No records found in this category.
+                                </td>
+                            </tr>
+                        `;
+                        return;
+                    }
+                    
+                    // Render headers
+                    let headerHtml = '<tr>';
+                    data.headers.forEach(h => {
+                        headerHtml += `<th class="px-3 py-2 bg-light small fw-bold text-uppercase text-secondary" style="border-bottom: 2px solid var(--border); font-size: 0.72rem; white-space: nowrap;">${h}</th>`;
+                    });
+                    headerHtml += '</tr>';
+                    headerContainer.innerHTML = headerHtml;
+                    
+                    // Render records rows
+                    let bodyHtml = '';
+                    data.records.forEach(r => {
+                        bodyHtml += '<tr>';
+                        data.headers.forEach(h => {
+                            const val = r[h] ?? '';
+                            bodyHtml += `<td class="px-3 py-2 text-dark font-monospace" style="font-size: 0.8rem; white-space: nowrap; max-width: 250px; overflow: hidden; text-overflow: ellipsis;" title="${val}">${val || '<span class="text-muted italic">[empty]</span>'}</td>`;
+                        });
+                        bodyHtml += '</tr>';
+                    });
+                    bodyContainer.innerHTML = bodyHtml;
+                })
+                .catch(err => {
+                    console.error(err);
+                    bodyContainer.innerHTML = `
+                        <tr>
+                            <td class="text-center py-5 text-danger">
+                                <i class="bi bi-exclamation-triangle-fill fs-3 mb-2 d-block"></i>
+                                An error occurred while retrieving records. Please try again.
+                            </td>
+                        </tr>
+                    `;
+                });
+        }
+      </script>
     </main>
   </div>
 </body>

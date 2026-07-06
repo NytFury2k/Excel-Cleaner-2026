@@ -498,14 +498,95 @@
                     <label class="form-label small mb-1">Company Name</label>
                     <input type="text" class="form-control form-control-sm" id="filterCompany" placeholder="Company...">
                   </div>
-                  <div class="col-md-2">
-                    <label class="form-label small mb-1">City</label>
-                    <input type="text" class="form-control form-control-sm" id="filterCity" placeholder="City...">
+                  <div class="col-md-2 d-flex align-items-end">
+                    <button type="button" class="btn btn-outline-danger btn-sm w-100 py-1 fw-semibold" id="toggleMoreFiltersBtn">
+                      <i class="bi bi-funnel me-1"></i>Filter More
+                    </button>
                   </div>
                   <div class="col-md-2 d-flex align-items-end">
                     <button type="submit" class="btn btn-danger btn-sm w-100 py-1 fw-semibold">
                       <i class="bi bi-search me-2"></i>Query Records
                     </button>
+                  </div>
+
+                  <!-- Collapsible More Filters Container -->
+                  <div class="col-12 mt-2 d-none" id="moreFiltersWrapper">
+                    <div class="card bg-light-subtle border-light-subtle p-3">
+                      <div class="row g-2">
+                        <div class="col-md-2">
+                          <label class="form-label small mb-1">Alternate Phone</label>
+                          <input type="text" class="form-control form-control-sm" id="filterAlternatePhone" placeholder="Alt Phone...">
+                        </div>
+                        <div class="col-md-2">
+                          <label class="form-label small mb-1">Job Title</label>
+                          <input type="text" class="form-control form-control-sm" id="filterJobTitle" placeholder="Job Title...">
+                        </div>
+                        <div class="col-md-2">
+                          <label class="form-label small mb-1">Department</label>
+                          <input type="text" class="form-control form-control-sm" id="filterDepartment" placeholder="Department...">
+                        </div>
+                        <div class="col-md-2">
+                          <label class="form-label small mb-1">Website URL</label>
+                          <input type="text" class="form-control form-control-sm" id="filterWebsiteUrl" placeholder="Website...">
+                        </div>
+                        <div class="col-md-2">
+                          <label class="form-label small mb-1">Address Line 1</label>
+                          <input type="text" class="form-control form-control-sm" id="filterAddress1" placeholder="Address 1...">
+                        </div>
+                        <div class="col-md-2">
+                          <label class="form-label small mb-1">Address Line 2</label>
+                          <input type="text" class="form-control form-control-sm" id="filterAddress2" placeholder="Address 2...">
+                        </div>
+                        <div class="col-md-2">
+                          <label class="form-label small mb-1">City</label>
+                          <input type="text" class="form-control form-control-sm" id="filterCity" placeholder="City...">
+                        </div>
+                        <div class="col-md-2">
+                          <label class="form-label small mb-1">State / Province</label>
+                          <input type="text" class="form-control form-control-sm" id="filterStateProvince" placeholder="State/Prov...">
+                        </div>
+                        <div class="col-md-2">
+                          <label class="form-label small mb-1">Postal / ZIP Code</label>
+                          <input type="text" class="form-control form-control-sm" id="filterPostalZip" placeholder="ZIP Code...">
+                        </div>
+                        <div class="col-md-2">
+                          <label class="form-label small mb-1">Country</label>
+                          <input type="text" class="form-control form-control-sm" id="filterCountry" placeholder="Country...">
+                        </div>
+                        <div class="col-md-2">
+                          <label class="form-label small mb-1">LinkedIn Profile</label>
+                          <input type="text" class="form-control form-control-sm" id="filterLinkedIn" placeholder="LinkedIn...">
+                        </div>
+                        <div class="col-md-2">
+                          <label class="form-label small mb-1">Industry</label>
+                          <input type="text" class="form-control form-control-sm" id="filterIndustry" placeholder="Industry...">
+                        </div>
+                        <div class="col-md-2">
+                          <label class="form-label small mb-1">Lead Source</label>
+                          <input type="text" class="form-control form-control-sm" id="filterLeadSource" placeholder="Lead Source...">
+                        </div>
+                        <div class="col-md-2">
+                          <label class="form-label small mb-1">Record Status</label>
+                          <input type="text" class="form-control form-control-sm" id="filterRecordStatus" placeholder="Status...">
+                        </div>
+                        <div class="col-md-2">
+                          <label class="form-label small mb-1">Date of Birth</label>
+                          <input type="text" class="form-control form-control-sm" id="filterDOB" placeholder="DOB...">
+                        </div>
+                        <div class="col-md-2">
+                          <label class="form-label small mb-1">Gender</label>
+                          <input type="text" class="form-control form-control-sm" id="filterGender" placeholder="Gender...">
+                        </div>
+                        <div class="col-md-2">
+                          <label class="form-label small mb-1">Company Size</label>
+                          <input type="text" class="form-control form-control-sm" id="filterCompanySize" placeholder="Size...">
+                        </div>
+                        <div class="col-md-2">
+                          <label class="form-label small mb-1">Annual Revenue</label>
+                          <input type="text" class="form-control form-control-sm" id="filterAnnualRevenue" placeholder="Revenue...">
+                        </div>
+                      </div>
+                    </div>
                   </div>
                   
                   <!-- Multiple Custom Attribute Filters Container -->
@@ -551,8 +632,11 @@
           <div class="col-12">
             <!-- Master Records Table -->
             <div class="card shadow-sm">
-              <div class="card-header d-flex justify-content-between align-items-center">
+              <div class="card-header d-flex justify-content-between align-items-center py-2">
                 <span><i class="bi bi-database me-2 text-danger"></i>Master Records</span>
+                <button type="button" class="btn btn-outline-danger btn-sm fw-semibold" id="exportFilteredBtn">
+                  <i class="bi bi-download me-1"></i>Export Filtered Records
+                </button>
               </div>
               <div class="card-body p-0">
                 <div class="table-responsive">
@@ -807,6 +891,89 @@
             addCustomFilterBtn.addEventListener("click", () => addCustomFilterRow());
         }
 
+        const toggleMoreFiltersBtn = document.getElementById("toggleMoreFiltersBtn");
+        const moreFiltersWrapper = document.getElementById("moreFiltersWrapper");
+        if (toggleMoreFiltersBtn && moreFiltersWrapper) {
+            toggleMoreFiltersBtn.addEventListener("click", function() {
+                if (moreFiltersWrapper.classList.contains("d-none")) {
+                    moreFiltersWrapper.classList.remove("d-none");
+                    toggleMoreFiltersBtn.innerHTML = '<i class="bi bi-funnel-fill me-1"></i>Filter Less';
+                    toggleMoreFiltersBtn.classList.remove("btn-outline-danger");
+                    toggleMoreFiltersBtn.classList.add("btn-danger");
+                } else {
+                    moreFiltersWrapper.classList.add("d-none");
+                    toggleMoreFiltersBtn.innerHTML = '<i class="bi bi-funnel me-1"></i>Filter More';
+                    toggleMoreFiltersBtn.classList.add("btn-outline-danger");
+                    toggleMoreFiltersBtn.classList.remove("btn-danger");
+                }
+            });
+        }
+
+        const exportFilteredBtn = document.getElementById("exportFilteredBtn");
+        if (exportFilteredBtn) {
+            exportFilteredBtn.addEventListener("click", function() {
+                const name = document.getElementById("filterName").value.trim();
+                const email = document.getElementById("filterEmail").value.trim();
+                const phone = document.getElementById("filterPhone").value.trim();
+                const company = document.getElementById("filterCompany").value.trim();
+
+                const customFilters = [];
+                document.querySelectorAll(".custom-filter-row").forEach(row => {
+                    const fid = row.querySelector(".custom-filter-field").value;
+                    const val = row.querySelector(".custom-filter-val").value.trim();
+                    if (fid && val) {
+                        customFilters.push({ id: fid, val: val });
+                    }
+                });
+
+                const queryParams = {
+                    name: name,
+                    email: email,
+                    phone: phone,
+                    company: company,
+                    custom_filters: JSON.stringify(customFilters)
+                };
+
+                const moreFields = [
+                    { id: "filterAlternatePhone", param: "alternate_phone_number" },
+                    { id: "filterJobTitle", param: "job_title" },
+                    { id: "filterDepartment", param: "department" },
+                    { id: "filterWebsiteUrl", param: "website_url" },
+                    { id: "filterAddress1", param: "address_line_1" },
+                    { id: "filterAddress2", param: "address_line_2" },
+                    { id: "filterCity", param: "city" },
+                    { id: "filterStateProvince", param: "state_province" },
+                    { id: "filterPostalZip", param: "postal_zip_code" },
+                    { id: "filterCountry", param: "country" },
+                    { id: "filterLinkedIn", param: "linkedin_profile_url" },
+                    { id: "filterIndustry", param: "industry" },
+                    { id: "filterLeadSource", param: "lead_source" },
+                    { id: "filterRecordStatus", param: "record_status" },
+                    { id: "filterDOB", param: "date_of_birth" },
+                    { id: "filterGender", param: "gender" },
+                    { id: "filterCompanySize", param: "company_size" },
+                    { id: "filterAnnualRevenue", param: "annual_revenue" }
+                ];
+
+                moreFields.forEach(f => {
+                    const el = document.getElementById(f.id);
+                    if (el) {
+                        const val = el.value.trim();
+                        if (val) {
+                            queryParams[f.param] = val;
+                        }
+                    }
+                });
+
+                if (window.selectedMissingField) {
+                    queryParams["missing_field"] = window.selectedMissingField;
+                }
+
+                const params = new URLSearchParams(queryParams);
+                window.location.href = `/api/records/export?${params.toString()}`;
+            });
+        }
+
         // 2. Fetch and render records
         function fetchRecords(page = 1) {
             currentPage = page;
@@ -827,7 +994,6 @@
             const email = document.getElementById("filterEmail").value.trim();
             const phone = document.getElementById("filterPhone").value.trim();
             const company = document.getElementById("filterCompany").value.trim();
-            const city = document.getElementById("filterCity").value.trim();
 
             const customFilters = [];
             document.querySelectorAll(".custom-filter-row").forEach(row => {
@@ -838,17 +1004,50 @@
                 }
             });
 
-            // Construct query string
-            const params = new URLSearchParams({
+            // Construct query parameters
+            const queryParams = {
                 page: page,
                 per_page: perPage,
                 name: name,
                 email: email,
                 phone: phone,
                 company: company,
-                city: city,
                 custom_filters: JSON.stringify(customFilters)
+            };
+
+            // Gather and set other master columns dynamically
+            const moreFields = [
+                { id: "filterAlternatePhone", param: "alternate_phone_number" },
+                { id: "filterJobTitle", param: "job_title" },
+                { id: "filterDepartment", param: "department" },
+                { id: "filterWebsiteUrl", param: "website_url" },
+                { id: "filterAddress1", param: "address_line_1" },
+                { id: "filterAddress2", param: "address_line_2" },
+                { id: "filterCity", param: "city" },
+                { id: "filterStateProvince", param: "state_province" },
+                { id: "filterPostalZip", param: "postal_zip_code" },
+                { id: "filterCountry", param: "country" },
+                { id: "filterLinkedIn", param: "linkedin_profile_url" },
+                { id: "filterIndustry", param: "industry" },
+                { id: "filterLeadSource", param: "lead_source" },
+                { id: "filterRecordStatus", param: "record_status" },
+                { id: "filterDOB", param: "date_of_birth" },
+                { id: "filterGender", param: "gender" },
+                { id: "filterCompanySize", param: "company_size" },
+                { id: "filterAnnualRevenue", param: "annual_revenue" }
+            ];
+
+            moreFields.forEach(f => {
+                const el = document.getElementById(f.id);
+                if (el) {
+                    const val = el.value.trim();
+                    if (val) {
+                        queryParams[f.param] = val;
+                    }
+                }
             });
+
+            const params = new URLSearchParams(queryParams);
 
             if (window.selectedMissingField) {
                 params.set("missing_field", window.selectedMissingField);
