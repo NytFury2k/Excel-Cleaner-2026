@@ -22,7 +22,9 @@ sql_statements = [
         is_active SMALLINT NOT NULL DEFAULT 1,
         manager_id INT NULL,
         email VARCHAR(255) NULL,
-        requires_password_change SMALLINT NOT NULL DEFAULT 0
+        requires_password_change SMALLINT NOT NULL DEFAULT 0,
+        created_by INT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
     """,
     """
@@ -175,7 +177,8 @@ sql_statements = [
     """
     CREATE TABLE IF NOT EXISTS permissions (
         id SERIAL PRIMARY KEY,
-        name VARCHAR(100) NOT NULL UNIQUE
+        name VARCHAR(100) NOT NULL UNIQUE,
+        description TEXT NULL
     )
     """,
     """
@@ -196,6 +199,7 @@ sql_statements.extend([
     "CREATE INDEX IF NOT EXISTS idx_company ON master_records(company_name)",
     "CREATE INDEX IF NOT EXISTS idx_city ON master_records(city)",
     "CREATE INDEX IF NOT EXISTS idx_login_username_time ON login_attempts(username, attempted_at)",
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS role_id INT NULL REFERENCES roles(id) ON DELETE SET NULL",
     # Trigger function for auto-updating updated_at columns
     """
     CREATE OR REPLACE FUNCTION update_modified_column()
