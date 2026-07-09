@@ -36,8 +36,8 @@
     .metric-card {
       background: #fff;
       border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 16px 20px;
+      border-radius: 8px;
+      padding: 10px 14px;
       box-shadow: 0 1px 2px rgba(17, 24, 39, 0.03);
     }
 
@@ -221,29 +221,31 @@
                 </thead>
                 <tbody>
                   {% if entries %}
-                    {% for entry in entries %}
-                    <tr>
-                      <td class="text-center"><strong>{{ entry.file_name }}</strong></td>
-                      <td class="text-center">{{ entry.processed_at or 'N/A' }}</td>
-                      <td class="text-center">{{ entry.score }}%</td>
-                      <td class="text-center">{{ entry.blank_required }}</td>
-                      <td class="text-center">{{ entry.duplicates_flagged }}</td>
-                      <td class="text-center">{{ entry.format_errors }}</td>
-                      <td class="text-center issue-cell">
-                        {% if entry.issues %}
-                          {% for issue in entry.issues %}
-                            <span class="issue-pill badge" style="background:#fee2e2;color:#991b1b;border:1px solid #fecaca;">{{ issue }}</span>
-                          {% endfor %}
-                        {% else %}
-                          <span class="text-muted">No issues detected</span>
-                        {% endif %}
-                      </td>
-                    </tr>
-                    {% endfor %}
+                  {% for entry in entries %}
+                  <tr>
+                    <td class="text-center"><strong>{{ entry.file_name }}</strong></td>
+                    <td class="text-center">{{ entry.processed_at or 'N/A' }}</td>
+                    <td class="text-center">{{ entry.score }}%</td>
+                    <td class="text-center">{{ entry.blank_required }}</td>
+                    <td class="text-center">{{ entry.duplicates_flagged }}</td>
+                    <td class="text-center">{{ entry.format_errors }}</td>
+                    <td class="text-center issue-cell">
+                      {% if entry.issues %}
+                      {% for issue in entry.issues %}
+                      <span class="issue-pill badge"
+                        style="background:#fee2e2;color:#991b1b;border:1px solid #fecaca;">{{ issue }}</span>
+                      {% endfor %}
+                      {% else %}
+                      <span class="text-muted">No issues detected</span>
+                      {% endif %}
+                    </td>
+                  </tr>
+                  {% endfor %}
                   {% else %}
-                    <tr>
-                      <td colspan="7" class="text-center text-muted py-4">No processed files with issue data are available yet.</td>
-                    </tr>
+                  <tr>
+                    <td colspan="7" class="text-center text-muted py-4">No processed files with issue data are available
+                      yet.</td>
+                  </tr>
                   {% endif %}
                 </tbody>
               </table>
@@ -272,4 +274,5 @@
     </main>
   </div>
 </body>
+
 </html>

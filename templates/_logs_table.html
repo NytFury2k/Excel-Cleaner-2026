@@ -1,16 +1,38 @@
 <!-- _logs_table.html partial — included by dashboard and admin_logs -->
 <div>
   <style>
-    .custom-filter-pill { display: inline-flex; align-items:center; gap:8px; padding:6px 8px; border-radius:999px; background:#f3f4f6; font-size:0.78rem; margin-right:6px; margin-bottom:6px; }
-    .custom-filter-pill .remove-filter { cursor:pointer; color:#6b7280; }
+    .custom-filter-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 8px;
+      border-radius: 999px;
+      background: #f3f4f6;
+      font-size: 0.78rem;
+      margin-right: 6px;
+      margin-bottom: 6px;
+    }
+
+    .custom-filter-pill .remove-filter {
+      cursor: pointer;
+      color: #6b7280;
+    }
 
     /* precise spacing for Apply group */
-    .apply-btn-wrap { margin-top: 22px; }
-    @media (min-width: 768px) {
-      .apply-btn-wrap { margin-top: 36px; }
+    .apply-btn-wrap {
+      margin-top: 22px;
     }
+
+    @media (min-width: 768px) {
+      .apply-btn-wrap {
+        margin-top: 36px;
+      }
+    }
+
     @media (min-width: 1200px) {
-      .apply-btn-wrap { margin-top: 28px; }
+      .apply-btn-wrap {
+        margin-top: 28px;
+      }
     }
   </style>
   <!-- Filter bar -->
@@ -50,7 +72,7 @@
                 style="border-radius:7px;font-size:0.83rem;" title="Clear filters"><i class="bi bi-x"></i></a>
               {% endif %}
             </div>
-            <button type="button" id="addFilterBtn" class="btn btn-sm btn-outline-secondary w-100"
+            <button type="button" id="addFilterBtn" class="btn btn-sm btn-secondary w-100"
               style="border-radius:7px;font-size:0.83rem;">Add Filter</button>
           </div>
         </div>
@@ -96,9 +118,9 @@
   </div>
 
   <script>
-    (function(){
+    (function () {
       var addBtn = document.getElementById('addFilterBtn');
-      if(!addBtn) return;
+      if (!addBtn) return;
       var modalEl = document.getElementById('addFilterModal');
       var addFilterModal = new bootstrap.Modal(modalEl);
       var confirmBtn = document.getElementById('addFilterConfirm');
@@ -109,53 +131,54 @@
       filterContainer.style.marginBottom = '8px';
       form.insertBefore(filterContainer, form.firstChild);
 
-      addBtn.addEventListener('click', function(){ addFilterModal.show(); });
+      addBtn.addEventListener('click', function () { addFilterModal.show(); });
 
       function createHiddenInputs(field, op, value) {
-        var hf = document.createElement('input'); hf.type='hidden'; hf.name='filter_field[]'; hf.value=field;
-        var ho = document.createElement('input'); ho.type='hidden'; ho.name='filter_op[]'; ho.value=op;
-        var hv = document.createElement('input'); hv.type='hidden'; hv.name='filter_value[]'; hv.value=value;
+        var hf = document.createElement('input'); hf.type = 'hidden'; hf.name = 'filter_field[]'; hf.value = field;
+        var ho = document.createElement('input'); ho.type = 'hidden'; ho.name = 'filter_op[]'; ho.value = op;
+        var hv = document.createElement('input'); hv.type = 'hidden'; hv.name = 'filter_value[]'; hv.value = value;
         return [hf, ho, hv];
       }
 
       function addFilterPill(field, op, value) {
-        var pill = document.createElement('span'); pill.className='custom-filter-pill';
-        pill.innerHTML = '<strong>'+field+'</strong> <span class="text-muted">'+op+'</span> <span>'+value+'</span>';
-        var rem = document.createElement('i'); rem.className='bi bi-x remove-filter ms-2';
+        var pill = document.createElement('span'); pill.className = 'custom-filter-pill';
+        pill.innerHTML = '<strong>' + field + '</strong> <span class="text-muted">' + op + '</span> <span>' + value + '</span>';
+        var rem = document.createElement('i'); rem.className = 'bi bi-x remove-filter ms-2';
         rem.title = 'Remove filter';
         pill.appendChild(rem);
 
         // attach hidden inputs
         var inputs = createHiddenInputs(field, op, value);
-        inputs.forEach(function(i){ pill.appendChild(i); });
+        inputs.forEach(function (i) { pill.appendChild(i); });
 
-        rem.addEventListener('click', function(){ pill.remove(); });
+        rem.addEventListener('click', function () { pill.remove(); });
         filterContainer.appendChild(pill);
       }
 
-      confirmBtn.addEventListener('click', function(){
+      confirmBtn.addEventListener('click', function () {
         var field = document.getElementById('filterField').value.trim();
         var op = document.getElementById('filterOp').value;
         var value = document.getElementById('filterValue').value.trim();
-        if(!field || !value) {
+        if (!field || !value) {
           alert('Please provide both field and value.');
           return;
         }
         addFilterPill(field, op, value);
         // clear inputs
-        document.getElementById('filterField').value='';
-        document.getElementById('filterValue').value='';
+        document.getElementById('filterField').value = '';
+        document.getElementById('filterValue').value = '';
         addFilterModal.hide();
       });
     })();
   </script>
 
   <div class="d-flex justify-content-between align-items-center mb-3">
-    <small class="text-muted" style="font-size:0.8rem;">
+    <small class="text-muted" style="font-size:0.8rem;margin-left:16px;">
       {% if total_logs > 0 %}Showing {{ start }}–{{ end }} of {{ total_logs }} result{{ 's' if total_logs != 1 else ''
       }}{% else %}No results{% endif %}
     </small>
-    <a href="{{ url_for('export_logs') }}" class="btn btn-sm btn-danger" style="border-radius:7px;font-size:0.8rem;">
+    <a href="{{ url_for('export_logs') }}" class="btn btn-sm btn-danger"
+      style="border-radius:7px;font-size:0.8rem;margin-right:16px;">
       <i class="bi bi-file-earmark-excel me-1"></i>Export to Excel
     </a>
   </div>
@@ -205,7 +228,7 @@
   </div>
 
   {% if total_pages > 1 %}
-  <nav class="mt-4">
+  <nav class="mt-4 mb-3">
     <ul class="pagination justify-content-center flex-wrap mb-0">
       {% if page > 1 %}<li class="page-item"><a class="page-link" href="{{ pagination_url(page-1) }}"><i
             class="bi bi-chevron-left" style="font-size:0.7rem;"></i></a></li>{% endif %}

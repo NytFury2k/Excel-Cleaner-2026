@@ -223,7 +223,7 @@
 
     .metric-trend {
       font-size: .75rem;
-      margin-top: 10px;
+      margin-top: 0px;
       color: #6b7280;
       padding-left: 2px;
     }
@@ -341,17 +341,14 @@
         {% endif %}
         {% endwith %}
 
-        <div class="d-flex justify-content-between align-items-center mb-4">
+        <div class="d-flex justify-content-between align-items-center mb-2">
           <div>
-            <h2 class="fw-bold m-0">Dashboard</h2>
-            <p class="text-muted m-0">
-              Excel Cleaning & Data Processing Platform
-            </p>
+            <h3 style="font-size:1.35rem;font-weight:700;color:var(--text);margin-bottom:4px;">Dashboard</h3>
+            <p class="text-muted" style="font-size:0.875rem;">Excel Cleaning & Data Processing Platform</p>
           </div>
           <div>
-            <button class="btn btn-danger px-4 py-2 fw-semibold" data-bs-toggle="modal" data-bs-target="#uploadModal">
-              <i class="bi bi-cloud-arrow-up me-2"></i> Upload Sheet
-            </button>
+            <button class="btn btn-danger px-3 py-1" style="font-size: 0.9rem; font-weight:500;" data-bs-toggle="modal"
+              data-bs-target="#uploadModal">Upload Sheet</button>
           </div>
         </div>
 
@@ -457,7 +454,8 @@
           <div class="col-12">
             <div class="card shadow-sm">
               <div class="card-header d-flex justify-content-between align-items-center py-2">
-                <span class="small fw-bold"><i class="bi bi-sliders me-2 text-danger"></i>Search & Filtering Engine</span>
+                <span class="small fw-bold"><i class="bi bi-sliders me-2 text-danger"></i>Search & Filtering
+                  Engine</span>
               </div>
               <div class="card-body p-3">
                 <form id="filterForm" class="row g-2">
@@ -478,9 +476,8 @@
                     <input type="text" class="form-control form-control-sm" id="filterCompany" placeholder="Company...">
                   </div>
                   <div class="col-md-2 d-flex align-items-end">
-                    <button type="button" class="btn btn-outline-danger btn-sm w-100 py-1 fw-semibold" id="toggleMoreFiltersBtn">
-                      <i class="bi bi-funnel me-1"></i>Filter More
-                    </button>
+                    <button type="button" class="btn btn-danger btn-sm w-100 py-1 fw-semibold"
+                      id="toggleMoreFiltersBtn">Filter More</button>
                   </div>
                   <div class="col-md-2 d-flex align-items-end">
                     <button type="submit" class="btn btn-danger btn-sm w-100 py-1 fw-semibold">
@@ -494,27 +491,33 @@
                       <div class="row g-2">
                         <div class="col-md-2">
                           <label class="form-label small mb-1">Alternate Phone</label>
-                          <input type="text" class="form-control form-control-sm" id="filterAlternatePhone" placeholder="Alt Phone...">
+                          <input type="text" class="form-control form-control-sm" id="filterAlternatePhone"
+                            placeholder="Alt Phone...">
                         </div>
                         <div class="col-md-2">
                           <label class="form-label small mb-1">Job Title</label>
-                          <input type="text" class="form-control form-control-sm" id="filterJobTitle" placeholder="Job Title...">
+                          <input type="text" class="form-control form-control-sm" id="filterJobTitle"
+                            placeholder="Job Title...">
                         </div>
                         <div class="col-md-2">
                           <label class="form-label small mb-1">Department</label>
-                          <input type="text" class="form-control form-control-sm" id="filterDepartment" placeholder="Department...">
+                          <input type="text" class="form-control form-control-sm" id="filterDepartment"
+                            placeholder="Department...">
                         </div>
                         <div class="col-md-2">
                           <label class="form-label small mb-1">Website URL</label>
-                          <input type="text" class="form-control form-control-sm" id="filterWebsiteUrl" placeholder="Website...">
+                          <input type="text" class="form-control form-control-sm" id="filterWebsiteUrl"
+                            placeholder="Website...">
                         </div>
                         <div class="col-md-2">
                           <label class="form-label small mb-1">Address Line 1</label>
-                          <input type="text" class="form-control form-control-sm" id="filterAddress1" placeholder="Address 1...">
+                          <input type="text" class="form-control form-control-sm" id="filterAddress1"
+                            placeholder="Address 1...">
                         </div>
                         <div class="col-md-2">
                           <label class="form-label small mb-1">Address Line 2</label>
-                          <input type="text" class="form-control form-control-sm" id="filterAddress2" placeholder="Address 2...">
+                          <input type="text" class="form-control form-control-sm" id="filterAddress2"
+                            placeholder="Address 2...">
                         </div>
                         <div class="col-md-2">
                           <label class="form-label small mb-1">City</label>
@@ -522,31 +525,38 @@
                         </div>
                         <div class="col-md-2">
                           <label class="form-label small mb-1">State / Province</label>
-                          <input type="text" class="form-control form-control-sm" id="filterStateProvince" placeholder="State/Prov...">
+                          <input type="text" class="form-control form-control-sm" id="filterStateProvince"
+                            placeholder="State/Prov...">
                         </div>
                         <div class="col-md-2">
                           <label class="form-label small mb-1">Postal / ZIP Code</label>
-                          <input type="text" class="form-control form-control-sm" id="filterPostalZip" placeholder="ZIP Code...">
+                          <input type="text" class="form-control form-control-sm" id="filterPostalZip"
+                            placeholder="ZIP Code...">
                         </div>
                         <div class="col-md-2">
                           <label class="form-label small mb-1">Country</label>
-                          <input type="text" class="form-control form-control-sm" id="filterCountry" placeholder="Country...">
+                          <input type="text" class="form-control form-control-sm" id="filterCountry"
+                            placeholder="Country...">
                         </div>
                         <div class="col-md-2">
                           <label class="form-label small mb-1">LinkedIn Profile</label>
-                          <input type="text" class="form-control form-control-sm" id="filterLinkedIn" placeholder="LinkedIn...">
+                          <input type="text" class="form-control form-control-sm" id="filterLinkedIn"
+                            placeholder="LinkedIn...">
                         </div>
                         <div class="col-md-2">
                           <label class="form-label small mb-1">Industry</label>
-                          <input type="text" class="form-control form-control-sm" id="filterIndustry" placeholder="Industry...">
+                          <input type="text" class="form-control form-control-sm" id="filterIndustry"
+                            placeholder="Industry...">
                         </div>
                         <div class="col-md-2">
                           <label class="form-label small mb-1">Lead Source</label>
-                          <input type="text" class="form-control form-control-sm" id="filterLeadSource" placeholder="Lead Source...">
+                          <input type="text" class="form-control form-control-sm" id="filterLeadSource"
+                            placeholder="Lead Source...">
                         </div>
                         <div class="col-md-2">
                           <label class="form-label small mb-1">Record Status</label>
-                          <input type="text" class="form-control form-control-sm" id="filterRecordStatus" placeholder="Status...">
+                          <input type="text" class="form-control form-control-sm" id="filterRecordStatus"
+                            placeholder="Status...">
                         </div>
                         <div class="col-md-2">
                           <label class="form-label small mb-1">Date of Birth</label>
@@ -554,25 +564,30 @@
                         </div>
                         <div class="col-md-2">
                           <label class="form-label small mb-1">Gender</label>
-                          <input type="text" class="form-control form-control-sm" id="filterGender" placeholder="Gender...">
+                          <input type="text" class="form-control form-control-sm" id="filterGender"
+                            placeholder="Gender...">
                         </div>
                         <div class="col-md-2">
                           <label class="form-label small mb-1">Company Size</label>
-                          <input type="text" class="form-control form-control-sm" id="filterCompanySize" placeholder="Size...">
+                          <input type="text" class="form-control form-control-sm" id="filterCompanySize"
+                            placeholder="Size...">
                         </div>
                         <div class="col-md-2">
                           <label class="form-label small mb-1">Annual Revenue</label>
-                          <input type="text" class="form-control form-control-sm" id="filterAnnualRevenue" placeholder="Revenue...">
+                          <input type="text" class="form-control form-control-sm" id="filterAnnualRevenue"
+                            placeholder="Revenue...">
                         </div>
                       </div>
                     </div>
                   </div>
-                  
+
                   <!-- Multiple Custom Attribute Filters Container -->
                   <div class="col-12 mt-2">
                     <div class="d-flex justify-content-between align-items-center mb-1">
-                      <span class="small fw-semibold text-muted"><i class="bi bi-funnel-fill text-danger me-1"></i>Custom Attributes Filters</span>
-                      <button type="button" class="btn btn-sm btn-outline-danger py-0 px-2" id="addCustomFilterBtn" style="font-size: 0.72rem; border-radius: 5px;">
+                      <span class="small fw-semibold text-muted"><i
+                          class="bi bi-funnel-fill text-danger me-1"></i>Custom Attributes Filters</span>
+                      <button type="button" class="btn btn-sm btn-secondary py-0 px-2" id="addCustomFilterBtn"
+                        style="font-size: 0.72rem; border-radius: 5px;">
                         <i class="bi bi-plus-circle me-1"></i>Add Custom Filter
                       </button>
                     </div>
@@ -591,8 +606,10 @@
           <div class="col-12">
             <div class="card shadow-sm">
               <div class="card-header d-flex justify-content-between align-items-center py-2 bg-light-subtle">
-                <span class="small fw-bold text-danger"><i class="bi bi-shield-exclamation me-2"></i>Result Set Completeness (Click card to filter records with missing values)</span>
-                <button type="button" class="btn btn-sm btn-outline-danger py-0 px-2" id="clearMissingFilterBtn" style="display: none; font-size: 0.75rem;">
+                <span class="small fw-bold"><i class="bi bi-shield-exclamation me-2 text-danger"></i>Result Set
+                  Completeness (Click card to filter records with missing values)</span>
+                <button type="button" class="btn btn-sm btn-outline-danger py-0 px-2" id="clearMissingFilterBtn"
+                  style="display: none; font-size: 0.75rem;">
                   <i class="bi bi-x-circle me-1"></i>Clear Missing Filter
                 </button>
               </div>
@@ -606,14 +623,14 @@
         </div>
 
         <div class="row g-3 mb-4">
-          
+
           <!-- Master Records Column (Full Width) -->
           <div class="col-12">
             <!-- Master Records Table -->
             <div class="card shadow-sm">
               <div class="card-header d-flex justify-content-between align-items-center py-2">
                 <span><i class="bi bi-database me-2 text-danger"></i>Master Records</span>
-                <button type="button" class="btn btn-outline-danger btn-sm fw-semibold" id="exportFilteredBtn">
+                <button type="button" class="btn btn-danger btn-sm fw-semibold" id="exportFilteredBtn">
                   <i class="bi bi-download me-1"></i>Export Filtered Records
                 </button>
               </div>
@@ -645,7 +662,8 @@
                   </table>
                 </div>
                 <!-- Pagination -->
-                <div class="d-flex flex-wrap justify-content-between align-items-center p-3" id="paginationControls"></div>
+                <div class="d-flex flex-wrap justify-content-between align-items-center p-3" id="paginationControls">
+                </div>
               </div>
             </div>
           </div>
@@ -654,7 +672,7 @@
 
         <!-- Bottom Info & Activity Layer -->
         <div class="row g-3">
-          
+
           <!-- Recent Activity Column (Full Width) -->
           <div class="col-12">
             <div class="card shadow-sm">
@@ -666,7 +684,7 @@
               </div>
             </div>
           </div>
-          
+
           <!-- System Overview Widget (Full Width) -->
           <div class="col-12">
             <div class="card shadow-sm">
@@ -757,7 +775,7 @@
               </div>
             </div>
           </div>
-          
+
         </div>
 
       </div>
@@ -779,7 +797,8 @@
         </div>
         <form id="uploadForm">
           <div class="modal-body p-4">
-            <div class="text-center p-4 border border-dashed rounded-3 mb-3" style="border: 2px dashed #b91c1c; background: #fef2f2;">
+            <div class="text-center p-4 border border-dashed rounded-3 mb-3"
+              style="border: 2px dashed #b91c1c; background: #fef2f2;">
               <i class="bi bi-file-earmark-excel fs-1 text-danger mb-3 d-block"></i>
               <h6 class="fw-bold">Select spreadsheet file</h6>
               <p class="text-muted small">Supports standard Excel formats (.xlsx, .xls) and CSV (.csv)</p>
@@ -819,145 +838,145 @@
   <div id="customFieldsData" data-fields='{{ custom_fields|tojson }}' style="display:none;"></div>
 
   <script>
-    document.addEventListener("DOMContentLoaded", function() {
-        const rawFields = document.getElementById("customFieldsData").getAttribute("data-fields");
-        window.customFieldsRegistry = JSON.parse(rawFields || "[]");
+    document.addEventListener("DOMContentLoaded", function () {
+      const rawFields = document.getElementById("customFieldsData").getAttribute("data-fields");
+      window.customFieldsRegistry = JSON.parse(rawFields || "[]");
 
-        window.selectedMissingField = "";
-        let currentPage = 1;
-        const perPage = 15;
+      window.selectedMissingField = "";
+      let currentPage = 1;
+      const perPage = 15;
 
-        const filterForm = document.getElementById("filterForm");
-        const recordsTableBody = document.getElementById("recordsTableBody");
-        const paginationControls = document.getElementById("paginationControls");
-        const customFiltersWrapper = document.getElementById("customFiltersWrapper");
-        const addCustomFilterBtn = document.getElementById("addCustomFilterBtn");
+      const filterForm = document.getElementById("filterForm");
+      const recordsTableBody = document.getElementById("recordsTableBody");
+      const paginationControls = document.getElementById("paginationControls");
+      const customFiltersWrapper = document.getElementById("customFiltersWrapper");
+      const addCustomFilterBtn = document.getElementById("addCustomFilterBtn");
 
-        // 1. Add multiple custom filter rows
-        function addCustomFilterRow(initialFieldId = "", initialValue = "") {
-            const rowDiv = document.createElement("div");
-            rowDiv.className = "col-md-6 custom-filter-row";
-            
-            let optionsHtml = '<option value="">-- Select Custom Attribute --</option>';
-            if (window.customFieldsRegistry) {
-                window.customFieldsRegistry.forEach(f => {
-                    const selected = String(f.id) === String(initialFieldId) ? "selected" : "";
-                    optionsHtml += `<option value="${f.id}" ${selected}>${f.field_name}</option>`;
-                });
-            }
-            
-            rowDiv.innerHTML = `
+      // 1. Add multiple custom filter rows
+      function addCustomFilterRow(initialFieldId = "", initialValue = "") {
+        const rowDiv = document.createElement("div");
+        rowDiv.className = "col-md-6 custom-filter-row";
+
+        let optionsHtml = '<option value="">-- Select Custom Attribute --</option>';
+        if (window.customFieldsRegistry) {
+          window.customFieldsRegistry.forEach(f => {
+            const selected = String(f.id) === String(initialFieldId) ? "selected" : "";
+            optionsHtml += `<option value="${f.id}" ${selected}>${f.field_name}</option>`;
+          });
+        }
+
+        rowDiv.innerHTML = `
                 <div class="input-group input-group-sm">
                     <select class="form-select custom-filter-field" style="max-width: 180px;" required>
                         ${optionsHtml}
                     </select>
                     <input type="text" class="form-control custom-filter-val" placeholder="Filter value..." value="${initialValue}" required>
-                    <button type="button" class="btn btn-outline-danger btn-remove-custom-filter">
+                    <button type="button" class="btn btn-danger btn-remove-custom-filter">
                         <i class="bi bi-trash-fill"></i>
                     </button>
                 </div>
             `;
-            
-            customFiltersWrapper.appendChild(rowDiv);
-            
-            // Attach delete handler
-            rowDiv.querySelector(".btn-remove-custom-filter").addEventListener("click", function() {
-                rowDiv.remove();
-            });
-        }
-        
-        if (addCustomFilterBtn) {
-            addCustomFilterBtn.addEventListener("click", () => addCustomFilterRow());
-        }
 
-        const toggleMoreFiltersBtn = document.getElementById("toggleMoreFiltersBtn");
-        const moreFiltersWrapper = document.getElementById("moreFiltersWrapper");
-        if (toggleMoreFiltersBtn && moreFiltersWrapper) {
-            toggleMoreFiltersBtn.addEventListener("click", function() {
-                if (moreFiltersWrapper.classList.contains("d-none")) {
-                    moreFiltersWrapper.classList.remove("d-none");
-                    toggleMoreFiltersBtn.innerHTML = '<i class="bi bi-funnel-fill me-1"></i>Filter Less';
-                    toggleMoreFiltersBtn.classList.remove("btn-outline-danger");
-                    toggleMoreFiltersBtn.classList.add("btn-danger");
-                } else {
-                    moreFiltersWrapper.classList.add("d-none");
-                    toggleMoreFiltersBtn.innerHTML = '<i class="bi bi-funnel me-1"></i>Filter More';
-                    toggleMoreFiltersBtn.classList.add("btn-outline-danger");
-                    toggleMoreFiltersBtn.classList.remove("btn-danger");
-                }
-            });
-        }
+        customFiltersWrapper.appendChild(rowDiv);
 
-        const exportFilteredBtn = document.getElementById("exportFilteredBtn");
-        if (exportFilteredBtn) {
-            exportFilteredBtn.addEventListener("click", function() {
-                const name = document.getElementById("filterName").value.trim();
-                const email = document.getElementById("filterEmail").value.trim();
-                const phone = document.getElementById("filterPhone").value.trim();
-                const company = document.getElementById("filterCompany").value.trim();
+        // Attach delete handler
+        rowDiv.querySelector(".btn-remove-custom-filter").addEventListener("click", function () {
+          rowDiv.remove();
+        });
+      }
 
-                const customFilters = [];
-                document.querySelectorAll(".custom-filter-row").forEach(row => {
-                    const fid = row.querySelector(".custom-filter-field").value;
-                    const val = row.querySelector(".custom-filter-val").value.trim();
-                    if (fid && val) {
-                        customFilters.push({ id: fid, val: val });
-                    }
-                });
+      if (addCustomFilterBtn) {
+        addCustomFilterBtn.addEventListener("click", () => addCustomFilterRow());
+      }
 
-                const queryParams = {
-                    name: name,
-                    email: email,
-                    phone: phone,
-                    company: company,
-                    custom_filters: JSON.stringify(customFilters)
-                };
+      const toggleMoreFiltersBtn = document.getElementById("toggleMoreFiltersBtn");
+      const moreFiltersWrapper = document.getElementById("moreFiltersWrapper");
+      if (toggleMoreFiltersBtn && moreFiltersWrapper) {
+        toggleMoreFiltersBtn.addEventListener("click", function () {
+          if (moreFiltersWrapper.classList.contains("d-none")) {
+            moreFiltersWrapper.classList.remove("d-none");
+            toggleMoreFiltersBtn.innerHTML = '<i class="bi bi-funnel-fill me-1"></i>Filter Less';
+            toggleMoreFiltersBtn.classList.remove("btn-outline-danger");
+            toggleMoreFiltersBtn.classList.add("btn-danger");
+          } else {
+            moreFiltersWrapper.classList.add("d-none");
+            toggleMoreFiltersBtn.innerHTML = '<i class="bi bi-funnel me-1"></i>Filter More';
+            toggleMoreFiltersBtn.classList.add("btn-outline-danger");
+            toggleMoreFiltersBtn.classList.remove("btn-danger");
+          }
+        });
+      }
 
-                const moreFields = [
-                    { id: "filterAlternatePhone", param: "alternate_phone_number" },
-                    { id: "filterJobTitle", param: "job_title" },
-                    { id: "filterDepartment", param: "department" },
-                    { id: "filterWebsiteUrl", param: "website_url" },
-                    { id: "filterAddress1", param: "address_line_1" },
-                    { id: "filterAddress2", param: "address_line_2" },
-                    { id: "filterCity", param: "city" },
-                    { id: "filterStateProvince", param: "state_province" },
-                    { id: "filterPostalZip", param: "postal_zip_code" },
-                    { id: "filterCountry", param: "country" },
-                    { id: "filterLinkedIn", param: "linkedin_profile_url" },
-                    { id: "filterIndustry", param: "industry" },
-                    { id: "filterLeadSource", param: "lead_source" },
-                    { id: "filterRecordStatus", param: "record_status" },
-                    { id: "filterDOB", param: "date_of_birth" },
-                    { id: "filterGender", param: "gender" },
-                    { id: "filterCompanySize", param: "company_size" },
-                    { id: "filterAnnualRevenue", param: "annual_revenue" }
-                ];
+      const exportFilteredBtn = document.getElementById("exportFilteredBtn");
+      if (exportFilteredBtn) {
+        exportFilteredBtn.addEventListener("click", function () {
+          const name = document.getElementById("filterName").value.trim();
+          const email = document.getElementById("filterEmail").value.trim();
+          const phone = document.getElementById("filterPhone").value.trim();
+          const company = document.getElementById("filterCompany").value.trim();
 
-                moreFields.forEach(f => {
-                    const el = document.getElementById(f.id);
-                    if (el) {
-                        const val = el.value.trim();
-                        if (val) {
-                            queryParams[f.param] = val;
-                        }
-                    }
-                });
+          const customFilters = [];
+          document.querySelectorAll(".custom-filter-row").forEach(row => {
+            const fid = row.querySelector(".custom-filter-field").value;
+            const val = row.querySelector(".custom-filter-val").value.trim();
+            if (fid && val) {
+              customFilters.push({ id: fid, val: val });
+            }
+          });
 
-                if (window.selectedMissingField) {
-                    queryParams["missing_field"] = window.selectedMissingField;
-                }
+          const queryParams = {
+            name: name,
+            email: email,
+            phone: phone,
+            company: company,
+            custom_filters: JSON.stringify(customFilters)
+          };
 
-                const params = new URLSearchParams(queryParams);
-                window.location.href = `/api/records/export?${params.toString()}`;
-            });
-        }
+          const moreFields = [
+            { id: "filterAlternatePhone", param: "alternate_phone_number" },
+            { id: "filterJobTitle", param: "job_title" },
+            { id: "filterDepartment", param: "department" },
+            { id: "filterWebsiteUrl", param: "website_url" },
+            { id: "filterAddress1", param: "address_line_1" },
+            { id: "filterAddress2", param: "address_line_2" },
+            { id: "filterCity", param: "city" },
+            { id: "filterStateProvince", param: "state_province" },
+            { id: "filterPostalZip", param: "postal_zip_code" },
+            { id: "filterCountry", param: "country" },
+            { id: "filterLinkedIn", param: "linkedin_profile_url" },
+            { id: "filterIndustry", param: "industry" },
+            { id: "filterLeadSource", param: "lead_source" },
+            { id: "filterRecordStatus", param: "record_status" },
+            { id: "filterDOB", param: "date_of_birth" },
+            { id: "filterGender", param: "gender" },
+            { id: "filterCompanySize", param: "company_size" },
+            { id: "filterAnnualRevenue", param: "annual_revenue" }
+          ];
 
-        // 2. Fetch and render records
-        function fetchRecords(page = 1) {
-            currentPage = page;
-            if (!recordsTableBody) return;
-            recordsTableBody.innerHTML = `
+          moreFields.forEach(f => {
+            const el = document.getElementById(f.id);
+            if (el) {
+              const val = el.value.trim();
+              if (val) {
+                queryParams[f.param] = val;
+              }
+            }
+          });
+
+          if (window.selectedMissingField) {
+            queryParams["missing_field"] = window.selectedMissingField;
+          }
+
+          const params = new URLSearchParams(queryParams);
+          window.location.href = `/api/records/export?${params.toString()}`;
+        });
+      }
+
+      // 2. Fetch and render records
+      function fetchRecords(page = 1) {
+        currentPage = page;
+        if (!recordsTableBody) return;
+        recordsTableBody.innerHTML = `
                 <tr>
                     <td colspan="8" class="text-center py-5">
                         <div class="spinner-border text-danger" role="status">
@@ -968,83 +987,83 @@
                 </tr>
             `;
 
-            // Gather filters
-            const name = document.getElementById("filterName").value.trim();
-            const email = document.getElementById("filterEmail").value.trim();
-            const phone = document.getElementById("filterPhone").value.trim();
-            const company = document.getElementById("filterCompany").value.trim();
+        // Gather filters
+        const name = document.getElementById("filterName").value.trim();
+        const email = document.getElementById("filterEmail").value.trim();
+        const phone = document.getElementById("filterPhone").value.trim();
+        const company = document.getElementById("filterCompany").value.trim();
 
-            const customFilters = [];
-            document.querySelectorAll(".custom-filter-row").forEach(row => {
-                const fid = row.querySelector(".custom-filter-field").value;
-                const val = row.querySelector(".custom-filter-val").value.trim();
-                if (fid && val) {
-                    customFilters.push({ id: fid, val: val });
-                }
-            });
+        const customFilters = [];
+        document.querySelectorAll(".custom-filter-row").forEach(row => {
+          const fid = row.querySelector(".custom-filter-field").value;
+          const val = row.querySelector(".custom-filter-val").value.trim();
+          if (fid && val) {
+            customFilters.push({ id: fid, val: val });
+          }
+        });
 
-            // Construct query parameters
-            const queryParams = {
-                page: page,
-                per_page: perPage,
-                name: name,
-                email: email,
-                phone: phone,
-                company: company,
-                custom_filters: JSON.stringify(customFilters)
-            };
+        // Construct query parameters
+        const queryParams = {
+          page: page,
+          per_page: perPage,
+          name: name,
+          email: email,
+          phone: phone,
+          company: company,
+          custom_filters: JSON.stringify(customFilters)
+        };
 
-            // Gather and set other master columns dynamically
-            const moreFields = [
-                { id: "filterAlternatePhone", param: "alternate_phone_number" },
-                { id: "filterJobTitle", param: "job_title" },
-                { id: "filterDepartment", param: "department" },
-                { id: "filterWebsiteUrl", param: "website_url" },
-                { id: "filterAddress1", param: "address_line_1" },
-                { id: "filterAddress2", param: "address_line_2" },
-                { id: "filterCity", param: "city" },
-                { id: "filterStateProvince", param: "state_province" },
-                { id: "filterPostalZip", param: "postal_zip_code" },
-                { id: "filterCountry", param: "country" },
-                { id: "filterLinkedIn", param: "linkedin_profile_url" },
-                { id: "filterIndustry", param: "industry" },
-                { id: "filterLeadSource", param: "lead_source" },
-                { id: "filterRecordStatus", param: "record_status" },
-                { id: "filterDOB", param: "date_of_birth" },
-                { id: "filterGender", param: "gender" },
-                { id: "filterCompanySize", param: "company_size" },
-                { id: "filterAnnualRevenue", param: "annual_revenue" }
-            ];
+        // Gather and set other master columns dynamically
+        const moreFields = [
+          { id: "filterAlternatePhone", param: "alternate_phone_number" },
+          { id: "filterJobTitle", param: "job_title" },
+          { id: "filterDepartment", param: "department" },
+          { id: "filterWebsiteUrl", param: "website_url" },
+          { id: "filterAddress1", param: "address_line_1" },
+          { id: "filterAddress2", param: "address_line_2" },
+          { id: "filterCity", param: "city" },
+          { id: "filterStateProvince", param: "state_province" },
+          { id: "filterPostalZip", param: "postal_zip_code" },
+          { id: "filterCountry", param: "country" },
+          { id: "filterLinkedIn", param: "linkedin_profile_url" },
+          { id: "filterIndustry", param: "industry" },
+          { id: "filterLeadSource", param: "lead_source" },
+          { id: "filterRecordStatus", param: "record_status" },
+          { id: "filterDOB", param: "date_of_birth" },
+          { id: "filterGender", param: "gender" },
+          { id: "filterCompanySize", param: "company_size" },
+          { id: "filterAnnualRevenue", param: "annual_revenue" }
+        ];
 
-            moreFields.forEach(f => {
-                const el = document.getElementById(f.id);
-                if (el) {
-                    const val = el.value.trim();
-                    if (val) {
-                        queryParams[f.param] = val;
-                    }
-                }
-            });
-
-            const params = new URLSearchParams(queryParams);
-
-            if (window.selectedMissingField) {
-                params.set("missing_field", window.selectedMissingField);
+        moreFields.forEach(f => {
+          const el = document.getElementById(f.id);
+          if (el) {
+            const val = el.value.trim();
+            if (val) {
+              queryParams[f.param] = val;
             }
+          }
+        });
 
-            fetch(`/api/records?${params.toString()}`)
-                .then(res => {
-                    if (!res.ok) throw new Error("Network response was not ok");
-                    return res.json();
-                })
-                .then(data => {
-                    renderTable(data.records);
-                    renderPagination(data.total, data.page, data.pages);
-                    renderMissingStats(data.missing_stats);
-                })
-                .catch(err => {
-                    console.error(err);
-                    recordsTableBody.innerHTML = `
+        const params = new URLSearchParams(queryParams);
+
+        if (window.selectedMissingField) {
+          params.set("missing_field", window.selectedMissingField);
+        }
+
+        fetch(`/api/records?${params.toString()}`)
+          .then(res => {
+            if (!res.ok) throw new Error("Network response was not ok");
+            return res.json();
+          })
+          .then(data => {
+            renderTable(data.records);
+            renderPagination(data.total, data.page, data.pages);
+            renderMissingStats(data.missing_stats);
+          })
+          .catch(err => {
+            console.error(err);
+            recordsTableBody.innerHTML = `
                         <tr>
                             <td colspan="8" class="text-center py-5 text-danger">
                                 <i class="bi bi-exclamation-triangle-fill fs-3 mb-2 d-block"></i>
@@ -1052,12 +1071,12 @@
                             </td>
                         </tr>
                     `;
-                });
-        }
+          });
+      }
 
-        function renderTable(records) {
-            if (!records || records.length === 0) {
-                recordsTableBody.innerHTML = `
+      function renderTable(records) {
+        if (!records || records.length === 0) {
+          recordsTableBody.innerHTML = `
                     <tr>
                         <td colspan="8" class="text-center py-5 text-muted">
                             <i class="bi bi-folder2-open fs-2 mb-3 d-block"></i>
@@ -1065,59 +1084,59 @@
                         </td>
                     </tr>
                 `;
-                return;
-            }
+          return;
+        }
 
-            let html = "";
-            records.forEach(r => {
-                const hasCustom = r.custom_fields && Object.keys(r.custom_fields).length > 0;
-                const location = [r.city, r.state, r.country].filter(Boolean).join(", ") || "--";
-                
-                html += `
+        let html = "";
+        records.forEach(r => {
+          const hasCustom = r.custom_fields && Object.keys(r.custom_fields).length > 0;
+          const location = [r.city, r.state, r.country].filter(Boolean).join(", ") || "--";
+
+          html += `
                     <tr>
                         <td><span class="badge bg-secondary">#${r.id}</span></td>
-                        <td><strong class="text-dark">${r.name || "--"}</strong></td>
+                        <td><strong>${r.name || "--"}</strong></td>
                         <td><span class="text-muted">${r.email || "--"}</span></td>
-                        <td><span class="text-muted">${r.phone || "--"}</span></td>
+                        <td><span class="text-muted">${r.phone ? String(r.phone).replace(/\.0+$/, '') : "--"}</span></td>
                         <td><span class="text-muted">${r.company || "--"}</span></td>
                         <td><span class="text-muted small">${location}</span></td>
                         <td class="text-center">
-                            ${hasCustom ? 
-                                `<span class="badge bg-danger-subtle text-danger px-3 py-1">${Object.keys(r.custom_fields).length} attributes</span>` : 
-                                `<span class="text-muted small">none</span>`
-                            }
+                            ${hasCustom ?
+              `<span class="badge bg-danger-subtle text-danger px-3 py-1">${Object.keys(r.custom_fields).length} attributes</span>` :
+              `<span class="text-muted small">none</span>`
+            }
                         </td>
                         <td class="text-center">
-                            <button class="btn btn-sm btn-outline-danger btn-view-details" data-id="${r.id}">
-                                <i class="bi bi-zoom-in"></i> View Details
+                            <button class="btn btn-sm btn-danger btn-view-details" data-id="${r.id}">
+                                View Details
                             </button>
                         </td>
                     </tr>
                 `;
-            });
-            recordsTableBody.innerHTML = html;
+        });
+        recordsTableBody.innerHTML = html;
 
-            // Attach listeners to View Details buttons
-            document.querySelectorAll(".btn-view-details").forEach(btn => {
-                btn.addEventListener("click", function() {
-                    const recordId = this.getAttribute("data-id");
-                    showRecordDetails(recordId);
-                });
-            });
+        // Attach listeners to View Details buttons
+        document.querySelectorAll(".btn-view-details").forEach(btn => {
+          btn.addEventListener("click", function () {
+            const recordId = this.getAttribute("data-id");
+            showRecordDetails(recordId);
+          });
+        });
+      }
+
+      function renderPagination(total, page, pages) {
+        if (total === 0 || !paginationControls) {
+          paginationControls.innerHTML = "";
+          return;
         }
 
-        function renderPagination(total, page, pages) {
-            if (total === 0 || !paginationControls) {
-                paginationControls.innerHTML = "";
-                return;
-            }
+        const startIdx = (page - 1) * perPage + 1;
+        const endIdx = Math.min(page * perPage, total);
 
-            const startIdx = (page - 1) * perPage + 1;
-            const endIdx = Math.min(page * perPage, total);
-            
-            let html = `
+        let html = `
                 <div class="text-muted small mb-2 mb-md-0">
-                    Showing <strong class="text-dark">${startIdx}</strong> to <strong class="text-dark">${endIdx}</strong> of <strong class="text-dark">${total}</strong> records
+                    Showing <strong>${startIdx}</strong> to <strong>${endIdx}</strong> of <strong>${total}</strong> records
                 </div>
                 <nav>
                     <ul class="pagination pagination-sm mb-0">
@@ -1128,34 +1147,34 @@
                         </li>
             `;
 
-            let startPage = Math.max(1, page - 2);
-            let endPage = Math.min(pages, page + 2);
+        let startPage = Math.max(1, page - 2);
+        let endPage = Math.min(pages, page + 2);
 
-            if (startPage > 1) {
-                html += `<li class="page-item"><button class="page-link page-btn" data-page="1">1</button></li>`;
-                if (startPage > 2) {
-                    html += `<li class="page-item disabled"><span class="page-link text-muted">...</span></li>`;
-                }
-            }
+        if (startPage > 1) {
+          html += `<li class="page-item"><button class="page-link page-btn" data-page="1">1</button></li>`;
+          if (startPage > 2) {
+            html += `<li class="page-item disabled"><span class="page-link text-muted">...</span></li>`;
+          }
+        }
 
-            for (let i = startPage; i <= endPage; i++) {
-                html += `
+        for (let i = startPage; i <= endPage; i++) {
+          html += `
                     <li class="page-item ${i === page ? 'active' : ''}">
                         <button class="page-link page-btn" data-page="${i}">
                             ${i}
                         </button>
                     </li>
                 `;
-            }
+        }
 
-            if (endPage < pages) {
-                if (endPage < pages - 1) {
-                    html += `<li class="page-item disabled"><span class="page-link text-muted">...</span></li>`;
-                }
-                html += `<li class="page-item"><button class="page-link page-btn" data-page="${pages}">${pages}</button></li>`;
-            }
+        if (endPage < pages) {
+          if (endPage < pages - 1) {
+            html += `<li class="page-item disabled"><span class="page-link text-muted">...</span></li>`;
+          }
+          html += `<li class="page-item"><button class="page-link page-btn" data-page="${pages}">${pages}</button></li>`;
+        }
 
-            html += `
+        html += `
                         <li class="page-item ${page === pages ? 'disabled' : ''}">
                             <button class="page-link page-btn" data-page="${page + 1}">
                                 <i class="bi bi-chevron-right"></i>
@@ -1165,111 +1184,111 @@
                 </nav>
             `;
 
-            paginationControls.innerHTML = html;
+        paginationControls.innerHTML = html;
 
-            // Attach listeners to page buttons
-            document.querySelectorAll(".page-btn").forEach(btn => {
-                btn.addEventListener("click", function() {
-                    const targetPage = parseInt(this.getAttribute("data-page"));
-                    fetchRecords(targetPage);
-                });
-            });
-        }
+        // Attach listeners to page buttons
+        document.querySelectorAll(".page-btn").forEach(btn => {
+          btn.addEventListener("click", function () {
+            const targetPage = parseInt(this.getAttribute("data-page"));
+            fetchRecords(targetPage);
+          });
+        });
+      }
 
-        // 3. Search Form Submission
-        if (filterForm) {
-            filterForm.addEventListener("submit", function(e) {
-                e.preventDefault();
-                fetchRecords(1);
-            });
-        }
+      // 3. Search Form Submission
+      if (filterForm) {
+        filterForm.addEventListener("submit", function (e) {
+          e.preventDefault();
+          fetchRecords(1);
+        });
+      }
 
-        // 4. View Custom Details Modal Resolver
-        const detailsModalEl = document.getElementById('detailsModal');
-        const detailsModal = detailsModalEl ? new bootstrap.Modal(detailsModalEl) : null;
-        const detailsModalBody = document.getElementById("detailsModalBody");
-        const detailsModalTitle = document.getElementById("detailsModalTitle");
+      // 4. View Custom Details Modal Resolver
+      const detailsModalEl = document.getElementById('detailsModal');
+      const detailsModal = detailsModalEl ? new bootstrap.Modal(detailsModalEl) : null;
+      const detailsModalBody = document.getElementById("detailsModalBody");
+      const detailsModalTitle = document.getElementById("detailsModalTitle");
 
-        function showRecordDetails(id) {
-            if (!detailsModal || !detailsModalTitle || !detailsModalBody) return;
-            detailsModalTitle.innerText = `Record Details (ID: #${id})`;
-            detailsModalBody.innerHTML = `
+      function showRecordDetails(id) {
+        if (!detailsModal || !detailsModalTitle || !detailsModalBody) return;
+        detailsModalTitle.innerText = `Record Details (ID: #${id})`;
+        detailsModalBody.innerHTML = `
                 <div class="text-center py-4">
                     <div class="spinner-border text-danger" role="status">
                         <span class="visually-hidden">Loading details...</span>
                     </div>
                 </div>
             `;
-            detailsModal.show();
+        detailsModal.show();
 
-            fetch(`/api/records/${id}/custom`)
-                .then(res => {
-                    if (!res.ok) throw new Error("Could not resolve details");
-                    return res.json();
-                })
-                .then(data => {
-                    if (!data || Object.keys(data).length === 0) {
-                        detailsModalBody.innerHTML = `
+        fetch(`/api/records/${id}/custom`)
+          .then(res => {
+            if (!res.ok) throw new Error("Could not resolve details");
+            return res.json();
+          })
+          .then(data => {
+            if (!data || Object.keys(data).length === 0) {
+              detailsModalBody.innerHTML = `
                             <div class="alert alert-secondary mb-0">
                                 <i class="bi bi-info-circle me-2"></i> No custom JSON attributes registered for this record.
                             </div>
                         `;
-                        return;
-                    }
+              return;
+            }
 
-                    let html = `<ul class="list-group list-group-flush bg-transparent">`;
-                    for (const [key, val] of Object.entries(data)) {
-                        html += `
-                            <li class="list-group-item bg-transparent text-dark border-light-subtle px-0 py-2 d-flex justify-content-between align-items-center">
+            let html = `<ul class="list-group list-group-flush bg-transparent">`;
+            for (const [key, val] of Object.entries(data)) {
+              html += `
+                            <li class="list-group-item bg-transparent border-light-subtle px-0 py-2 d-flex justify-content-between align-items-center">
                                 <div class="fw-semibold text-muted">${key}</div>
                                 <div class="text-danger text-end ms-2 font-monospace">${val}</div>
                             </li>
                         `;
-                    }
-                    html += `</ul>`;
-                    detailsModalBody.innerHTML = html;
-                })
-                .catch(err => {
-                    console.error(err);
-                    detailsModalBody.innerHTML = `
+            }
+            html += `</ul>`;
+            detailsModalBody.innerHTML = html;
+          })
+          .catch(err => {
+            console.error(err);
+            detailsModalBody.innerHTML = `
                         <div class="alert alert-danger mb-0">
                             <i class="bi bi-exclamation-octagon me-2"></i> Failed to resolve custom JSON details.
                         </div>
                     `;
-                });
-        }
+          });
+      }
 
-        // 5. Upload Sheet AJAX Form submission
-        const uploadForm = document.getElementById("uploadForm");
-        const uploadStatus = document.getElementById("uploadStatus");
-        const uploadSubmitBtn = document.getElementById("uploadSubmitBtn");
+      // 5. Upload Sheet AJAX Form submission
+      const uploadForm = document.getElementById("uploadForm");
+      const uploadStatus = document.getElementById("uploadStatus");
+      const uploadSubmitBtn = document.getElementById("uploadSubmitBtn");
 
-        const masterColumnsList = [
-            { value: "master:full_name", text: "Full Name" },
-            { value: "master:email_address", text: "Email Address" },
-            { value: "master:primary_phone_number", text: "Primary Phone Number" },
-            { value: "master:alternate_phone_number", text: "Alternate Phone Number" },
-            { value: "master:company_name", text: "Company Name" },
-            { value: "master:job_title", text: "Job Title" },
-            { value: "master:department", text: "Department" },
-            { value: "master:website_url", text: "Website URL" },
-            { value: "master:address_line_1", text: "Address Line 1" },
-            { value: "master:address_line_2", text: "Address Line 2" },
-            { value: "master:city", text: "City" },
-            { value: "master:state_province", text: "State / Province" },
-            { value: "master:postal_zip_code", text: "Postal / ZIP Code" },
-            { value: "master:country", text: "Country" },
-            { value: "master:linkedin_profile_url", text: "LinkedIn Profile URL" },
-            { value: "master:industry", text: "Industry" },
-            { value: "master:lead_source", text: "Lead Source" },
-            { value: "master:record_status", text: "Record Status" },
-            { value: "master:date_of_birth", text: "Date of Birth" },
-            { value: "master:gender", text: "Gender" },
-            { value: "master:company_size", text: "Company Size" },
-            { value: "master:annual_revenue", text: "Annual Revenue" }
-        ];
+      const masterColumnsList = [
+        { value: "master:full_name", text: "Full Name" },
+        { value: "master:email_address", text: "Email Address" },
+        { value: "master:primary_phone_number", text: "Primary Phone Number" },
+        { value: "master:alternate_phone_number", text: "Alternate Phone Number" },
+        { value: "master:company_name", text: "Company Name" },
+        { value: "master:job_title", text: "Job Title" },
+        { value: "master:department", text: "Department" },
+        { value: "master:website_url", text: "Website URL" },
+        { value: "master:address_line_1", text: "Address Line 1" },
+        { value: "master:address_line_2", text: "Address Line 2" },
+        { value: "master:city", text: "City" },
+        { value: "master:state_province", text: "State / Province" },
+        { value: "master:postal_zip_code", text: "Postal / ZIP Code" },
+        { value: "master:country", text: "Country" },
+        { value: "master:linkedin_profile_url", text: "LinkedIn Profile URL" },
+        { value: "master:industry", text: "Industry" },
+        { value: "master:lead_source", text: "Lead Source" },
+        { value: "master:record_status", text: "Record Status" },
+        { value: "master:date_of_birth", text: "Date of Birth" },
+        { value: "master:gender", text: "Gender" },
+        { value: "master:company_size", text: "Company Size" },
+        { value: "master:annual_revenue", text: "Annual Revenue" }
+      ];
 
-        const initialModalBodyHtml = `
+      const initialModalBodyHtml = `
             <div class="text-center p-4 border border-dashed rounded-3 mb-3" style="border: 2px dashed #b91c1c; background: #fef2f2;">
               <i class="bi bi-file-earmark-excel fs-1 text-danger mb-3 d-block"></i>
               <h6 class="fw-bold">Select spreadsheet file</h6>
@@ -1279,27 +1298,27 @@
             <div id="uploadStatus" class="alert d-none"></div>
         `;
 
-        window.resetUploadModal = function() {
-            const modalBody = document.querySelector("#uploadModal .modal-body");
-            const modalFooter = document.querySelector("#uploadModal .modal-footer");
-            
-            modalBody.innerHTML = initialModalBodyHtml;
-            modalFooter.innerHTML = `
+      window.resetUploadModal = function () {
+        const modalBody = document.querySelector("#uploadModal .modal-body");
+        const modalFooter = document.querySelector("#uploadModal .modal-footer");
+
+        modalBody.innerHTML = initialModalBodyHtml;
+        modalFooter.innerHTML = `
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                 <button type="submit" class="btn btn-danger px-4" id="uploadSubmitBtn">
                   Start Ingestion
                 </button>
             `;
-        };
+      };
 
-        window.renderMappingUI = function(data) {
-            const modalBody = document.querySelector("#uploadModal .modal-body");
-            const modalFooter = document.querySelector("#uploadModal .modal-footer");
-            
-            window.uploadDraftFilename = data.filename;
-            window.uploadDraftOriginalFilename = data.original_filename;
-            
-            let html = `
+      window.renderMappingUI = function (data) {
+        const modalBody = document.querySelector("#uploadModal .modal-body");
+        const modalFooter = document.querySelector("#uploadModal .modal-footer");
+
+        window.uploadDraftFilename = data.filename;
+        window.uploadDraftOriginalFilename = data.original_filename;
+
+        let html = `
                 <div class="mb-3">
                     <h6 class="fw-bold text-danger"><i class="bi bi-shuffle me-1"></i>Map Excel Columns</h6>
                     <p class="text-muted small">Align spreadsheet columns with master columns or custom registry definitions.</p>
@@ -1314,33 +1333,33 @@
                         </thead>
                         <tbody>
             `;
-            
-            data.columns.forEach(col => {
-                const suggestion = data.suggestions[col] || "create_new";
-                
-                let options = `<option value="ignore" ${suggestion === "ignore" ? "selected" : ""}>[Ignore Column]</option>`;
-                options += `<option value="create_new" ${suggestion === "create_new" ? "selected" : ""}>[Create New Custom Field]</option>`;
-                
-                // Master Columns optgroup
-                options += `<optgroup label="Master Columns">`;
-                masterColumnsList.forEach(m => {
-                    const selected = suggestion === m.value ? "selected" : "";
-                    options += `<option value="${m.value}" ${selected}>${m.text}</option>`;
-                });
-                options += `</optgroup>`;
-                
-                // Custom Fields optgroup
-                options += `<optgroup label="Custom Fields">`;
-                data.custom_fields.forEach(c => {
-                    const val = `custom:${c.id}`;
-                    const selected = suggestion === val ? "selected" : "";
-                    options += `<option value="${val}" ${selected}>${c.field_name}</option>`;
-                });
-                options += `</optgroup>`;
-                
-                html += `
+
+        data.columns.forEach(col => {
+          const suggestion = data.suggestions[col] || "create_new";
+
+          let options = `<option value="ignore" ${suggestion === "ignore" ? "selected" : ""}>[Ignore Column]</option>`;
+          options += `<option value="create_new" ${suggestion === "create_new" ? "selected" : ""}>[Create New Custom Field]</option>`;
+
+          // Master Columns optgroup
+          options += `<optgroup label="Master Columns">`;
+          masterColumnsList.forEach(m => {
+            const selected = suggestion === m.value ? "selected" : "";
+            options += `<option value="${m.value}" ${selected}>${m.text}</option>`;
+          });
+          options += `</optgroup>`;
+
+          // Custom Fields optgroup
+          options += `<optgroup label="Custom Fields">`;
+          data.custom_fields.forEach(c => {
+            const val = `custom:${c.id}`;
+            const selected = suggestion === val ? "selected" : "";
+            options += `<option value="${val}" ${selected}>${c.field_name}</option>`;
+          });
+          options += `</optgroup>`;
+
+          html += `
                     <tr class="mapping-row" data-excel-col="${col}">
-                        <td><strong class="text-dark">${col}</strong></td>
+                        <td><strong>${col}</strong></td>
                         <td>
                             <select class="form-select form-select-sm mapping-select">
                                 ${options}
@@ -1348,172 +1367,172 @@
                         </td>
                     </tr>
                 `;
-            });
-            
-            html += `
+        });
+
+        html += `
                         </tbody>
                     </table>
                 </div>
                 <div id="uploadStatus" class="alert d-none mt-3"></div>
             `;
-            
-            modalBody.innerHTML = html;
-            modalFooter.innerHTML = `
+
+        modalBody.innerHTML = html;
+        modalFooter.innerHTML = `
                 <button type="button" class="btn btn-secondary" onclick="resetUploadModal()">Back</button>
                 <button type="button" class="btn btn-danger px-4" id="proceedIngestionSubmitBtn" onclick="submitMappingIngestion()">
                     Confirm & Ingest
                 </button>
             `;
-        };
+      };
 
-        window.submitMappingIngestion = function() {
-            const btn = document.getElementById("proceedIngestionSubmitBtn");
-            const statusDiv = document.getElementById("uploadStatus");
-            
-            const mapping = {};
-            document.querySelectorAll(".mapping-row").forEach(row => {
-                const col = row.dataset.excelCol;
-                const target = row.querySelector(".mapping-select").value;
-                mapping[col] = target;
-            });
-            
-            btn.disabled = true;
-            btn.innerHTML = `<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Ingesting...`;
-            
-            statusDiv.className = "alert alert-info";
-            statusDiv.innerHTML = `<i class="bi bi-info-circle me-2"></i>Running database ingestion and checking for duplicates. Please wait...`;
-            statusDiv.classList.remove("d-none");
-            
-            fetch("/api/browser/proceed-ingestion", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({
-                    filename: window.uploadDraftFilename,
-                    original_filename: window.uploadDraftOriginalFilename,
-                    mapping: mapping
-                })
-            })
+      window.submitMappingIngestion = function () {
+        const btn = document.getElementById("proceedIngestionSubmitBtn");
+        const statusDiv = document.getElementById("uploadStatus");
+
+        const mapping = {};
+        document.querySelectorAll(".mapping-row").forEach(row => {
+          const col = row.dataset.excelCol;
+          const target = row.querySelector(".mapping-select").value;
+          mapping[col] = target;
+        });
+
+        btn.disabled = true;
+        btn.innerHTML = `<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Ingesting...`;
+
+        statusDiv.className = "alert alert-info";
+        statusDiv.innerHTML = `<i class="bi bi-info-circle me-2"></i>Running database ingestion and checking for duplicates. Please wait...`;
+        statusDiv.classList.remove("d-none");
+
+        fetch("/api/browser/proceed-ingestion", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            filename: window.uploadDraftFilename,
+            original_filename: window.uploadDraftOriginalFilename,
+            mapping: mapping
+          })
+        })
+          .then(res => {
+            if (!res.ok) {
+              return res.json().then(data => { throw new Error(data.error || "Ingestion failed"); });
+            }
+            return res.json();
+          })
+          .then(data => {
+            statusDiv.className = "alert alert-success";
+            statusDiv.innerHTML = `<i class="bi bi-check-circle me-2"></i> Ingestion started successfully! Redirecting to Import History...`;
+
+            setTimeout(() => {
+              window.location.href = "/history";
+            }, 1500);
+          })
+          .catch(err => {
+            console.error(err);
+            statusDiv.className = "alert alert-danger";
+            statusDiv.innerHTML = `<i class="bi bi-exclamation-triangle-fill me-2"></i> Error: ${err.message}`;
+            btn.disabled = false;
+            btn.innerHTML = `Confirm & Ingest`;
+          });
+      };
+
+      if (uploadForm) {
+        uploadForm.addEventListener("submit", function (e) {
+          e.preventDefault();
+
+          const fileInput = document.getElementById("excelFile");
+          if (!fileInput) return; // Mapping is visible
+
+          if (!fileInput.files || fileInput.files.length === 0) {
+            alert("Please select a file to upload.");
+            return;
+          }
+
+          const file = fileInput.files[0];
+          const formData = new FormData();
+          formData.append("file", file);
+
+          uploadSubmitBtn.disabled = true;
+          uploadSubmitBtn.innerHTML = `<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Uploading...`;
+
+          const statusDiv = document.getElementById("uploadStatus");
+          statusDiv.className = "alert alert-info";
+          statusDiv.innerHTML = `<i class="bi bi-info-circle me-2"></i>Uploading spreadsheet file, please wait...`;
+          statusDiv.classList.remove("d-none");
+
+          fetch("/api/upload-draft", {
+            method: "POST",
+            body: formData
+          })
             .then(res => {
-                if (!res.ok) {
-                    return res.json().then(data => { throw new Error(data.error || "Ingestion failed"); });
-                }
-                return res.json();
+              if (!res.ok) {
+                return res.json().then(data => { throw new Error(data.error || "Upload failed"); });
+              }
+              return res.json();
             })
             .then(data => {
-                statusDiv.className = "alert alert-success";
-                statusDiv.innerHTML = `<i class="bi bi-check-circle me-2"></i> Ingestion started successfully! Redirecting to Import History...`;
-                
-                setTimeout(() => {
-                    window.location.href = "/history";
-                }, 1500);
+              renderMappingUI(data);
             })
             .catch(err => {
-                console.error(err);
-                statusDiv.className = "alert alert-danger";
-                statusDiv.innerHTML = `<i class="bi bi-exclamation-triangle-fill me-2"></i> Error: ${err.message}`;
-                btn.disabled = false;
-                btn.innerHTML = `Confirm & Ingest`;
+              console.error(err);
+              const statusDiv = document.getElementById("uploadStatus");
+              statusDiv.className = "alert alert-danger";
+              statusDiv.innerHTML = `<i class="bi bi-exclamation-triangle-fill me-2"></i> Error: ${err.message}`;
+              uploadSubmitBtn.disabled = false;
+              uploadSubmitBtn.innerText = "Start Ingestion";
             });
-        };
+        });
+      }
 
-        if (uploadForm) {
-            uploadForm.addEventListener("submit", function(e) {
-                e.preventDefault();
-                
-                const fileInput = document.getElementById("excelFile");
-                if (!fileInput) return; // Mapping is visible
-                
-                if (!fileInput.files || fileInput.files.length === 0) {
-                    alert("Please select a file to upload.");
-                    return;
-                }
+      // 6. Data Quality & Completeness Stats Renderer
+      let lastStats = null;
+      let showAllStats = false;
+      const missingStatsCard = document.getElementById("missingStatsCard");
+      const missingStatsContainer = document.getElementById("missingStatsContainer");
+      const clearMissingFilterBtn = document.getElementById("clearMissingFilterBtn");
 
-                const file = fileInput.files[0];
-                const formData = new FormData();
-                formData.append("file", file);
+      // Format column name to human-readable title
+      function formatFieldName(col) {
+        return col.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+      }
 
-                uploadSubmitBtn.disabled = true;
-                uploadSubmitBtn.innerHTML = `<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Uploading...`;
-                
-                const statusDiv = document.getElementById("uploadStatus");
-                statusDiv.className = "alert alert-info";
-                statusDiv.innerHTML = `<i class="bi bi-info-circle me-2"></i>Uploading spreadsheet file, please wait...`;
-                statusDiv.classList.remove("d-none");
-
-                fetch("/api/upload-draft", {
-                    method: "POST",
-                    body: formData
-                })
-                .then(res => {
-                    if (!res.ok) {
-                        return res.json().then(data => { throw new Error(data.error || "Upload failed"); });
-                    }
-                    return res.json();
-                })
-                .then(data => {
-                    renderMappingUI(data);
-                })
-                .catch(err => {
-                    console.error(err);
-                    const statusDiv = document.getElementById("uploadStatus");
-                    statusDiv.className = "alert alert-danger";
-                    statusDiv.innerHTML = `<i class="bi bi-exclamation-triangle-fill me-2"></i> Error: ${err.message}`;
-                    uploadSubmitBtn.disabled = false;
-                    uploadSubmitBtn.innerText = "Start Ingestion";
-                });
-            });
+      function renderMissingStats(stats) {
+        if (!missingStatsCard || !missingStatsContainer) return;
+        if (!stats || Object.keys(stats).length === 0) {
+          missingStatsCard.classList.add("d-none");
+          return;
         }
 
-        // 6. Data Quality & Completeness Stats Renderer
-        let lastStats = null;
-        let showAllStats = false;
-        const missingStatsCard = document.getElementById("missingStatsCard");
-        const missingStatsContainer = document.getElementById("missingStatsContainer");
-        const clearMissingFilterBtn = document.getElementById("clearMissingFilterBtn");
+        lastStats = stats;
+        missingStatsCard.classList.remove("d-none");
 
-        // Format column name to human-readable title
-        function formatFieldName(col) {
-            return col.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+        // Convert stats object to an array of entries
+        let entries = Object.entries(stats);
+
+        // Sort by percentage in descending order
+        entries.sort((a, b) => b[1].percentage - a[1].percentage);
+
+        // Filter out 0% missing items if showAllStats is false, or slice to first 5 items
+        let visibleEntries = entries;
+        let showMoreBox = false;
+
+        if (!showAllStats) {
+          visibleEntries = entries.slice(0, 5);
+          showMoreBox = true;
         }
 
-        function renderMissingStats(stats) {
-            if (!missingStatsCard || !missingStatsContainer) return;
-            if (!stats || Object.keys(stats).length === 0) {
-                missingStatsCard.classList.add("d-none");
-                return;
-            }
+        let html = "";
+        visibleEntries.forEach(([col, info]) => {
+          const pct = info.percentage;
+          const count = info.count;
+          const label = formatFieldName(col);
 
-            lastStats = stats;
-            missingStatsCard.classList.remove("d-none");
+          // Color card according to completeness level
+          let badgeClass = "text-body border-secondary-subtle";
+          const activeClass = window.selectedMissingField === col ? "border border-danger border-3 bg-danger-subtle text-danger shadow" : "border-1 bg-body-tertiary";
 
-            // Convert stats object to an array of entries
-            let entries = Object.entries(stats);
-
-            // Sort by percentage in descending order
-            entries.sort((a, b) => b[1].percentage - a[1].percentage);
-
-            // Filter out 0% missing items if showAllStats is false, or slice to first 5 items
-            let visibleEntries = entries;
-            let showMoreBox = false;
-
-            if (!showAllStats) {
-                visibleEntries = entries.slice(0, 5);
-                showMoreBox = true;
-            }
-
-            let html = "";
-            visibleEntries.forEach(([col, info]) => {
-                const pct = info.percentage;
-                const count = info.count;
-                const label = formatFieldName(col);
-                
-                // Color card according to completeness level - all styled in red theme matching user request
-                let badgeClass = "bg-danger-subtle text-danger border-danger-subtle";
-                const activeClass = window.selectedMissingField === col ? "border border-danger border-3 bg-white text-danger shadow" : "border-1";
-                
-                html += `
+          html += `
                     <div class="col-6 col-sm-4 col-md-3 col-lg-2">
                         <div class="card h-100 ${badgeClass} ${activeClass} text-center p-3 d-flex flex-column justify-content-center align-items-center"
                              onclick="filterByMissingField('${col}')" style="cursor: pointer; min-height: 95px; transition: transform 0.2s;">
@@ -1523,64 +1542,64 @@
                         </div>
                     </div>
                 `;
-            });
+        });
 
-            if (showMoreBox && entries.length > 5) {
-                // 6th box is "Show More" card
-                html += `
+        if (showMoreBox && entries.length > 5) {
+          // 6th box is "Show More" card
+          html += `
                     <div class="col-6 col-sm-4 col-md-3 col-lg-2">
                         <div class="card h-100 bg-danger-subtle text-danger border border-danger text-center p-3 d-flex flex-column justify-content-center align-items-center"
-                             onclick="toggleStatsExpansion(true)" style="cursor: pointer; min-height: 95px; font-weight: bold; background-color: #fee2e2 !important;">
+                             onclick="toggleStatsExpansion(true)" style="cursor: pointer; min-height: 95px; font-weight: bold;">
                             <i class="bi bi-plus-circle-fill fs-4 mb-1"></i>
                             <span style="font-size: 0.9rem;">Show More</span>
                             <span class="text-muted small" style="font-size: 0.7rem;">(${entries.length - 5} columns)</span>
                         </div>
                     </div>
                 `;
-            } else if (showAllStats && entries.length > 5) {
-                // Inline "Show Less" box at the end when expanded
-                html += `
+        } else if (showAllStats && entries.length > 5) {
+          // Inline "Show Less" box at the end when expanded
+          html += `
                     <div class="col-6 col-sm-4 col-md-3 col-lg-2">
                         <div class="card h-100 bg-danger-subtle text-danger border border-danger text-center p-3 d-flex flex-column justify-content-center align-items-center"
-                             onclick="toggleStatsExpansion(false)" style="cursor: pointer; min-height: 95px; font-weight: bold; background-color: #fee2e2 !important;">
+                             onclick="toggleStatsExpansion(false)" style="cursor: pointer; min-height: 95px; font-weight: bold;">
                             <i class="bi bi-dash-circle-fill fs-4 mb-1"></i>
                             <span style="font-size: 0.9rem;">Show Less</span>
                             <span class="text-muted small" style="font-size: 0.7rem;">(Collapse grid)</span>
                         </div>
                     </div>
                 `;
-            }
-            
-            missingStatsContainer.innerHTML = html;
         }
 
-        window.filterByMissingField = function(col) {
-            window.selectedMissingField = col;
-            if (clearMissingFilterBtn) {
-                clearMissingFilterBtn.style.display = "inline-block";
-            }
-            fetchRecords(1);
-        };
+        missingStatsContainer.innerHTML = html;
+      }
 
+      window.filterByMissingField = function (col) {
+        window.selectedMissingField = col;
         if (clearMissingFilterBtn) {
-            clearMissingFilterBtn.addEventListener("click", function() {
-                window.selectedMissingField = "";
-                this.style.display = "none";
-                fetchRecords(1);
-            });
+          clearMissingFilterBtn.style.display = "inline-block";
         }
+        fetchRecords(1);
+      };
 
-        window.toggleStatsExpansion = function(expand) {
-            showAllStats = expand;
-            if (lastStats) {
-                renderMissingStats(lastStats);
-            }
-        };
+      if (clearMissingFilterBtn) {
+        clearMissingFilterBtn.addEventListener("click", function () {
+          window.selectedMissingField = "";
+          this.style.display = "none";
+          fetchRecords(1);
+        });
+      }
 
-        // Load initial records list
-        if (recordsTableBody) {
-            fetchRecords(1);
+      window.toggleStatsExpansion = function (expand) {
+        showAllStats = expand;
+        if (lastStats) {
+          renderMissingStats(lastStats);
         }
+      };
+
+      // Load initial records list
+      if (recordsTableBody) {
+        fetchRecords(1);
+      }
     });
   </script>
 </body>

@@ -50,6 +50,7 @@
     /* Overrides for local/inline elements */
     --surface: #18181c !important;
     --border: #2d2d34 !important;
+    color-scheme: dark;
   }
 
   /* Structural Rules overrides */
@@ -194,11 +195,8 @@
   }
 
   .sidebar.collapsed .sidebar-link {
-    justify-content: center !important;
-    /* match expanded vertical padding so icons align */
-    padding: 8px 0 !important;
-    /* keep same horizontal gutter as expanded state */
-    margin: 4px 10px !important;
+    /* Keep identical padding and alignment so the icon doesn't shift */
+    gap: 0 !important;
   }
 
   /* Make all sidebar icons a consistent size whether collapsed or not */
@@ -352,6 +350,10 @@
     color: var(--text-main) !important;
   }
 
+  .bg-danger-subtle {
+    background-color: #fee2e2 !important;
+  }
+
   /* uniform height removed */
 
   .card-header {
@@ -413,6 +415,11 @@
     border-color: var(--border-color) !important;
   }
 
+  [data-theme="dark"] ::placeholder {
+    color: rgba(243, 244, 246, 0.7) !important;
+    opacity: 1 !important;
+  }
+
   .form-control:focus,
   .form-select:focus {
     border-color: var(--red-accent) !important;
@@ -458,7 +465,8 @@
     border-color: #1b4d32 !important;
   }
 
-  /* 3. Red / Admin status / Invalid rows badge */
+  /* 3. Red / Admin status / Invalid rows badge / Danger subtle cards */
+  [data-theme="dark"] .bg-danger-subtle,
   [data-theme="dark"] .badge[style*="background:#fef2f2"],
   [data-theme="dark"] .badge[style*="background: #fef2f2"],
   [data-theme="dark"] .badge[style*="background:#fee2e2"],
@@ -466,6 +474,16 @@
     background-color: #3c1e1e !important;
     color: #f87171 !important;
     border-color: #582424 !important;
+  }
+
+  [data-theme="dark"] .bg-success-subtle {
+    background-color: #143d24 !important;
+    color: #4ade80 !important;
+  }
+
+  [data-theme="dark"] .bg-warning-subtle {
+    background-color: #4d3800 !important;
+    color: #facc15 !important;
   }
 
   /* 4. Blue / Manager status badge */
@@ -567,7 +585,7 @@
   [data-theme="dark"] .bi-calendar3,
   [data-theme="dark"] .bi-clock,
   [data-theme="dark"] .bi-clock-history {
-    color: var(--text-muted) !important;
+    color: #ffffff !important;
   }
 
   /* Native date input calendar picker icon — make it light in dark mode */
@@ -576,7 +594,6 @@
   }
 
   [data-theme="dark"] input[type="date"]::-webkit-calendar-picker-indicator {
-    filter: invert(0.8) brightness(1.4);
     cursor: pointer;
   }
 
@@ -652,12 +669,12 @@
     </a>
 
     {% if session.role in ["admin"] %}
-    <a href="{{ url_for('registry') }}" class="sidebar-link">
+    <a href="{{ url_for('registry') }}" class="sidebar-link{% if request.endpoint == 'registry' %} active{% endif %}">
       <i class="bi bi-tags"></i>
       <span class="sidebar-text">Field Registry</span>
     </a>
 
-    <a href="{{ url_for('aliases_view') }}" class="sidebar-link">
+    <a href="{{ url_for('aliases_view') }}" class="sidebar-link{% if request.endpoint == 'aliases_view' %} active{% endif %}">
       <i class="bi bi-link-45deg"></i>
       <span class="sidebar-text">Alias Manager</span>
     </a>
@@ -672,14 +689,14 @@
     {% endif %}
 
     {% if session.role in ["admin"] %}
-    <a href="{{ url_for('history_view') }}" class="sidebar-link">
+    <a href="{{ url_for('history_view') }}" class="sidebar-link{% if request.endpoint == 'history_view' %} active{% endif %}">
       <i class="bi bi-clock-history"></i>
       <span class="sidebar-text">Import History</span>
     </a>
     {% endif %}
 
     {% if session.role in ["admin", "manager", "team_lead"] %}
-    <a href="{{ url_for('admin_logs') }}" class="sidebar-link">
+    <a href="{{ url_for('admin_logs') }}" class="sidebar-link{% if request.endpoint == 'admin_logs' %} active{% endif %}">
       <i class="bi bi-file-earmark-text"></i>
       <span class="sidebar-text">Activity Logs</span>
     </a>

@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -81,20 +82,21 @@
     }
   </style>
 </head>
+
 <body>
   <div class="app-layout">
     {% include '_sidebar.html' %}
     <main class="content-area">
-      <div class="container my-4 my-md-5">
+      <div class="container">
         <div class="page-hdr mb-4 d-flex justify-content-between align-items-center">
           <div>
-            <h2><i class="bi bi-tags me-2" style="color:#b91c1c;"></i>Field Registry</h2>
+            <h2>Field Registry</h2>
             <p class="text-muted">Manage dynamic schema definitions and track usage frequency across worksheets</p>
           </div>
           <div>
-            <button class="btn btn-success" onclick="window.location.href='/api/registry/export';">
-              <i class="bi bi-file-earmark-excel me-1"></i> Export Registry
-            </button>
+            <button class="btn btn-success"
+              style="padding: 6px 10px; font-size: 0.8rem; margin-right: 20px; margin-top: 10px;"
+              onclick="window.location.href='/api/registry/export';">Export Registry</button>
           </div>
         </div>
 
@@ -117,43 +119,42 @@
                 </thead>
                 <tbody>
                   {% if fields %}
-                    {% for field in fields %}
-                    <tr data-field-id="{{ field.id }}">
-                      <td><span class="badge bg-secondary font-outfit">#{{ field.id }}</span></td>
-                      <td><strong class="text-dark">{{ field.field_name }}</strong></td>
-                      <td><code class="text-primary fw-semibold">{{ field.normalized_name }}</code></td>
-                      <td><span class="badge bg-light text-dark border border-secondary-subtle">{{ field.data_type }}</span></td>
-                      <td class="text-center">
-                        <div class="form-check form-switch d-inline-block">
-                          <input class="form-check-input toggle-status" type="checkbox" role="switch" 
-                                 data-type="is_active" {% if field.is_active %}checked{% endif %}>
-                        </div>
-                      </td>
-                      <td class="text-center">
-                        <div class="form-check form-switch d-inline-block">
-                          <input class="form-check-input toggle-status" type="checkbox" role="switch" 
-                                 data-type="searchable" {% if field.searchable %}checked{% endif %}>
-                        </div>
-                      </td>
-                      <td class="text-center">
-                        <span class="badge bg-danger rounded-pill px-3">{{ field.usage_count }} records</span>
-                      </td>
-                      <td><span class="text-muted small">{{ field.created_at }}</span></td>
-                      <td class="text-center">
-                        <button class="btn btn-sm btn-outline-danger btn-convert py-1 px-2"
-                                data-field-id="{{ field.id }}" data-field-name="{{ field.field_name }}">
-                          <i class="bi bi-shuffle me-1"></i>Convert to Master
-                        </button>
-                      </td>
-                    </tr>
-                    {% endfor %}
+                  {% for field in fields %}
+                  <tr data-field-id="{{ field.id }}">
+                    <td><span class="badge bg-secondary font-outfit">#{{ field.id }}</span></td>
+                    <td><strong>{{ field.field_name }}</strong></td>
+                    <td><code class="text-primary fw-semibold">{{ field.normalized_name }}</code></td>
+                    <td><span class="badge bg-light text-dark border border-secondary-subtle">{{ field.data_type
+                        }}</span></td>
+                    <td class="text-center">
+                      <div class="form-check form-switch d-inline-block">
+                        <input class="form-check-input toggle-status" type="checkbox" role="switch"
+                          data-type="is_active" {% if field.is_active %}checked{% endif %}>
+                      </div>
+                    </td>
+                    <td class="text-center">
+                      <div class="form-check form-switch d-inline-block">
+                        <input class="form-check-input toggle-status" type="checkbox" role="switch"
+                          data-type="searchable" {% if field.searchable %}checked{% endif %}>
+                      </div>
+                    </td>
+                    <td class="text-center">
+                      <span class="badge bg-danger rounded-pill px-3">{{ field.usage_count }} records</span>
+                    </td>
+                    <td><span class="text-muted small">{{ field.created_at }}</span></td>
+                    <td class="text-center">
+                      <button class="btn btn-sm btn-danger btn-convert py-1 px-2" data-field-id="{{ field.id }}"
+                        data-field-name="{{ field.field_name }}">Convert to Master</button>
+                    </td>
+                  </tr>
+                  {% endfor %}
                   {% else %}
-                    <tr>
-                      <td colspan="9" class="text-center py-5 text-muted">
-                        <i class="bi bi-file-earmark-bar-graph fs-2 mb-3 d-block text-secondary"></i>
-                        No custom fields registered yet. Upload an Excel sheet to automatically populate this registry.
-                      </td>
-                    </tr>
+                  <tr>
+                    <td colspan="9" class="text-center py-5 text-muted">
+                      <i class="bi bi-file-earmark-bar-graph fs-2 mb-3 d-block text-secondary"></i>
+                      No custom fields registered yet. Upload an Excel sheet to automatically populate this registry.
+                    </td>
+                  </tr>
                   {% endif %}
                 </tbody>
               </table>
@@ -163,86 +164,87 @@
       </div>
       <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
       <script>
-        document.addEventListener("DOMContentLoaded", function() {
-            const toggles = document.querySelectorAll(".toggle-status");
-            
-            toggles.forEach(toggle => {
-                toggle.addEventListener("change", function() {
-                    const row = this.closest("tr");
-                    const fieldId = row.getAttribute("data-field-id");
-                    const property = this.getAttribute("data-type");
-                    const value = this.checked;
-                    
-                    this.disabled = true;
-                    
-                    const payload = {};
-                    payload[property] = value;
-                    
-                    fetch(`/api/fields/${fieldId}/status`, {
-                        method: "POST",
-                        headers: {
-                            "Content-Type": "application/json"
-                        },
-                        body: JSON.stringify(payload)
-                    })
-                    .then(res => {
-                        if (!res.ok) {
-                            throw new Error("Failed to update status");
-                        }
-                        return res.json();
-                    })
-                    .then(data => {
-                        this.disabled = false;
-                        row.classList.add("table-success-glow");
-                        setTimeout(() => row.classList.remove("table-success-glow"), 1000);
-                    })
-                    .catch(err => {
-                        console.error(err);
-                        this.checked = !value;
-                        this.disabled = false;
-                        alert("Could not update field property. Please try again.");
-                    });
-                });
-            });
+        document.addEventListener("DOMContentLoaded", function () {
+          const toggles = document.querySelectorAll(".toggle-status");
 
-            // 2. Convert to Master Key Click Handler
-            const convertButtons = document.querySelectorAll(".btn-convert");
-            convertButtons.forEach(btn => {
-                btn.addEventListener("click", function() {
-                    const fieldId = this.getAttribute("data-field-id");
-                    const fieldName = this.getAttribute("data-field-name");
-                    
-                    const confirmed = confirm(`Are you sure you want to convert the custom field "${fieldName}" to a Master Column?\n\nThis will modify the database schema, migrate all existing records' custom JSON attributes to the new column, and update all mapped aliases.`);
-                    
-                    if (!confirmed) return;
-                    
-                    this.disabled = true;
-                    this.innerHTML = `<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>Converting...`;
-                    
-                    fetch(`/api/fields/${fieldId}/convert-to-master`, {
-                        method: "POST"
-                    })
-                    .then(res => {
-                        if (!res.ok) {
-                            return res.json().then(data => { throw new Error(data.error || "Conversion failed"); });
-                        }
-                        return res.json();
-                    })
-                    .then(data => {
-                        alert(data.message || "Field successfully converted!");
-                        window.location.reload();
-                    })
-                    .catch(err => {
-                        console.error(err);
-                        this.disabled = false;
-                        this.innerHTML = `<i class="bi bi-shuffle me-1"></i>Convert to Master`;
-                        alert(`Error: ${err.message}`);
-                    });
+          toggles.forEach(toggle => {
+            toggle.addEventListener("change", function () {
+              const row = this.closest("tr");
+              const fieldId = row.getAttribute("data-field-id");
+              const property = this.getAttribute("data-type");
+              const value = this.checked;
+
+              this.disabled = true;
+
+              const payload = {};
+              payload[property] = value;
+
+              fetch(`/api/fields/${fieldId}/status`, {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json"
+                },
+                body: JSON.stringify(payload)
+              })
+                .then(res => {
+                  if (!res.ok) {
+                    throw new Error("Failed to update status");
+                  }
+                  return res.json();
+                })
+                .then(data => {
+                  this.disabled = false;
+                  row.classList.add("table-success-glow");
+                  setTimeout(() => row.classList.remove("table-success-glow"), 1000);
+                })
+                .catch(err => {
+                  console.error(err);
+                  this.checked = !value;
+                  this.disabled = false;
+                  alert("Could not update field property. Please try again.");
                 });
             });
+          });
+
+          // 2. Convert to Master Key Click Handler
+          const convertButtons = document.querySelectorAll(".btn-convert");
+          convertButtons.forEach(btn => {
+            btn.addEventListener("click", function () {
+              const fieldId = this.getAttribute("data-field-id");
+              const fieldName = this.getAttribute("data-field-name");
+
+              const confirmed = confirm(`Are you sure you want to convert the custom field "${fieldName}" to a Master Column?\n\nThis will modify the database schema, migrate all existing records' custom JSON attributes to the new column, and update all mapped aliases.`);
+
+              if (!confirmed) return;
+
+              this.disabled = true;
+              this.innerHTML = `<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>Converting...`;
+
+              fetch(`/api/fields/${fieldId}/convert-to-master`, {
+                method: "POST"
+              })
+                .then(res => {
+                  if (!res.ok) {
+                    return res.json().then(data => { throw new Error(data.error || "Conversion failed"); });
+                  }
+                  return res.json();
+                })
+                .then(data => {
+                  alert(data.message || "Field successfully converted!");
+                  window.location.reload();
+                })
+                .catch(err => {
+                  console.error(err);
+                  this.disabled = false;
+                  this.innerHTML = `<i class="bi bi-shuffle me-1"></i>Convert to Master`;
+                  alert(`Error: ${err.message}`);
+                });
+            });
+          });
         });
       </script>
     </main>
   </div>
 </body>
+
 </html>

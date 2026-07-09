@@ -435,8 +435,10 @@
 
         <!-- Page Header -->
         <div class="mb-4">
-          <h3 style="font-size:1.35rem;font-weight:700;color:var(--text-main);margin-bottom:4px;">Downloads</h3>
-          <p class="text-muted mb-0" style="font-size:0.875rem;">Browse, filter, and download previously generated data
+          <h3 style="font-size:1.35rem;font-weight:700;color:var(--text-main);margin-bottom:4px;margin-left:25px;">
+            Downloads</h3>
+          <p class="text-muted mb-0" style="font-size:0.875rem;margin-left:25px;">Browse, filter, and download
+            previously generated data
             files from cleaning sessions.</p>
         </div>
 
@@ -518,16 +520,18 @@
                         class="form-control border-start-0" placeholder="e.g. crm_data_cleaned…"
                         style="border-radius:0 7px 7px 0;border-color:var(--border);">
                     </div>
-                    <button type="submit" class="btn btn-sm btn-danger mt-2 w-100"
-                      style="border-radius:7px;font-size:0.82rem;">
-                      <i class="bi bi-search me-1"></i>Apply Filters
-                    </button>
-                    {% if search or from_date or to_date or selected_types or selected_user %}
-                    <a href="{{ url_for('downloads') }}" class="btn btn-sm btn-secondary mt-1 w-100"
-                      style="border-radius:7px;font-size:0.82rem;">
-                      <i class="bi bi-x-circle me-1"></i>Clear Filters
-                    </a>
-                    {% endif %}
+                    <div class="d-flex gap-2 mt-2">
+                      <button type="submit" class="btn btn-sm btn-danger w-100"
+                        style="border-radius:7px;font-size:0.82rem;">
+                        Apply Filters
+                      </button>
+                      {% if search or from_date or to_date or selected_types or selected_user %}
+                      <a href="{{ url_for('downloads') }}" class="btn btn-sm btn-secondary w-100"
+                        style="border-radius:7px;font-size:0.82rem;">
+                        Clear Filters
+                      </a>
+                      {% endif %}
+                    </div>
                   </div>
                 </form>
 
@@ -573,7 +577,7 @@
           <div class="col-lg-7">
             <div class="card shadow-sm">
               <div class="card-header d-flex align-items-center justify-content-between">
-                <span><i class="bi bi-clock-history me-2" style="color:#b91c1c;"></i>Recent Downloads</span>
+                <span>Recent Downloads</span>
                 <span class="text-muted" style="font-size:0.78rem;">
                   {% if total_exports > 0 %}
                   Showing {{ hist_start }}–{{ hist_end }} of {{ total_exports }}

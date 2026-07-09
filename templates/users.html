@@ -270,7 +270,8 @@
 
     <main class="content-area">
 
-      <div id="usersData" data-caller-role='{{ caller_role|default("") }}' data-search='{{ search|default("") }}' style="display:none;"></div>
+      <div id="usersData" data-caller-role='{{ caller_role|default("") }}' data-search='{{ search|default("") }}'
+        style="display:none;"></div>
 
       <div class="container mt-3">
         {% with messages = get_flashed_messages(with_categories=true) %}
@@ -281,7 +282,7 @@
         {% endfor %}{% endif %}{% endwith %}
       </div>
 
-      <div class="container my-4 my-md-5">
+      <div class="container">
         <div class="page-hdr mb-4">
           <h2></i>Registered Users</h2>
           <p>Browse and filter user accounts</p>
@@ -294,7 +295,8 @@
             {{ message|safe }}
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
           </div>
-          {% endfor %}</div>
+          {% endfor %}
+        </div>
         {% endif %}
         {% endwith %}
 
