@@ -1,0 +1,335 @@
+{% include '_sidebar.html' %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Approval Inbox & Alerts – Paramantra Excel Cleaner</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', sans-serif; background: #f0f2f8; }
+    
+    .inbox-title h1 { font-size: 1.4rem; font-weight: 800; color: #111827; margin: 0; }
+    .inbox-title p { font-size: 0.82rem; color: #6b7280; margin: 0; }
+
+    /* Card styling */
+    .inbox-card {
+      background: #fff; border-radius: 16px; border: 1px solid #e5e7eb;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+      margin-bottom: 20px; transition: transform 0.2s, box-shadow 0.2s, opacity 0.4s;
+      overflow: hidden;
+    }
+    .inbox-card:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(0,0,0,0.07); }
+    .inbox-card.fading-out { opacity: 0; transform: scale(0.95); }
+
+    .inbox-card-header {
+      padding: 16px 24px; border-bottom: 1.5px solid #f3f4f6;
+      display: flex; align-items: center; justify-content: space-between;
+      background: #fafafa;
+    }
+    .inbox-user-info { display: flex; align-items: center; gap: 12px; }
+    .inbox-avatar {
+      width: 36px; height: 36px; border-radius: 50%;
+      background: #fee2e2; color: #b91c1c; font-weight: 700;
+      display: flex; align-items: center; justify-content: center; font-size: 0.95rem;
+    }
+    .inbox-user-name { font-size: 0.92rem; font-weight: 700; color: #111827; margin: 0; }
+    .inbox-user-role { font-size: 0.72rem; font-weight: 600; text-transform: uppercase; color: #9ca3af; }
+    .inbox-time { font-size: 0.76rem; color: #6b7280; }
+
+    .inbox-card-body { padding: 24px; }
+    
+    /* Comparison layout */
+    .comp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+    .comp-side { background: #f9fafb; border-radius: 12px; padding: 16px; border: 1.5px solid #f3f4f6; }
+    .comp-side.new { background: #f0fdf4; border-color: #dcfce7; }
+    .comp-title { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; color: #6b7280; letter-spacing: 0.5px; margin-bottom: 12px; }
+    .comp-side.new .comp-title { color: #15803d; }
+    
+    .attr-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px dashed #e5e7eb; font-size: 0.84rem; }
+    .attr-row:last-child { border-bottom: none; }
+    .attr-key { color: #6b7280; font-weight: 500; }
+    .attr-val { color: #111827; font-weight: 600; word-break: break-all; }
+    .comp-side.new .attr-val.changed { color: #166534; background: #bbf7d0; padding: 1px 6px; border-radius: 4px; }
+    .comp-side.old .attr-val.changed { color: #991b1b; text-decoration: line-through; background: #fee2e2; padding: 1px 6px; border-radius: 4px; }
+
+    /* Footer actions */
+    .inbox-card-footer {
+      padding: 16px 24px; border-top: 1.5px solid #f3f4f6;
+      display: flex; justify-content: flex-end; gap: 12px;
+      background: #fafafa;
+    }
+    .btn-approve {
+      background: linear-gradient(135deg, #10b981, #059669); border: none; color: #fff;
+      font-size: 0.85rem; font-weight: 700; padding: 8px 20px; border-radius: 8px;
+      transition: box-shadow 0.2s, transform 0.1s;
+    }
+    .btn-approve:hover { box-shadow: 0 4px 12px rgba(16,185,129,0.25); transform: translateY(-1px); }
+    .btn-approve:active { transform: translateY(0); }
+
+    .btn-reject {
+      background: none; border: 1.5px solid #dc2626; color: #dc2626;
+      font-size: 0.85rem; font-weight: 700; padding: 8px 20px; border-radius: 8px;
+      transition: background 0.2s, color 0.2s, transform 0.1s;
+    }
+    .btn-reject:hover { background: #fef2f2; transform: translateY(-1px); }
+    .btn-reject:active { transform: translateY(0); }
+
+    /* Review metadata */
+    .review-meta {
+      font-size: 0.8rem; color: #4b5563; background: #f9fafb;
+      padding: 12px 18px; border-radius: 10px; margin-top: 12px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+
+    /* Notification specific styling */
+    .notif-badge-box {
+      width: 42px; height: 42px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.25rem; flex-shrink: 0;
+    }
+    .notif-badge-box.export { background: #d1fae5; color: #059669; }
+    .notif-badge-box.import { background: #dbeafe; color: #2563eb; }
+    .notif-badge-box.clean  { background: #cffafe; color: #0891b2; }
+    .notif-badge-box.other  { background: #f3f4f6; color: #6b7280; }
+
+    .content-area { padding: 24px; }
+  </style>
+</head>
+<body>
+<div class="app-layout d-flex">
+  <div class="content-area flex-grow-1">
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <div class="inbox-title">
+        <h1>Inbox Feed</h1>
+        <p>Unified activity alerts and profile update change requests</p>
+      </div>
+    </div>
+
+    <!-- Feed Container -->
+    <div id="inboxFeed">
+      {% if feed %}
+        {% for item in feed %}
+          {% if item.type == 'request' %}
+            
+            <!-- ── ITEM TYPE: REQUEST (Profile Change Request) ── -->
+            <div class="inbox-card" id="req-card-{{ item.id }}">
+              <div class="inbox-card-header">
+                <div class="inbox-user-info">
+                  <div class="inbox-avatar" style="background:#fee2e2;color:#b91c1c;">
+                    {{ (item.current_username or 'U')[0].upper() }}
+                  </div>
+                  <div>
+                    <h3 class="inbox-user-name">{{ item.current_username }}</h3>
+                    <span class="inbox-user-role">Profile Approval Request</span>
+                  </div>
+                </div>
+                <div class="inbox-time">
+                  <i class="bi bi-clock me-1"></i>Requested {{ item.timestamp.strftime('%d %b %Y, %H:%M') }}
+                </div>
+              </div>
+              <div class="inbox-card-body">
+                <div class="comp-grid">
+                  <!-- Old Details -->
+                  <div class="comp-side old">
+                    <div class="comp-title">Current Details</div>
+                    <div class="attr-row">
+                      <span class="attr-key">Username</span>
+                      <span class="attr-val {% if item.username != item.current_username %}changed{% endif %}">{{ item.current_username }}</span>
+                    </div>
+                    <div class="attr-row">
+                      <span class="attr-key">Email Address</span>
+                      <span class="attr-val {% if item.email != item.current_email %}changed{% endif %}">{{ item.current_email or '—' }}</span>
+                    </div>
+                    <div class="attr-row">
+                      <span class="attr-key">Phone Number</span>
+                      <span class="attr-val {% if item.phone_number != item.current_phone_number %}changed{% endif %}">{{ item.current_phone_number or '—' }}</span>
+                    </div>
+                    <div class="attr-row">
+                      <span class="attr-key">Postal Address</span>
+                      <span class="attr-val {% if item.address != item.current_address %}changed{% endif %}">{{ item.current_address or '—' }}</span>
+                    </div>
+                  </div>
+                  <!-- New Details -->
+                  <div class="comp-side new">
+                    <div class="comp-title">Requested Changes</div>
+                    <div class="attr-row">
+                      <span class="attr-key">Username</span>
+                      <span class="attr-val {% if item.username != item.current_username %}changed{% endif %}">{{ item.username }}</span>
+                    </div>
+                    <div class="attr-row">
+                      <span class="attr-key">Email Address</span>
+                      <span class="attr-val {% if item.email != item.current_email %}changed{% endif %}">{{ item.email or '—' }}</span>
+                    </div>
+                    <div class="attr-row">
+                      <span class="attr-key">Phone Number</span>
+                      <span class="attr-val {% if item.phone_number != item.current_phone_number %}changed{% endif %}">{{ item.phone_number or '—' }}</span>
+                    </div>
+                    <div class="attr-row">
+                      <span class="attr-key">Postal Address</span>
+                      <span class="attr-val {% if item.address != item.current_address %}changed{% endif %}">{{ item.address or '—' }}</span>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+
+              {% if item.status == 'pending' %}
+              <div class="inbox-card-footer">
+                <button type="button" class="btn btn-reject" onclick="triggerReject({{ item.id }})">
+                  <i class="bi bi-x-lg me-1"></i> Reject
+                </button>
+                <button type="button" class="btn btn-approve" onclick="approveReq({{ item.id }})">
+                  <i class="bi bi-check-lg me-1"></i> Approve
+                </button>
+              </div>
+              {% endif %}
+            </div>
+
+          {% elif item.type == 'notification' %}
+
+            <!-- ── ITEM TYPE: NOTIFICATION (Export / Import / Clean Action Alert) ── -->
+            <div class="inbox-card" style="{% if not item.is_read %}border-left: 4px solid #b91c1c; background:#fafafa;{% endif %}">
+              <div class="inbox-card-header">
+                <div class="inbox-user-info">
+                  <div class="notif-badge-box {{ item.action_type }}">
+                    {% if item.action_type == 'export' %}
+                      <i class="bi bi-box-arrow-up"></i>
+                    {% elif item.action_type == 'import' %}
+                      <i class="bi bi-upload"></i>
+                    {% elif item.action_type == 'clean' %}
+                      <i class="bi bi-magic"></i>
+                    {% else %}
+                      <i class="bi bi-bell-fill"></i>
+                    {% endif %}
+                  </div>
+                  <div>
+                    <h3 class="inbox-user-name" style="font-size:0.92rem;">{{ item.sender_name }}</h3>
+                    <span class="inbox-user-role">{{ item.user_role | title }}</span>
+                  </div>
+                </div>
+                <div class="inbox-time">
+                  <i class="bi bi-clock me-1"></i>{{ item.timestamp.strftime('%d %b %Y, %H:%M') }}
+                </div>
+              </div>
+              <div class="inbox-card-body" style="padding: 20px 24px;">
+                <p class="mb-0 text-dark" style="font-size:0.9rem; line-height:1.45;">
+                  {{ item.message }}
+                </p>
+              </div>
+            </div>
+
+          {% endif %}
+        {% endfor %}
+      {% else %}
+        <div style="padding: 80px 24px; text-align: center; color: #9ca3af; background:#fff; border-radius:18px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+          <i class="bi bi-inbox fs-1 text-muted"></i>
+          <h5 class="mt-3 fw-bold">Inbox is empty</h5>
+          <p class="text-muted small">No profile requests or activity alerts have arrived.</p>
+        </div>
+      {% endif %}
+    </div>
+
+  </div><!-- /content-area -->
+</div>
+
+<!-- Rejection Modal -->
+<div class="modal fade" id="rejectModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold text-danger"><i class="bi bi-exclamation-triangle-fill me-2"></i>Reject Profile Update</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form id="rejectForm">
+        <div class="modal-body">
+          <p class="text-muted small">Enter a rejection reason for this profile change request.</p>
+          <div class="mb-3">
+            <label for="rejectReason" class="form-label fw-bold">Rejection Reason</label>
+            <textarea class="form-control" id="rejectReason" rows="3" required placeholder="e.g. Incorrect phone number format."></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-danger px-4" id="submitRejectBtn">Reject Request</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+  let activeReqId = null;
+  const rejectModal = new bootstrap.Modal(document.getElementById('rejectModal'));
+
+  async function approveReq(id) {
+    const card = document.getElementById('req-card-' + id);
+    if (!card) return;
+    try {
+      const fd = new FormData();
+      const r = await fetch(`/inbox/approve/${id}`, {
+        method: 'POST',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        body: fd
+      });
+      const data = await r.json();
+      if (data.ok) {
+        card.classList.add('fading-out');
+        setTimeout(() => { window.location.reload(); }, 600);
+      } else {
+        alert(data.error || 'Failed to approve request.');
+      }
+    } catch(e) {
+      alert('Network request failed.');
+    }
+  }
+
+  function triggerReject(id) {
+    activeReqId = id;
+    document.getElementById('rejectReason').value = '';
+    rejectModal.show();
+  }
+
+  document.getElementById('rejectForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    if (!activeReqId) return;
+    
+    const reason = document.getElementById('rejectReason').value.trim();
+    const card = document.getElementById('req-card-' + activeReqId);
+    const submitBtn = document.getElementById('submitRejectBtn');
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Rejecting…';
+    
+    try {
+      const fd = new FormData();
+      fd.append('reason', reason);
+      const r = await fetch(`/inbox/reject/${activeReqId}`, {
+        method: 'POST',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        body: fd
+      });
+      const data = await r.json();
+      if (data.ok) {
+        rejectModal.hide();
+        if (card) {
+          card.classList.add('fading-out');
+        }
+        setTimeout(() => { window.location.reload(); }, 600);
+      } else {
+        alert(data.error || 'Failed to reject request.');
+      }
+    } catch(e) {
+      alert('Network request failed.');
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = 'Reject Request';
+    }
+  });
+</script>
+</body>
+</html>

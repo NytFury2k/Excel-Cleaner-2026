@@ -277,9 +277,10 @@ def admin_logs():
     search = request.args.get("search", "").strip()
     from_date = request.args.get("from_date","")           
     to_date = request.args.get("to_date","") 
-    log_type = (request.args.get("log_type", "login") or "login").strip().lower()
-    if log_type not in {"login", "cleaning", "search", "all"}:
-        log_type = "login"
+    log_type = (request.args.get("log_type", "all") or "all").strip().lower()
+    selected_user_id = request.args.get("user_id", "")
+    if log_type not in {"login", "cleaning", "search", "export", "all"}:
+        log_type = "all"
 
     if not from_date or not from_date.strip():
         from_date=""
@@ -296,26 +297,85 @@ def admin_logs():
     if (log_type == "search" and search and page == 1 and session.get("role") in ["admin", "manager"]):
         log_search(session["user_id"], session["username"], search)
 
-    per_page = 10
+    per_page = 15
 
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
-    logs, total_logs = fetch_visible_logs(cursor,search = search, from_date = from_date, to_date = to_date,
-                                          log_type = log_type, page = page, per_page = per_page)
+
+    # Fetch all users for user selector (admin sees all, manager sees their team)
+    if session.get("role") == "admin":
+        cursor.execute("SELECT id, username, role FROM users WHERE is_active = 1 ORDER BY username")
+    else:
+        cursor.execute("SELECT id, username, role FROM users WHERE (id = %s OR manager_id = %s) AND is_active = 1 ORDER BY username",
+                       (session["user_id"], session["user_id"]))
+    all_users = cursor.fetchall()
+
+    # Build user filter clause
+    user_filter_sql = ""
+    user_filter_params = []
+    if selected_user_id and selected_user_id.isdigit():
+        user_filter_sql = " AND l.user_id = %s"
+        user_filter_params = [int(selected_user_id)]
+
+    # --- ANALYTICS STATS ---
+    # Total counts per action category
+    cursor.execute(f"""
+        SELECT
+            COUNT(*) AS total_events,
+            SUM(CASE WHEN LOWER(l.action) LIKE '%%export%%' THEN 1 ELSE 0 END) AS total_exports,
+            SUM(CASE WHEN LOWER(l.action) LIKE '%%upload%%' OR LOWER(l.action) LIKE '%%ingest%%' OR (LOWER(l.action) LIKE '%%import%%' AND LOWER(l.action) NOT LIKE '%%export%%') THEN 1 ELSE 0 END) AS total_imports,
+            SUM(CASE WHEN LOWER(l.action) LIKE '%%cleaned file%%' THEN 1 ELSE 0 END) AS total_cleans,
+            SUM(CASE WHEN LOWER(l.action) LIKE '%%search%%' OR LOWER(l.action) LIKE '%%filter%%' THEN 1 ELSE 0 END) AS total_searches,
+            SUM(CASE WHEN LOWER(l.action) LIKE '%%login%%' THEN 1 ELSE 0 END) AS total_logins,
+            SUM(CASE WHEN LOWER(l.action) LIKE '%%delete%%' OR LOWER(l.action) LIKE '%%removed%%' THEN 1 ELSE 0 END) AS total_deletes,
+            COUNT(DISTINCT l.user_id) AS unique_users
+        FROM logs l
+        JOIN users u ON u.id = l.user_id
+        WHERE 1=1 {user_filter_sql}
+    """, user_filter_params)
+    stats = cursor.fetchone() or {}
+
+    # Today's export count (from user_daily_exports)
+    try:
+        cursor.execute(f"""
+            SELECT COALESCE(SUM(ude.rows_count), 0) AS rows_today
+            FROM user_daily_exports ude
+            WHERE ude.export_date = CURRENT_DATE
+            {"AND ude.user_id = %s" if selected_user_id and selected_user_id.isdigit() else ""}
+        """, [int(selected_user_id)] if selected_user_id and selected_user_id.isdigit() else [])
+        today_row = cursor.fetchone()
+        rows_exported_today = int(today_row["rows_today"]) if today_row else 0
+    except Exception:
+        rows_exported_today = 0
+
+    # Top 5 most active users
+    cursor.execute("""
+        SELECT u.username, COUNT(l.id) AS event_count
+        FROM logs l
+        JOIN users u ON u.id = l.user_id
+        GROUP BY l.user_id, u.username
+        ORDER BY event_count DESC
+        LIMIT 5
+    """)
+    top_users = cursor.fetchall()
+
+    logs, total_logs = fetch_visible_logs(cursor, search=search, from_date=from_date, to_date=to_date,
+                                          log_type=log_type, page=page, per_page=per_page,
+                                          user_id=int(selected_user_id) if selected_user_id and selected_user_id.isdigit() else None)
     conn.close()
 
-    total_pages = (total_logs + per_page -1 )//per_page 
+    total_pages = (total_logs + per_page - 1) // per_page
 
     if total_logs > 0:
-        start=(page -1 ) * per_page + 1
-        end = min (page * per_page, total_logs)
+        start = (page - 1) * per_page + 1
+        end = min(page * per_page, total_logs)
     else:
-        start=0
-        end=0
+        start = 0
+        end = 0
 
-    return render_template("admin_logs.html", 
-                           logs=logs, 
-                           page=page, 
+    return render_template("admin_logs.html",
+                           logs=logs,
+                           page=page,
                            total_pages=total_pages,
                            total_logs=total_logs,
                            start=start,
@@ -327,16 +387,321 @@ def admin_logs():
                            offset=(page-1) * per_page,
                            form_action=url_for("admin_logs"),
                            export_url=url_for("export_logs"),
+                           all_users=all_users,
+                           selected_user_id=selected_user_id,
+                           stats=stats,
+                           top_users=top_users,
+                           rows_exported_today=rows_exported_today,
                            pagination_url=lambda p: url_for(
                                "admin_logs",
                                page=p,
                                search=search,
                                from_date=from_date,
                                to_date=to_date,
-                               log_type = log_type
+                               log_type=log_type,
+                               user_id=selected_user_id
                            ))
 
 
+@app.route("/api/admin/logs/chart-data")
+@login_required()
+def logs_chart_data():
+    """API endpoint returning time-series chart data for activity logs with complete label coverage."""
+    if session.get("role") not in ("admin", "manager", "team_lead"):
+        return jsonify({"error": "Access denied"}), 403
+
+    from datetime import timedelta, date as date_cls, datetime
+
+    period = request.args.get("period", "week")  # week, month, year, custom
+    from_date_str = request.args.get("from_date", "")
+    to_date_str = request.args.get("to_date", "")
+    user_id_filter = request.args.get("user_id", "")
+
+    today = date_cls.today()
+
+    # Build complete label list and date range
+    all_labels = []
+    all_dates = []   # list of (label, date_key_str) to fill zeros
+    group_by = "day"
+
+    if period == "week":
+        # Last 7 days including today
+        start_date = today - timedelta(days=6)
+        end_date = today
+        group_by = "day"
+        d = start_date
+        while d <= end_date:
+            all_labels.append(d.strftime("%a %d %b"))   # e.g. "Wed 03 Jul"
+            all_dates.append(str(d))
+            d += timedelta(days=1)
+
+    elif period == "month":
+        # Last 30 days, grouped into 4-5 week buckets
+        start_date = today - timedelta(days=29)
+        end_date = today
+        group_by = "week"
+        # Generate each ISO week start within range
+        from datetime import timedelta
+        cur = start_date - timedelta(days=start_date.weekday())  # Monday of start week
+        seen = set()
+        while cur <= end_date:
+            if cur >= start_date or (cur + timedelta(days=6)) >= start_date:
+                week_key = str(cur)
+                if week_key not in seen:
+                    seen.add(week_key)
+                    all_labels.append(f"{cur.strftime('%d %b')}–{(cur + timedelta(days=6)).strftime('%d %b')}")
+                    all_dates.append(week_key)
+            cur += timedelta(weeks=1)
+
+    elif period == "year":
+        # Last 12 calendar months
+        group_by = "month"
+        from datetime import datetime
+        start_date = date_cls(today.year - 1, today.month, 1) if today.month > 1 else date_cls(today.year - 1, 1, 1)
+        end_date = today
+        for i in range(11, -1, -1):
+            # Go back i months from current month
+            yr = today.year
+            mo = today.month - i
+            while mo <= 0:
+                mo += 12
+                yr -= 1
+            month_start = date_cls(yr, mo, 1)
+            all_labels.append(month_start.strftime("%b %Y"))
+            all_dates.append(str(month_start))
+        # Use first date of first month label as start
+        if all_dates:
+            start_date = date_cls.fromisoformat(all_dates[0])
+
+    elif period == "custom" and from_date_str and to_date_str:
+        try:
+            start_date = datetime.strptime(from_date_str, "%Y-%m-%d").date()
+            end_date = datetime.strptime(to_date_str, "%Y-%m-%d").date()
+            delta = (end_date - start_date).days
+            if delta > 89:
+                group_by = "month"
+                from datetime import datetime
+                cur = date_cls(start_date.year, start_date.month, 1)
+                while cur <= end_date:
+                    all_labels.append(cur.strftime("%b %Y"))
+                    all_dates.append(str(cur))
+                    # Next month
+                    yr, mo = (cur.year, cur.month + 1) if cur.month < 12 else (cur.year + 1, 1)
+                    cur = date_cls(yr, mo, 1)
+            elif delta > 14:
+                group_by = "week"
+                cur = start_date - timedelta(days=start_date.weekday())
+                seen = set()
+                while cur <= end_date:
+                    if (cur + timedelta(days=6)) >= start_date:
+                        week_key = str(cur)
+                        if week_key not in seen:
+                            seen.add(week_key)
+                            all_labels.append(f"{cur.strftime('%d %b')}–{(cur + timedelta(days=6)).strftime('%d %b')}")
+                            all_dates.append(week_key)
+                    cur += timedelta(weeks=1)
+            else:
+                group_by = "day"
+                d = start_date
+                while d <= end_date:
+                    all_labels.append(d.strftime("%a %d %b"))
+                    all_dates.append(str(d))
+                    d += timedelta(days=1)
+            start_date = datetime.strptime(from_date_str, "%Y-%m-%d").date()
+            end_date = datetime.strptime(to_date_str, "%Y-%m-%d").date()
+        except Exception:
+            period = "week"
+            start_date = today - timedelta(days=6)
+            end_date = today
+    else:
+        # default: week
+        start_date = today - timedelta(days=6)
+        end_date = today
+        group_by = "day"
+        d = start_date
+        while d <= end_date:
+            all_labels.append(d.strftime("%a %d %b"))
+            all_dates.append(str(d))
+            d += timedelta(days=1)
+
+    if not all_dates:
+        return jsonify({"labels": [], "totals": [], "exports": [], "imports": [], "searches": [], "logins": []})
+
+    user_clause = ""
+    params = [str(all_dates[0]), str(end_date if period != "custom" else to_date_str)]
+    if user_id_filter and user_id_filter.isdigit():
+        user_clause = " AND l.user_id = %s"
+        params.append(int(user_id_filter))
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    if group_by == "day":
+        date_expr = "DATE(l.created_at AT TIME ZONE 'Asia/Kolkata')"
+    elif group_by == "week":
+        date_expr = "DATE_TRUNC('week', l.created_at AT TIME ZONE 'Asia/Kolkata')::date"
+    else:
+        date_expr = "DATE_TRUNC('month', l.created_at AT TIME ZONE 'Asia/Kolkata')::date"
+
+    query = f"""
+        SELECT
+            {date_expr} AS period_date,
+            COUNT(*) AS total,
+            SUM(CASE WHEN LOWER(l.action) LIKE '%%export%%' THEN 1 ELSE 0 END) AS exports,
+            SUM(CASE WHEN LOWER(l.action) LIKE '%%upload%%' OR LOWER(l.action) LIKE '%%ingest%%' OR (LOWER(l.action) LIKE '%%import%%' AND LOWER(l.action) NOT LIKE '%%export%%') THEN 1 ELSE 0 END) AS imports,
+            SUM(CASE WHEN LOWER(l.action) LIKE '%%cleaned file%%' THEN 1 ELSE 0 END) AS cleans,
+            SUM(CASE WHEN LOWER(l.action) LIKE '%%search%%' OR LOWER(l.action) LIKE '%%filter%%' THEN 1 ELSE 0 END) AS searches,
+            SUM(CASE WHEN LOWER(l.action) LIKE '%%login%%' THEN 1 ELSE 0 END) AS logins
+        FROM logs l
+        WHERE DATE(l.created_at AT TIME ZONE 'Asia/Kolkata') BETWEEN %s AND %s
+        {user_clause}
+        GROUP BY period_date
+        ORDER BY period_date ASC
+    """
+
+    try:
+        cursor.execute(query, params)
+        rows = cursor.fetchall()
+    except Exception as e:
+        conn.close()
+        return jsonify({"error": str(e)}), 500
+
+    conn.close()
+
+    # Build lookup dict from DB rows
+    db_lookup = {}
+    for row in rows:
+        d = row["period_date"]
+        if hasattr(d, "strftime"):
+            db_lookup[str(d)] = row
+
+    # Fill ALL labels with zeros for missing dates
+    labels = []
+    totals = []
+    exports = []
+    imports = []
+    cleans = []
+    searches = []
+    logins = []
+
+    for date_key, label in zip(all_dates, all_labels):
+        labels.append(label)
+        row = db_lookup.get(date_key, {})
+        totals.append(int(row.get("total", 0)))
+        exports.append(int(row.get("exports", 0)))
+        imports.append(int(row.get("imports", 0)))
+        cleans.append(int(row.get("cleans", 0)))
+        searches.append(int(row.get("searches", 0)))
+        logins.append(int(row.get("logins", 0)))
+
+    return jsonify({
+        "labels":   labels,
+        "totals":   totals,
+        "exports":  exports,
+        "imports":  imports,
+        "cleans":   cleans,
+        "searches": searches,
+        "logins":   logins
+    })
+
+
+@app.route("/api/admin/logs/period-stats")
+@login_required()
+def logs_period_stats():
+    """API: Summary stats filtered by a period (week/month/year/custom)."""
+    if session.get("role") not in ("admin", "manager", "team_lead"):
+        return jsonify({"error": "Access denied"}), 403
+
+    from datetime import timedelta, date as date_cls, datetime
+
+    period = request.args.get("period", "week")
+    from_date_str = request.args.get("from_date", "")
+    to_date_str = request.args.get("to_date", "")
+    user_id_filter = request.args.get("user_id", "")
+
+    today = date_cls.today()
+
+    if period == "week":
+        start_date = today - timedelta(days=6)
+        end_date = today
+    elif period == "month":
+        start_date = today - timedelta(days=29)
+        end_date = today
+    elif period == "year":
+        start_date = date_cls(today.year, 1, 1)
+        end_date = today
+    elif period == "custom" and from_date_str and to_date_str:
+        try:
+            start_date = datetime.strptime(from_date_str, "%Y-%m-%d").date()
+            end_date = datetime.strptime(to_date_str, "%Y-%m-%d").date()
+        except Exception:
+            start_date = today - timedelta(days=6)
+            end_date = today
+    else:
+        start_date = today - timedelta(days=6)
+        end_date = today
+
+    user_clause = ""
+    params = [str(start_date), str(end_date)]
+    if user_id_filter and user_id_filter.isdigit():
+        user_clause = " AND l.user_id = %s"
+        params.append(int(user_id_filter))
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    try:
+        cursor.execute(f"""
+            SELECT
+                COUNT(*) AS total_events,
+                SUM(CASE WHEN LOWER(l.action) LIKE '%%export%%' THEN 1 ELSE 0 END) AS total_exports,
+                SUM(CASE WHEN LOWER(l.action) LIKE '%%upload%%' OR LOWER(l.action) LIKE '%%ingest%%' OR (LOWER(l.action) LIKE '%%import%%' AND LOWER(l.action) NOT LIKE '%%export%%') THEN 1 ELSE 0 END) AS total_imports,
+                SUM(CASE WHEN LOWER(l.action) LIKE '%%cleaned file%%' THEN 1 ELSE 0 END) AS total_cleans,
+                SUM(CASE WHEN LOWER(l.action) LIKE '%%search%%' OR LOWER(l.action) LIKE '%%filter%%' THEN 1 ELSE 0 END) AS total_searches,
+                SUM(CASE WHEN LOWER(l.action) LIKE '%%login%%' THEN 1 ELSE 0 END) AS total_logins,
+                SUM(CASE WHEN LOWER(l.action) LIKE '%%delete%%' OR LOWER(l.action) LIKE '%%removed%%' THEN 1 ELSE 0 END) AS total_deletes,
+                COUNT(DISTINCT l.user_id) AS unique_users
+            FROM logs l
+            WHERE DATE(l.created_at AT TIME ZONE 'Asia/Kolkata') BETWEEN %s AND %s
+            {user_clause}
+        """, params)
+        stats = cursor.fetchone() or {}
+
+        # Rows exported in this period
+        ue_params = [str(start_date), str(end_date)]
+        ue_clause = ""
+        if user_id_filter and user_id_filter.isdigit():
+            ue_clause = " AND user_id = %s"
+            ue_params.append(int(user_id_filter))
+        cursor.execute(f"""
+            SELECT COALESCE(SUM(rows_count), 0) AS rows_exported
+            FROM user_daily_exports
+            WHERE export_date BETWEEN %s AND %s {ue_clause}
+        """, ue_params)
+        ue_row = cursor.fetchone()
+        rows_exported = int(ue_row["rows_exported"]) if ue_row else 0
+    except Exception as e:
+        conn.close()
+        return jsonify({"error": str(e)}), 500
+
+    conn.close()
+
+    return jsonify({
+        "total_events":   int(stats.get("total_events") or 0),
+        "total_exports":  int(stats.get("total_exports") or 0),
+        "total_imports":  int(stats.get("total_imports") or 0),
+        "total_cleans":   int(stats.get("total_cleans") or 0),
+        "total_searches": int(stats.get("total_searches") or 0),
+        "total_logins":   int(stats.get("total_logins") or 0),
+        "total_deletes":  int(stats.get("total_deletes") or 0),
+        "unique_users":   int(stats.get("unique_users") or 0),
+        "rows_exported":  rows_exported,
+    })
+
+
+
+
+# --- ROUTES ---
 
 
 # --- ROUTES ---
@@ -636,7 +1001,7 @@ def login():
         cursor = conn.cursor(dictionary=True)
         try:
             cursor.execute(
-                "SELECT id, username, password, role, is_active, manager_id, email, requires_password_change FROM users WHERE username=%s",
+                "SELECT id, username, password, role, is_active, manager_id, email, requires_password_change, status FROM users WHERE username=%s",
                 (username,)
             )
             user = cursor.fetchone()
@@ -663,9 +1028,16 @@ def login():
         session["csrf"] = secrets.token_hex(16)
         return render_template("login.html", saved_username=username)
 
-    # 7. Handle Disabled Account
-    if not user["is_active"]:
-        flash("Account is disabled. Contact admin.", "danger")
+    # 7. Handle Disabled / Sleep / Deleted status
+    user_status = user.get("status") or "active"
+    if user_status == "deleted":
+        flash("Invalid credentials", "danger")
+        session["csrf"] = secrets.token_hex(16)
+        return render_template("login.html", saved_username=username)
+
+    if user_status in ["disabled", "sleep"] or not user["is_active"]:
+        status_msg = "suspended (sleep)" if user_status == "sleep" else "disabled"
+        flash(f"Account is {status_msg}. Contact admin.", "danger")
         session["csrf"] = secrets.token_hex(16)
         return render_template("login.html", saved_username=username)
 
@@ -718,9 +1090,6 @@ def dashboard():
     
     if session.get("role") not in ROLE_PERMISSIONS:
         return redirect(url_for("login"))
-        
-    if session.get("role") in ["team_lead", "user"]:
-        return redirect(url_for("upload"))
 
     # Search keyword from query params
     search = request.args.get("search", "").strip()
@@ -1075,81 +1444,182 @@ def upload():
         return redirect(url_for("login"))
 
     if request.method == "POST":
-        file = request.files["file"]
-        
-        ALLOWED_EXTENSIONS = (".xls", ".xlsx", ".csv")
-        if file and file.filename.endswith(ALLOWED_EXTENSIONS):
-            #Check file size before doing anything else (limit: 10MB for now)
-            file.seek(0,2)              #seek to end
-            file_size =file.tell()      #get position = size in bytes
-            file.seek(0)                #reset to start
-            if file_size > 10 * 1024 * 1024:
-                flash("File too large. Maximum size is 10MB.","danger")
-                return render_template("upload.html")
+        files = request.files.getlist("file")
+        if not files or all(f.filename == "" for f in files):
+            flash("No file selected.", "danger")
+            return render_template("upload.html")
             
-            safe_filename = os.path.basename(file.filename)  #strips any path traversal
-            ext = os.path.splitext(safe_filename)[1].lower()
-            temp_path = f"temp_{session['user_id']}{ext}"
-            file.save(temp_path)
+        import uuid
+        uploaded_sheets = []
+        ALLOWED_EXTENSIONS = (".xls", ".xlsx", ".csv")
+        
+        # User details for DB logging & background thread
+        conn_user = get_db_connection()
+        cursor_user = conn_user.cursor(dictionary=True)
+        cursor_user.execute("SELECT username FROM users WHERE id = %s", (session["user_id"],))
+        u_row = cursor_user.fetchone()
+        username = u_row["username"] if u_row else "unknown"
+        conn_user.close()
 
-            try:
-                if ext==".csv":
-                    #Try comma first, fall back to auto-detection
-                    try:
-                        df = pd.read_csv(temp_path)
-                    except Exception:
-                        df = pd.read_csv(temp_path, sep=None, engine="python")
-                else:
-                    df = pd.read_excel(temp_path)
-            except Exception as e:
-                flash(f"Could not read file: {e}", "danger")
-                return render_template("upload.html")
-           
-            session["temp_file"] = temp_path
-            session["uploaded_file"] = safe_filename
-            session.pop("selected_rules", None)  # Clear old rules
-           
-            # Create a row in uploaded_files and start ingestion pipeline
-            try:
-                conn_upload = get_db_connection()
-                cursor_upload = conn_upload.cursor()
-                cursor_upload.execute(
-                    "INSERT INTO uploaded_files (user_id, filename, original_filename, total_rows, status, uploaded_at) VALUES (%s, %s, %s, %s, %s, %s)",
-                    (session["user_id"], temp_path, safe_filename, len(df), 'processing', datetime.utcnow())
-                )
-                file_id = cursor_upload.lastrowid
-                conn_upload.commit()
-                conn_upload.close()
-
-                # Get user name
-                conn_user = get_db_connection()
-                cursor_user = conn_user.cursor(dictionary=True)
-                cursor_user.execute("SELECT username FROM users WHERE id = %s", (session["user_id"],))
-                u_row = cursor_user.fetchone()
-                username = u_row["username"] if u_row else "unknown"
-                conn_user.close()
-
-                import threading
-                from helpers import ingest_uploaded_file
+        total_files_processed = 0
+        total_rows_all_sheets = 0
+        
+        for file in files:
+            if not file or not file.filename.endswith(ALLOWED_EXTENSIONS):
+                continue
                 
-                def run_background_ingestion(fid, fpath, uname):
+            # Check file size (limit: 50MB per file)
+            file.seek(0, 2)
+            file_size = file.tell()
+            file.seek(0)
+            if file_size > 50 * 1024 * 1024:
+                flash(f"File too large: {file.filename}. Maximum size is 50MB.", "danger")
+                return render_template("upload.html")
+                
+            safe_filename = os.path.basename(file.filename)
+            ext = os.path.splitext(safe_filename)[1].lower()
+            
+            # Save original file with distinct name to avoid collisions
+            unique_prefix = uuid.uuid4().hex[:8]
+            temp_file_path = f"temp_{session['user_id']}_{unique_prefix}{ext}"
+            file.save(temp_file_path)
+            total_files_processed += 1
+            
+            # Extract worksheets
+            try:
+                if ext == ".csv":
+                    # CSV: treat as single sheet
                     try:
-                        ingest_uploaded_file(fid, fpath, uname)
+                        df = pd.read_csv(temp_file_path)
                     except Exception:
-                        pass
-
-                t = threading.Thread(target=run_background_ingestion, args=(file_id, temp_path, username))
-                t.daemon = True
-                t.start()
+                        df = pd.read_csv(temp_file_path, sep=None, engine="python")
+                    
+                    sheet_name = "CSV"
+                    safe_sheet_name = os.path.splitext(safe_filename)[0][:30]
+                    # Clean special chars not allowed in sheet names
+                    for c in r":\/?*[]":
+                        safe_sheet_name = safe_sheet_name.replace(c, "_")
+                        
+                    # Save this sheet to a distinct CSV temp file
+                    sheet_temp_path = f"temp_sheet_{session['user_id']}_{uuid.uuid4().hex[:8]}.csv"
+                    df.to_csv(sheet_temp_path, index=False)
+                    
+                    # Log in uploaded_files DB
+                    conn_upload = get_db_connection()
+                    cursor_upload = conn_upload.cursor()
+                    cursor_upload.execute(
+                        "INSERT INTO uploaded_files (user_id, filename, original_filename, total_rows, status, uploaded_at) VALUES (%s, %s, %s, %s, %s, %s)",
+                        (session["user_id"], sheet_temp_path, f"{safe_filename} [{sheet_name}]", len(df), 'processing', datetime.utcnow())
+                    )
+                    file_id = cursor_upload.lastrowid
+                    conn_upload.commit()
+                    conn_upload.close()
+                    
+                    # Background Ingestion
+                    import threading
+                    from helpers import ingest_uploaded_file
+                    
+                    def run_background_ingestion(fid, fpath, uname):
+                        try:
+                            ingest_uploaded_file(fid, fpath, uname)
+                        except Exception:
+                            pass
+                    t = threading.Thread(target=run_background_ingestion, args=(file_id, sheet_temp_path, username))
+                    t.daemon = True
+                    t.start()
+                    
+                    total_rows_all_sheets += len(df)
+                    uploaded_sheets.append({
+                        "sheet_id": f"s_{unique_prefix}_0",
+                        "original_filename": safe_filename,
+                        "sheet_name": sheet_name,
+                        "safe_sheet_name": safe_sheet_name,
+                        "temp_path": sheet_temp_path,
+                        "columns": df.columns.tolist(),
+                        "total_rows": len(df),
+                        "file_id": file_id
+                    })
+                else:
+                    # Excel workbook: extract all worksheets
+                    sheet_dict = pd.read_excel(temp_file_path, sheet_name=None)
+                    sheet_idx = 0
+                    for sheet_name, df in sheet_dict.items():
+                        if df.empty or len(df.columns) == 0:
+                            continue # skip empty sheets
+                            
+                        # Clean and format safe sheet name
+                        base_name = os.path.splitext(safe_filename)[0]
+                        merged_name = f"{base_name}_{sheet_name}"
+                        for c in r":\/?*[]":
+                            merged_name = merged_name.replace(c, "_")
+                        safe_sheet_name = merged_name[:30]
+                        
+                        # Save this sheet to a distinct XLSX temp file
+                        sheet_temp_path = f"temp_sheet_{session['user_id']}_{uuid.uuid4().hex[:8]}.xlsx"
+                        df.to_excel(sheet_temp_path, index=False)
+                        
+                        # Log in uploaded_files DB
+                        conn_upload = get_db_connection()
+                        cursor_upload = conn_upload.cursor()
+                        cursor_upload.execute(
+                            "INSERT INTO uploaded_files (user_id, filename, original_filename, total_rows, status, uploaded_at) VALUES (%s, %s, %s, %s, %s, %s)",
+                            (session["user_id"], sheet_temp_path, f"{safe_filename} [{sheet_name}]", len(df), 'processing', datetime.utcnow())
+                        )
+                        file_id = cursor_upload.lastrowid
+                        conn_upload.commit()
+                        conn_upload.close()
+                        
+                        # Background Ingestion
+                        import threading
+                        from helpers import ingest_uploaded_file
+                        
+                        def run_background_ingestion(fid, fpath, uname):
+                            try:
+                                ingest_uploaded_file(fid, fpath, uname)
+                            except Exception:
+                                pass
+                        t = threading.Thread(target=run_background_ingestion, args=(file_id, sheet_temp_path, username))
+                        t.daemon = True
+                        t.start()
+                        
+                        total_rows_all_sheets += len(df)
+                        uploaded_sheets.append({
+                            "sheet_id": f"s_{unique_prefix}_{sheet_idx}",
+                            "original_filename": safe_filename,
+                            "sheet_name": sheet_name,
+                            "safe_sheet_name": safe_sheet_name,
+                            "temp_path": sheet_temp_path,
+                            "columns": df.columns.tolist(),
+                            "total_rows": len(df),
+                            "file_id": file_id
+                        })
+                        sheet_idx += 1
             except Exception as e:
-                app.logger.error(f"Failed to kick off background ingestion: {e}")
-
-            size_kb = round(file_size / 1024, 1)
-            log_action(session["user_id"], f"Uploaded file {session['uploaded_file']} ({size_kb} KB, {len(df)} rows)")
-            return redirect(url_for("choose_rules"))
-        else:
-            flash("Invalid file format. Please upload an Excel (.xlsx/.xls) or CSV file.", "danger")
-   
+                flash(f"Could not read file {safe_filename}: {e}", "danger")
+                return render_template("upload.html")
+                
+        if not uploaded_sheets:
+            flash("No valid worksheets with data found to process.", "danger")
+            return render_template("upload.html")
+            
+        session["uploaded_sheets"] = uploaded_sheets
+        # For backwards compatibility with other screens
+        session["uploaded_file"] = uploaded_sheets[0]["original_filename"] if len(uploaded_sheets) == 1 else f"{total_files_processed} files ({len(uploaded_sheets)} sheets)"
+        session["temp_file"] = uploaded_sheets[0]["temp_path"]
+        session.pop("selected_rules", None) # Clear old rules
+        
+        # Log general action
+        log_action(session["user_id"], f"Uploaded {total_files_processed} files with {len(uploaded_sheets)} sheets ({total_rows_all_sheets} total rows)")
+        
+        # Notify team lead
+        try:
+            from helpers import notify_team_lead_action
+            notify_team_lead_action(session["user_id"], "upload", session["uploaded_file"])
+        except Exception:
+            pass
+            
+        return redirect(url_for("choose_rules"))
+    
     return render_template("upload.html")
 
 
@@ -1162,9 +1632,31 @@ def choose_rules():
     if "user_id" not in session or session.get("role") not in ROLE_PERMISSIONS:
         return redirect(url_for("login"))
    
-    temp_path = session.get("temp_file")
-    selected_rules = session.get("selected_rules", [])
+    uploaded_sheets = session.get("uploaded_sheets", [])
+    if not uploaded_sheets:
+        temp_path = session.get("temp_file")
+        if temp_path and os.path.exists(temp_path):
+            safe_filename = session.get("uploaded_file", "data_file")
+            ext = os.path.splitext(temp_path)[1].lower()
+            sheet_name = "CSV" if ext == ".csv" else "Sheet1"
+            import uuid
+            uploaded_sheets = [{
+                "sheet_id": f"s_legacy_{uuid.uuid4().hex[:8]}",
+                "original_filename": safe_filename,
+                "sheet_name": sheet_name,
+                "safe_sheet_name": "legacy_sheet",
+                "temp_path": temp_path,
+                "columns": [],
+                "total_rows": 0,
+                "file_id": 0
+            }]
+            session["uploaded_sheets"] = uploaded_sheets
+            
+    if not uploaded_sheets:
+        flash("No file uploaded. Please upload first.", "warning")
+        return redirect(url_for("upload"))
 
+    selected_rules = session.get("selected_rules", [])
     column_rule_map = defaultdict(list)
     selected_strategy_map = {}
 
@@ -1175,36 +1667,8 @@ def choose_rules():
         if rule_name == "handle_missing" and len(rule_tuple) > 2:
             selected_strategy_map[column] = rule_tuple[2]
 
-    if not temp_path or not os.path.exists(temp_path):
-        flash("No file uploaded. Please upload first.", "warning")
-        return redirect(url_for("upload"))
-
-    if temp_path.endswith(".csv"):
-        df = pd.read_csv(temp_path)
-    else:
-        df=pd.read_excel(temp_path)
-    columns = df.columns.tolist()
-
-    column_rule_options = {}
-
-    column_type_map = {
-        column: resolve_column_type(df, column)
-        for column in df.columns
-    }
-
-    for column in df.columns:
-        col_type = column_type_map[column]
-        allowed_rules = []
-        for rule_key, rule_meta in RULES_REGISTRY.items():
-            if col_type in rule_meta.get("allowed_types", []):
-                allowed_rules.append(rule_key)
-        column_rule_options[column] = allowed_rules
-
-    identifier_columns = detect_identifier_columns(df)
     presets = []
     custom_fields_registry = []
-    suggestions = {}
-    
     master_fields = [
         {"name": "Full Name", "identifier": "full_name", "type": "text"},
         {"name": "Email Address", "identifier": "email_address", "type": "email"},
@@ -1230,6 +1694,7 @@ def choose_rules():
         {"name": "Annual Revenue", "identifier": "annual_revenue", "type": "numeric"}
     ]
 
+    sheet_data = []
     conn = None
     try:
         conn = get_db_connection()
@@ -1244,34 +1709,73 @@ def choose_rules():
         cursor.execute("SELECT id, field_name FROM field_registry WHERE is_active = 1")
         custom_fields_registry = cursor.fetchall()
         
-        # Compute column mappings suggestions
-        suggestions = suggest_column_mapping(columns, cursor)
-        
-    except Exception:
-        app.logger.warning(
-            "Unable to load rule presets for user %s; continuing without presets.",
-            session.get("user_id"),
-            exc_info=True,
-        )
-        presets = []
+        # Populate sheet details
+        for sheet in uploaded_sheets:
+            spath = sheet["temp_path"]
+            if spath.endswith(".csv"):
+                df = pd.read_csv(spath)
+            else:
+                df = pd.read_excel(spath)
+                
+            cols = df.columns.tolist()
+            # Update columns list in sheet dict
+            sheet["columns"] = cols
+            
+            column_type_map = {
+                c: resolve_column_type(df, c)
+                for c in cols
+            }
+            
+            column_rule_options = {}
+            for c in cols:
+                col_type = column_type_map[c]
+                allowed_rules = []
+                for rule_key, rule_meta in RULES_REGISTRY.items():
+                    if col_type in rule_meta.get("allowed_types", []):
+                        allowed_rules.append(rule_key)
+                column_rule_options[c] = allowed_rules
+                
+            identifier_columns = detect_identifier_columns(df)
+            suggestions = suggest_column_mapping(cols, cursor)
+            
+            sheet_data.append({
+                "sheet_id": sheet["sheet_id"],
+                "original_filename": sheet["original_filename"],
+                "sheet_name": sheet["sheet_name"],
+                "safe_sheet_name": sheet["safe_sheet_name"],
+                "columns": cols,
+                "column_type_map": column_type_map,
+                "column_rule_options": column_rule_options,
+                "identifier_columns": identifier_columns,
+                "suggestions": suggestions
+            })
+            
+    except Exception as e:
+        app.logger.error(f"Error preparing choose_rules sheet metadata: {e}")
+        flash("Error reading uploaded sheets.", "danger")
+        return redirect(url_for("upload"))
     finally:
         if conn is not None:
             conn.close()
 
+    # Backwards compatibility fields for first sheet
+    first_sheet = sheet_data[0] if sheet_data else {}
+    
     return render_template("choose_rules.html",
-                         columns=df.columns,
-                         selected_rule_map=column_rule_map,
-                         selected_rules=selected_rules,
-                         selected_strategy_map=selected_strategy_map,
-                         uploaded_file=session.get("uploaded_file"),
-                         column_rule_options=column_rule_options,
-                         RULES_REGISTRY=RULES_REGISTRY,
-                         presets=presets,
-                         column_type_map=column_type_map,
-                         identifier_columns=identifier_columns,
-                         master_fields=master_fields,
-                         custom_fields_registry=custom_fields_registry,
-                         suggestions=suggestions)
+                           columns=first_sheet.get("columns", []),
+                           selected_rule_map=column_rule_map,
+                           selected_rules=selected_rules,
+                           selected_strategy_map=selected_strategy_map,
+                           uploaded_file=session.get("uploaded_file"),
+                           column_rule_options=first_sheet.get("column_rule_options", {}),
+                           RULES_REGISTRY=RULES_REGISTRY,
+                           presets=presets,
+                           column_type_map=first_sheet.get("column_type_map", {}),
+                           identifier_columns=first_sheet.get("identifier_columns", []),
+                           master_fields=master_fields,
+                           custom_fields_registry=custom_fields_registry,
+                           suggestions=first_sheet.get("suggestions", {}),
+                           sheet_data=sheet_data)
 
 import os
 import glob
@@ -1283,48 +1787,35 @@ import glob
 @app.route("/clean", methods=["POST"])
 @login_required()
 def clean_data():
-
-    # print("RAW FORM: ", request.form)    #debug statement
-
-    
     if "user_id" not in session or session.get("role") not in ROLE_PERMISSIONS:
         return redirect(url_for("login"))
     
-    temp_path = session.get("temp_file")
+    uploaded_sheets = session.get("uploaded_sheets", [])
+    if not uploaded_sheets:
+        temp_path = session.get("temp_file")
+        if temp_path and os.path.exists(temp_path):
+            safe_filename = session.get("uploaded_file", "data_file")
+            ext = os.path.splitext(temp_path)[1].lower()
+            sheet_name = "CSV" if ext == ".csv" else "Sheet1"
+            import uuid
+            uploaded_sheets = [{
+                "sheet_id": f"s_legacy_{uuid.uuid4().hex[:8]}",
+                "original_filename": safe_filename,
+                "sheet_name": sheet_name,
+                "safe_sheet_name": "legacy_sheet",
+                "temp_path": temp_path,
+                "columns": [],
+                "total_rows": 0,
+                "file_id": 0
+            }]
+            session["uploaded_sheets"] = uploaded_sheets
 
-    if not temp_path or not os.path.exists(temp_path):
-        flash("No file found. Please upload again.", "danger")
+    if not uploaded_sheets:
+        flash("No files found to clean. Please upload again.", "danger")
         return redirect(url_for("upload"))
-    
-    if temp_path.endswith(".csv"):
-        df= pd.read_csv(temp_path)
-    else:
-        df = pd.read_excel(temp_path)
 
-    total_before = len(df)
-
-    #Read any column type overrides the user submitted
-    type_overrides = {}
-    for column in df.columns:
-        safe_col = column.replace(" ", "_")
-        override = request.form.get(f"type_override_{safe_col}", "").strip()
-        if override:
-            type_overrides[column] = override
-    session["type_overrides"] = type_overrides
-
-    # Read custom rules by field id
-    custom_rules_by_field_id = {}
-    for x in range(100):
-        target_cf = request.form.get(f"custom_field_target_{x}")
-        if target_cf:
-            rules = request.form.getlist(f"rules_custom_{x}[]")
-            strategy = request.form.get(f"strategy_custom_{x}", "flag")
-            custom_rules_by_field_id[target_cf] = {"rules": rules, "strategy": strategy}
-
-    # STEP 1: Store selected rules in session mapping file columns to rule selections
-    selected_rules = []
+    # Read master rules configurations from form
     master_rules_saved = {}
-    
     master_fields_ids = [
         "full_name", "email_address", "primary_phone_number", "alternate_phone_number",
         "company_name", "job_title", "department", "website_url", "address_line_1",
@@ -1338,155 +1829,193 @@ def clean_data():
         if rules_list:
             master_rules_saved[col_name] = {"rules": rules_list, "strategy": strategy}
 
-    for column in df.columns:
-        safe_col = column.replace(" ", "_")
-        target = request.form.get(f"map_col_{safe_col}")
-        
-        if not target or target == 'ignore':
-            continue
-            
-        rules_list = []
-        strategy = "flag"
-        
-        if target.startswith("master:"):
-            col_name = target.split("master:")[1]
-            rules_list = master_rules_saved.get(col_name, {}).get("rules", [])
-            strategy = master_rules_saved.get(col_name, {}).get("strategy", "flag")
-        elif target.startswith("custom:"):
-            fid = target.split("custom:")[1]
-            rules_list = custom_rules_by_field_id.get(fid, {}).get("rules", [])
-            strategy = custom_rules_by_field_id.get(fid, {}).get("strategy", "flag")
-            
-        for rule_name in rules_list:
-            rule_name = rule_name.strip()
-            if rule_name == "handle_missing":
-                selected_rules.append((rule_name, column, strategy))
-            else:
-                selected_rules.append((rule_name, column))
-                
-    session["selected_rules"] = selected_rules
+    # Read custom rules by field id
+    custom_rules_by_field_id = {}
+    for x in range(100):
+        target_cf = request.form.get(f"custom_field_target_{x}")
+        if target_cf:
+            rules = request.form.getlist(f"rules_custom_{x}[]")
+            strategy = request.form.get(f"strategy_custom_{x}", "flag")
+            custom_rules_by_field_id[target_cf] = {"rules": rules, "strategy": strategy}
+
     session["master_rules_saved"] = master_rules_saved
     session["custom_rules_saved"] = custom_rules_by_field_id
 
-
-    #STEP 2: Build Engine Rule List
-    engine_rules=[]
-    dup_columns=[]
-
-    for rule_tuple in selected_rules:
-        rule_name = rule_tuple[0]
-        column = rule_tuple[1]
-        if rule_name == "drop_duplicates":
-            dup_columns.append(column)
+    # We will run cleaning on each sheet separately
+    results = []
+    total_before = 0
+    valid_after = 0
+    invalid_after = 0
+    removed_count = 0
+    
+    all_detailed_errors = []
+    all_system_warnings = []
+    
+    # Combined rules applied list for logging
+    combined_selected_rules = []
+    
+    # Type overrides maps per sheet column (mostly empty but supported)
+    type_overrides = {}
+    
+    for sheet in uploaded_sheets:
+        sheet_id = sheet["sheet_id"]
+        spath = sheet["temp_path"]
+        
+        if spath.endswith(".csv"):
+            df = pd.read_csv(spath)
         else:
-            engine_rules.append(rule_tuple)
+            df = pd.read_excel(spath)
+            
+        sheet_total_before = len(df)
+        total_before += sheet_total_before
+        
+        # Build mapping rules for this sheet
+        sheet_selected_rules = []
+        for column in df.columns:
+            safe_col = column.replace(" ", "_")
+            # Try to get map target scoped by sheet_id first
+            target = request.form.get(f"map_col_{sheet_id}_{safe_col}")
+            if not target:
+                # Backwards compatibility fallback
+                target = request.form.get(f"map_col_{safe_col}")
+                
+            if not target or target == 'ignore':
+                continue
+                
+            rules_list = []
+            strategy = "flag"
+            
+            if target.startswith("master:"):
+                col_name = target.split("master:")[1]
+                rules_list = master_rules_saved.get(col_name, {}).get("rules", [])
+                strategy = master_rules_saved.get(col_name, {}).get("strategy", "flag")
+            elif target.startswith("custom:"):
+                fid = target.split("custom:")[1]
+                rules_list = custom_rules_by_field_id.get(fid, {}).get("rules", [])
+                strategy = custom_rules_by_field_id.get(fid, {}).get("strategy", "flag")
+                
+            for rule_name in rules_list:
+                rule_name = rule_name.strip()
+                rule_tuple = (rule_name, column, strategy) if rule_name == "handle_missing" else (rule_name, column)
+                sheet_selected_rules.append(rule_tuple)
+                combined_selected_rules.append(rule_tuple)
 
-    # print("DUP COLS: ", dup_columns)    #debug statement
+        # Build Engine Rule List for this sheet
+        engine_rules = []
+        dup_columns = []
+        for rule_tuple in sheet_selected_rules:
+            rule_name = rule_tuple[0]
+            column = rule_tuple[1]
+            if rule_name == "drop_duplicates":
+                dup_columns.append(column)
+            else:
+                engine_rules.append(rule_tuple)
 
-    if not selected_rules:
-        flash("Please select at least one cleaning rule.", "warning")
+        # Run Cleaning Engine on this sheet
+        cleaned_df, invalid_df, removed_rows, detailed_errors, incompatibility_errors, cleaning_summary = run_cleaning_pipeline(
+            df=df,
+            selected_rules=engine_rules,
+            duplicate_columns=dup_columns,
+            type_overrides=type_overrides
+        )
+        
+        valid_after += len(cleaned_df)
+        invalid_after += len(invalid_df)
+        removed_count += len(removed_rows)
+        
+        all_detailed_errors.extend(detailed_errors)
+        all_system_warnings.extend(incompatibility_errors)
+        
+        results.append({
+            "safe_sheet_name": sheet["safe_sheet_name"],
+            "cleaned_df": cleaned_df,
+            "invalid_df": invalid_df,
+            "removed_rows": removed_rows
+        })
+
+    session["selected_rules"] = combined_selected_rules
+
+    if total_before == 0:
+        flash("Please upload files containing records.", "warning")
         return redirect(url_for("choose_rules"))
 
-    #STEP 3: Run Cleaning Engine
-    cleaned_df, invalid_df, removed_rows, detailed_errors, incompatibility_errors, cleaning_summary = run_cleaning_pipeline(
-        df=df,
-        selected_rules=engine_rules,
-        duplicate_columns=dup_columns,
-        type_overrides=type_overrides
-    )
-
-    system_warnings = incompatibility_errors
-
-    
-    # print("SELECTED RULES RAW:", selected_rules)    #debug statement
-    # print("TYPE: ", type(selected_rules))           #debug statement
-
-    removed_count = len(removed_rows)
-
-    #STEP 6: Final Counts
-    valid_after = len(cleaned_df)
-    invalid_after= len(invalid_df)
-
-    if cleaned_df.empty:
-        flash("All rows removed. please adjust rules.", "warning")
-
-    #Cleanup previous run files
+    # Cleanup previous run files
     cleanup_old_session_files()
-    #STEP 7: Save Files
-
+    
+    # Save Files
     from datetime import datetime
-
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    base_name=os.path.splitext(os.path.basename(session["uploaded_file"]))[0]
+    raw_uploaded = session.get("uploaded_file", "data_file")
+    base_name = "".join(c for c in raw_uploaded if c.isalnum() or c in "._- ").strip()
+    if not base_name or len(base_name) > 60:
+        base_name = "data_file"
 
     cleaned_file = os.path.join("Generated_Files","Cleaned",f"{session['user_id']}_{base_name}_cleaned_{timestamp}.xlsx")
-    cleaned_df.to_excel(cleaned_file, index=False)
+    with pd.ExcelWriter(cleaned_file, engine='openpyxl') as writer:
+        for r in results:
+            r["cleaned_df"].to_excel(writer, sheet_name=r["safe_sheet_name"], index=False)
 
-    invalid_file=None
-    if not invalid_df.empty:
-        invalid_file= os.path.join("Generated_Files","Invalid",f"{session['user_id']}_{base_name}_invalid_{timestamp}.xlsx")
-        invalid_df.to_excel(invalid_file, index=False)
+    invalid_file = None
+    any_invalid = any(not r["invalid_df"].empty for r in results)
+    if any_invalid:
+        invalid_file = os.path.join("Generated_Files","Invalid",f"{session['user_id']}_{base_name}_invalid_{timestamp}.xlsx")
+        with pd.ExcelWriter(invalid_file, engine='openpyxl') as writer:
+            for r in results:
+                r["invalid_df"].to_excel(writer, sheet_name=r["safe_sheet_name"], index=False)
 
-    removed_file=None
-    if not removed_rows.empty:
-        removed_file= os.path.join("Generated_Files","Removed",f"{session['user_id']}_{base_name}_removed_{timestamp}.xlsx")
-        removed_rows.to_excel(removed_file, index=False)
+    removed_file = None
+    any_removed = any(not r["removed_rows"].empty for r in results)
+    if any_removed:
+        removed_file = os.path.join("Generated_Files","Removed",f"{session['user_id']}_{base_name}_removed_{timestamp}.xlsx")
+        with pd.ExcelWriter(removed_file, engine='openpyxl') as writer:
+            for r in results:
+                r["removed_rows"].to_excel(writer, sheet_name=r["safe_sheet_name"], index=False)
 
-    
-    #STEP 8: Generate Preview
-    preview = cleaned_df.reset_index(drop=True).head(15).to_html(
+    # Generate Preview Table (Concatenate cleaned rows from all sheets for preview)
+    preview_dfs = [r["cleaned_df"] for r in results if not r["cleaned_df"].empty]
+    if preview_dfs:
+        merged_preview_df = pd.concat(preview_dfs, ignore_index=True)
+    else:
+        merged_preview_df = results[0]["cleaned_df"]
+        
+    preview = merged_preview_df.reset_index(drop=True).head(15).to_html(
         classes="table table-hover align-middle",
         index=False,
         header=True,
         border=0,
         justify="left"
     )
-    # print("Preview",preview)    #debug statement
 
-    #STEP 9: Summary
-    summary= generate_summary(
+    # Generate Summary
+    summary = generate_summary(
         total_before,
         valid_after,
-        [e.get("message", "Unknown error") for e in detailed_errors]
+        [e.get("message", "Unknown error") for e in all_detailed_errors]
     )
 
-    #STEP 10: Group Errors
-    from collections import defaultdict
-    grouped_errors= defaultdict(list)
-
-    for error in detailed_errors:
+    # Group Errors
+    grouped_errors = defaultdict(list)
+    for error in all_detailed_errors:
         grouped_errors[error["rule"]].append(error)
     
-    #STEP 11: Logging
+    # Logging
     column_rule_map = defaultdict(list)
-    # print("COLUMN RULE MAP RAW: ", dict(column_rule_map))   #debug
-
-    for rule_tuple in selected_rules:
-        rule_name=rule_tuple[0]
-        column=rule_tuple[1]
+    for rule_tuple in combined_selected_rules:
+        rule_name = rule_tuple[0]
+        column = rule_tuple[1]
         rule_meta = RULES_REGISTRY.get(rule_name, {})
         display_name = rule_meta.get("label") or rule_name
-        # print("ADDING: ", column, "->", display_name)    #debug statement
         column_rule_map[column].append(display_name)
 
-    # print("COLUMN RULE MAP: ", column_rule_map)     #debug statement
-    # for col, rules in column_rule_map.items():
-    #     print("COLUMN: ", col, "RULES LIST: ", rules, "TYPE: ", type(rules))  #debug statement
-
-    #for group
-    selected_filters_display=[
+    selected_filters_display = [
         {
-            "column":column,
+            "column": column,
             "rule": ", ".join(rules)
         }
         for column, rules in column_rule_map.items()
     ]
     
     filters_count = sum(len(rules) for rules in column_rule_map.values())
-
-    # print("SELECTED FILTERS DISPLAY: ", selected_filters_display)    #debug statement
-    # print("FILTER COUNT: ", filters_count)    #debug statement
-
     rules_applied = [
         f"{column} ({', '.join(rules)})"
         for column, rules in column_rule_map.items()
@@ -1494,28 +2023,35 @@ def clean_data():
 
     log_action(
         session["user_id"],
-        f"Cleaned file {session['uploaded_file']} using rules: {', '.join(rules_applied)} | summary:{cleaning_summary}",
+        f"Cleaned file {session['uploaded_file']} using rules: {', '.join(rules_applied)}",
         total=total_before,
         valid=valid_after,
         invalid=invalid_after,
         removed=removed_count,
-        rules_applied=[(r[0],r[1]) for r in selected_rules],
-        rule_counts=cleaning_summary.get("rules_trigger_counts",{}),
+        rules_applied=[(r[0],r[1]) for r in combined_selected_rules],
+        rule_counts={}
     )
 
     session["cleaned_file"] = cleaned_file
     session["invalid_file"] = invalid_file
     session["removed_file"] = removed_file
 
-    if cleaned_df.empty:
-        detailed_errors.append({
+    # Notify team lead
+    try:
+        from helpers import notify_team_lead_action
+        notify_team_lead_action(session["user_id"], "clean", session["uploaded_file"])
+    except Exception:
+        pass
+
+    if valid_after == 0:
+        all_detailed_errors.append({
             "rule" : "dataset_empty",
             "column" : None,
             "row_index" : None,
             "message" : "All rows removed after applying filters."
         })
 
-    #FINAL RENDER
+    # FINAL RENDER
     return render_template(
         "preview.html",
         preview_table=preview,
@@ -1530,12 +2066,11 @@ def clean_data():
         grouped_errors=grouped_errors,
         selected_filters=selected_filters_display,
         filters_count=filters_count,
-        system_warnings=system_warnings,
-        cleaning_summary=cleaning_summary,
-        cleaned_rows=len(cleaned_df),
-        invalid_rows=len(invalid_df),
+        system_warnings=all_system_warnings,
+        cleaning_summary={},
+        cleaned_rows=valid_after,
+        invalid_rows=invalid_after,
         removed=removed_count
-
     )
 
 
@@ -2369,76 +2904,36 @@ def manage_users():
     caller_id       = session.get("user_id")
     caller_username = session.get("username")
 
-    if caller_role not in ["admin"]:
+    if caller_role not in ["admin", "manager"]:
         flash("Access denied.", "warning")
-        return redirect(url_for("upload"))
-
-    search        = request.args.get("search", "").strip()
-    role_filter   = request.args.get("role",   "").strip()
-    status_filter = request.args.get("status", "").strip()
-    sort          = request.args.get("sort",   "").strip()
-    page          = request.args.get("page", 1, type=int)
-    per_page      = 10
-    offset        = (page - 1) * per_page
+        return redirect(url_for("dashboard"))
 
     conn   = get_db_connection()
     cursor = conn.cursor(dictionary=True)
 
     base_select = """
         SELECT
-            u.id, u.username, u.role, u.is_active,
-            u.manager_id,
+            u.id, u.username, u.role, u.is_active, u.status, u.email,
+            u.manager_id, u.export_limit, u.created_at,
             mgr.username   AS manager_username,
-            mgr.role       AS manager_role,
-            gmgr.username  AS grandmanager_username,
-            gmgr.role      AS grandmanager_role
+            mgr.role       AS manager_role
         FROM users u
-        LEFT JOIN users mgr  ON u.manager_id  = mgr.id
-        LEFT JOIN users gmgr ON mgr.manager_id = gmgr.id
+        LEFT JOIN users mgr ON u.manager_id = mgr.id
     """
 
-    conditions = ["1=1"]
-    params     = []
-
-    if caller_role == "manager":
+    if caller_role == "admin":
+        cursor.execute(f"{base_select} ORDER BY u.username ASC")
+        users = cursor.fetchall()
+    else: # manager
         visible_ids = get_visible_user_ids(cursor, role="manager", user_id=caller_id)
         if visible_ids:
             placeholders = ",".join(["%s"] * len(visible_ids))
-            conditions.append(f"u.id IN ({placeholders})")
-            params.extend(visible_ids)
+            cursor.execute(f"{base_select} WHERE u.id IN ({placeholders}) ORDER BY u.username ASC", visible_ids)
+            users = cursor.fetchall()
         else:
-            conditions.append("1=0")
+            users = []
 
-    if search:
-        conditions.append("u.username LIKE %s")
-        params.append(f"%{search}%")
-    if role_filter:
-        conditions.append("u.role = %s")
-        params.append(role_filter)
-    if status_filter == "active":
-        conditions.append("u.is_active = 1")
-    elif status_filter == "inactive":
-        conditions.append("u.is_active = 0")
-
-    order_map = {
-        "username_desc": "u.username DESC",
-        "newest":        "u.id DESC",
-        "oldest":        "u.id ASC",
-        "role":          "u.role ASC",
-    }
-    order_clause = " ORDER BY " + order_map.get(sort, "u.username ASC")
-    where_clause = " WHERE " + " AND ".join(conditions)
-
-    cursor.execute(f"SELECT COUNT(*) AS total FROM users u {where_clause}", params)
-    total_users = cursor.fetchone()["total"]
-
-    cursor.execute(
-        f"{base_select} {where_clause} {order_clause} LIMIT %s OFFSET %s",
-        params + [per_page, offset]
-    )
-    users = cursor.fetchall()
-
-    # Dropdown lists for the reassign modal
+    # Dropdown lists for management form
     if caller_role == "admin":
         cursor.execute("SELECT id, username FROM users WHERE role='admin' AND is_active=1 ORDER BY username")
         available_admins = cursor.fetchall()
@@ -2456,26 +2951,197 @@ def manage_users():
         )
         available_tls = cursor.fetchall()
 
-    conn.close()
+    # Fetch global role default limits
+    cursor.execute("SELECT role_name, default_limit FROM role_export_limits")
+    role_limits = {r['role_name']: r['default_limit'] for r in cursor.fetchall()}
+    for r in ['admin', 'manager', 'team_lead', 'user']:
+        if r not in role_limits:
+            role_limits[r] = 1000000 if r == 'admin' else (100000 if r == 'manager' else 50000)
 
-    total_pages = max(1, (total_users + per_page - 1) // per_page)
-    start = (page - 1) * per_page + 1 if total_users > 0 else 0
-    end   = min(page * per_page, total_users)
+    conn.close()
 
     return render_template(
         "admin_users.html",
         users=users,
-        search=search, role_filter=role_filter,
-        status_filter=status_filter, sort=sort,
-        page=page, total_pages=total_pages,
-        total_users=total_users, start=start, end=end,
         available_admins=available_admins,
         available_managers=available_managers,
         available_tls=available_tls,
         caller_role=caller_role,
         caller_id=caller_id,
         caller_username=caller_username,
+        role_limits=role_limits,
     )
+
+
+# Update user details route (handles role, status, export limit, manager, etc.)
+@app.route("/admin/users/update/<int:user_id>", methods=["POST"])
+@login_required()
+def update_user_details(user_id):
+    caller_role = session.get("role")
+    caller_id = session.get("user_id")
+    if caller_role not in ["admin", "manager"]:
+        return jsonify({"ok": False, "error": "Access denied."}), 403
+
+    username = request.form.get("username", "").strip()
+    email = request.form.get("email", "").strip()
+    role = request.form.get("role", "").strip()
+    new_manager_id_raw = request.form.get("manager_id", "").strip()
+    
+    # Handle "no_manager" representation
+    if new_manager_id_raw == "none" or not new_manager_id_raw:
+        new_manager_id = None
+    else:
+        new_manager_id = int(new_manager_id_raw)
+
+    export_limit_raw = request.form.get("export_limit", "").strip()
+    export_limit = int(export_limit_raw) if export_limit_raw else None
+    new_status = request.form.get("status", "").strip()
+
+    if not username:
+        return jsonify({"ok": False, "error": "Username cannot be empty."}), 400
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    # Fetch target user details
+    cursor.execute("SELECT id, username, role, manager_id FROM users WHERE id = %s", (user_id,))
+    target_user = cursor.fetchone()
+
+    if not target_user:
+        conn.close()
+        return jsonify({"ok": False, "error": "User not found."}), 404
+
+    # Role level authorization check
+    ROLE_RANK = {"admin": 4, "manager": 3, "team_lead": 2, "user": 1}
+    if ROLE_RANK.get(target_user["role"], 0) >= ROLE_RANK.get(caller_role, 0) and user_id != caller_id:
+        conn.close()
+        return jsonify({"ok": False, "error": "You cannot modify details of a user at or above your role level."}), 403
+
+    # Manager visibility checks
+    if caller_role == "manager":
+        visible_ids = get_visible_user_ids(cursor, role="manager", user_id=caller_id)
+        if user_id not in visible_ids:
+            conn.close()
+            return jsonify({"ok": False, "error": "Unauthorized: user is not in your team."}), 403
+        if role and role in ["admin", "manager"]:
+            conn.close()
+            return jsonify({"ok": False, "error": "Managers can only assign team_lead or user roles."}), 403
+
+    # Prevent target user status updates on self unless allowed
+    is_active = 1
+    if new_status:
+        if new_status not in ["active", "sleep", "disabled", "deleted"]:
+            conn.close()
+            return jsonify({"ok": False, "error": "Invalid status value."}), 400
+        if user_id == caller_id and new_status in ["disabled", "deleted"]:
+            conn.close()
+            return jsonify({"ok": False, "error": "You cannot disable or delete your own account."}), 400
+        is_active = 1 if new_status in ["active", "sleep"] else 0
+
+    # Execute Update
+    update_fields = ["username = %s", "email = %s"]
+    params = [username, email]
+
+    if caller_role == "admin" and role:
+        update_fields.append("role = %s")
+        params.append(role)
+        
+    if new_manager_id_raw != "no_change":
+        update_fields.append("manager_id = %s")
+        params.append(new_manager_id)
+
+    if caller_role == "admin" or (caller_role == "manager" and target_user["role"] == "user"):
+        update_fields.append("export_limit = %s")
+        params.append(export_limit)
+
+    if new_status:
+        update_fields.append("status = %s")
+        params.append(new_status)
+        update_fields.append("is_active = %s")
+        params.append(is_active)
+
+    params.append(user_id)
+    query = f"UPDATE users SET {', '.join(update_fields)} WHERE id = %s"
+    cursor.execute(query, params)
+    conn.commit()
+    conn.close()
+
+    log_action(caller_id, f"Updated user details for username '{username}' (id={user_id})")
+
+    return jsonify({"ok": True, "message": "User details successfully updated."})
+
+
+
+@app.route('/admin/set_export_limit/<int:user_id>', methods=['POST'])
+@login_required()
+def set_export_limit(user_id):
+    if session.get("role") != "admin":
+        flash("Access denied.", "warning")
+        return redirect(url_for("upload"))
+        
+    limit_val = request.form.get("export_limit", "").strip()
+    if limit_val == "":
+        limit = None
+    else:
+        try:
+            limit = int(limit_val)
+            if limit < 0:
+                raise ValueError()
+        except ValueError:
+            flash("Invalid limit value.", "danger")
+            return redirect(url_for("manage_users"))
+            
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("UPDATE users SET export_limit = %s WHERE id = %s", (limit, user_id))
+        conn.commit()
+        conn.close()
+        flash("Export limit updated successfully.", "success")
+    except Exception as e:
+        flash(f"Error: {str(e)}", "danger")
+        
+    return redirect(url_for(
+        "manage_users",
+        search=request.form.get("_search", ""),
+        role=request.form.get("_role_filter", ""),
+        status=request.form.get("_status_filter", ""),
+        sort=request.form.get("_sort", ""),
+        page=request.form.get("_page", 1)
+    ))
+
+
+@app.route('/admin/update_role_limits', methods=['POST'])
+@login_required()
+def update_role_limits():
+    if session.get("role") != "admin":
+        flash("Access denied.", "warning")
+        return redirect(url_for("upload"))
+        
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        for role in ['admin', 'manager', 'team_lead', 'user']:
+            limit_val = request.form.get(f"limit_{role}", "").strip()
+            if limit_val != "":
+                try:
+                    limit = int(limit_val)
+                    if limit >= 0:
+                        cursor.execute("""
+                            INSERT INTO role_export_limits (role_name, default_limit)
+                            VALUES (%s, %s)
+                            ON DUPLICATE KEY UPDATE default_limit = %s
+                        """, (role, limit, limit))
+                except ValueError:
+                    pass
+        conn.commit()
+        conn.close()
+        flash("Role default limits updated successfully.", "success")
+    except Exception as e:
+        flash(f"Error: {str(e)}", "danger")
+        
+    return redirect(url_for("manage_users"))
 
 
 # ── Get TLs under a manager (AJAX endpoint for reassign modal) ────────────────
@@ -2757,6 +3423,459 @@ def toggle_user(user_id):
                             sort=request.args.get("_sort",""),
                             page=request.args.get("_page",1),
                             ))
+
+# Profile page (any role)
+@app.route("/profile")
+@login_required()
+def profile():
+    conn   = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("""
+        SELECT id, username, email, role, is_active, created_at, phone_number, address
+        FROM users WHERE id = %s
+    """, (session["user_id"],))
+    user_data = cursor.fetchone()
+
+    # Fetch user's own recent activity
+    cursor.execute("""
+        SELECT action, created_at FROM logs
+        WHERE user_id = %s
+        ORDER BY created_at DESC LIMIT 10
+    """, (session["user_id"],))
+    recent_activity = cursor.fetchall()
+
+    # Counts for the user's own activity
+    cursor.execute("""
+        SELECT
+            COUNT(*) AS total_events,
+            SUM(CASE WHEN LOWER(action) LIKE '%%cleaned file%%' THEN 1 ELSE 0 END) AS total_cleans,
+            SUM(CASE WHEN LOWER(action) LIKE '%%upload%%' THEN 1 ELSE 0 END) AS total_uploads,
+            SUM(CASE WHEN LOWER(action) LIKE '%%export%%' THEN 1 ELSE 0 END) AS total_exports
+        FROM logs WHERE user_id = %s
+    """, (session["user_id"],))
+    my_stats = cursor.fetchone() or {}
+
+    # Check for user's pending change requests
+    cursor.execute("""
+        SELECT * FROM public.user_change_requests
+        WHERE user_id = %s AND status = 'pending'
+    """, (session["user_id"],))
+    pending_request = cursor.fetchone()
+
+    conn.close()
+
+    return render_template("profile.html",
+                           user_data=user_data,
+                           recent_activity=recent_activity,
+                           my_stats=my_stats,
+                           pending_request=pending_request)
+
+
+@app.context_processor
+def inject_pending_requests_count():
+    if "user_id" not in session:
+        return {}
+    role = session.get("role")
+    if role not in ["admin", "team_lead"]:
+        return {}
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Pending requests count
+        if role == "admin":
+            cursor.execute("SELECT COUNT(*) FROM public.user_change_requests WHERE status = 'pending'")
+        else: # team_lead
+            cursor.execute("""
+                SELECT COUNT(*) FROM public.user_change_requests r
+                JOIN public.users u ON r.user_id = u.id
+                WHERE u.manager_id = %s AND r.status = 'pending'
+            """, (session["user_id"],))
+        row_req = cursor.fetchone()
+        req_count = row_req[0] if row_req else 0
+
+        # Unread notifications count
+        cursor.execute("""
+            SELECT COUNT(*) FROM public.user_notifications 
+            WHERE recipient_id = %s AND is_read = FALSE
+        """, (session["user_id"],))
+        row_notif = cursor.fetchone()
+        notif_count = row_notif[0] if row_notif else 0
+        
+        conn.close()
+        return {
+            "pending_requests_count": req_count,
+            "unread_notifications_count": notif_count
+        }
+    except Exception:
+        return {}
+
+
+# API: Get preview of requests and notifications for inbox dropdown
+@app.route("/api/inbox/preview")
+@login_required()
+def inbox_preview():
+    role = session.get("role")
+    if role not in ["admin", "team_lead"]:
+        return jsonify({"ok": False, "error": "Unauthorized"}), 403
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    # 1. Fetch pending requests
+    if role == "admin":
+        cursor.execute("""
+            SELECT r.id, r.username, r.requested_at, u.username as current_username
+            FROM public.user_change_requests r
+            JOIN public.users u ON r.user_id = u.id
+            WHERE r.status = 'pending'
+            ORDER BY r.requested_at DESC
+        """)
+    else: # team_lead
+        cursor.execute("""
+            SELECT r.id, r.username, r.requested_at, u.username as current_username
+            FROM public.user_change_requests r
+            JOIN public.users u ON r.user_id = u.id
+            WHERE u.manager_id = %s AND r.status = 'pending'
+            ORDER BY r.requested_at DESC
+        """, (session["user_id"],))
+    requests_list = cursor.fetchall()
+
+    # 2. Fetch notifications
+    cursor.execute("""
+        SELECT n.id, n.message, n.action_type, n.created_at, n.is_read, u.username as sender_name
+        FROM public.user_notifications n
+        JOIN public.users u ON n.sender_id = u.id
+        WHERE n.recipient_id = %s
+        ORDER BY n.created_at DESC LIMIT 15
+    """, (session["user_id"],))
+    notifications_list = cursor.fetchall()
+
+    conn.close()
+
+    # Serialize datetimes
+    for r in requests_list:
+        r["requested_at"] = r["requested_at"].isoformat() if hasattr(r["requested_at"], "isoformat") else str(r["requested_at"])
+    for n in notifications_list:
+        n["created_at"] = n["created_at"].isoformat() if hasattr(n["created_at"], "isoformat") else str(n["created_at"])
+
+    return jsonify({
+        "ok": True,
+        "requests": requests_list,
+        "notifications": notifications_list
+    })
+
+
+# API: Mark all notifications read
+@app.route("/api/notifications/read", methods=["POST"])
+@login_required()
+def mark_notifications_read():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        UPDATE public.user_notifications
+        SET is_read = TRUE
+        WHERE recipient_id = %s
+    """, (session["user_id"],))
+    conn.commit()
+    conn.close()
+    return jsonify({"ok": True})
+
+
+
+# Update profile details change request (creates request for TL/Admin approval)
+@app.route("/profile/update", methods=["POST"])
+@login_required()
+def profile_update():
+    is_ajax = request.headers.get("X-Requested-With") == "XMLHttpRequest"
+    username = request.form.get("username", "").strip()
+    email = request.form.get("email", "").strip()
+    phone_number = request.form.get("phone_number", "").strip()
+    address = request.form.get("address", "").strip()
+
+    if not username:
+        if is_ajax:
+            return jsonify({"ok": False, "error": "Username cannot be empty."})
+        flash("Username cannot be empty.", "danger")
+        return redirect(url_for("profile"))
+
+    # Fetch current values
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("""
+        SELECT username, email, phone_number, address FROM public.users WHERE id = %s
+    """, (session["user_id"],))
+    curr = cursor.fetchone()
+
+    if not curr:
+        conn.close()
+        if is_ajax:
+            return jsonify({"ok": False, "error": "User not found."})
+        flash("User not found.", "danger")
+        return redirect(url_for("profile"))
+
+    # Check if there are any actual changes
+    has_changes = (
+        username != (curr["username"] or "") or
+        email != (curr["email"] or "") or
+        phone_number != (curr["phone_number"] or "") or
+        address != (curr["address"] or "")
+    )
+
+    if not has_changes:
+        conn.close()
+        if is_ajax:
+            return jsonify({"ok": False, "error": "No changes detected."})
+        flash("No changes detected.", "info")
+        return redirect(url_for("profile"))
+
+    # If the user is admin, they don't need approval! Apply changes immediately.
+    if session.get("role") == "admin":
+        cursor.execute("""
+            UPDATE public.users
+            SET username = %s, email = %s, phone_number = %s, address = %s
+            WHERE id = %s
+        """, (username, email, phone_number, address, session["user_id"]))
+        conn.commit()
+        conn.close()
+        
+        # Update session username in case it changed
+        session["username"] = username
+
+        log_action(session["user_id"], f"Updated own profile details immediately (Username: {username}, Email: {email})")
+        msg = "Profile details updated successfully."
+        if is_ajax:
+            return jsonify({"ok": True, "message": msg})
+        flash(msg, "success")
+        return redirect(url_for("profile"))
+
+    # Check for existing pending request
+    cursor.execute("""
+        SELECT id FROM public.user_change_requests 
+        WHERE user_id = %s AND status = 'pending'
+    """, (session["user_id"],))
+    pending = cursor.fetchone()
+
+    if pending:
+        # Update existing pending request
+        cursor.execute("""
+            UPDATE public.user_change_requests
+            SET username = %s, email = %s, phone_number = %s, address = %s, requested_at = CURRENT_TIMESTAMP
+            WHERE id = %s
+        """, (username, email, phone_number, address, pending["id"]))
+    else:
+        # Create new pending request
+        cursor.execute("""
+            INSERT INTO public.user_change_requests (user_id, username, email, phone_number, address)
+            VALUES (%s, %s, %s, %s, %s)
+        """, (session["user_id"], username, email, phone_number, address))
+
+    conn.commit()
+    conn.close()
+
+    log_action(session["user_id"], f"Submitted profile change request (Username: {username}, Email: {email})")
+
+    msg = "Profile update request submitted successfully. It is pending approval from your Team Leader or Admin."
+    if is_ajax:
+        return jsonify({"ok": True, "message": msg})
+    flash(msg, "success")
+    return redirect(url_for("profile"))
+
+
+
+# Inbox for Team Leaders and Admins to approve/reject profile change requests
+@app.route("/inbox")
+@login_required()
+def inbox():
+    role = session.get("role")
+    if role not in ["admin", "team_lead"]:
+        abort(403)
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    # 1. Fetch change requests
+    if role == "admin":
+        cursor.execute("""
+            SELECT r.*, u.username AS current_username, u.email AS current_email, 
+                   u.phone_number AS current_phone_number, u.address AS current_address,
+                   u.role AS user_role, reviewer.username AS reviewer_name
+            FROM public.user_change_requests r
+            JOIN public.users u ON r.user_id = u.id
+            LEFT JOIN public.users reviewer ON r.reviewed_by = reviewer.id
+            WHERE r.status = 'pending'
+            ORDER BY r.requested_at DESC
+        """)
+    else: # team_lead
+        cursor.execute("""
+            SELECT r.*, u.username AS current_username, u.email AS current_email, 
+                   u.phone_number AS current_phone_number, u.address AS current_address,
+                   u.role AS user_role, reviewer.username AS reviewer_name
+            FROM public.user_change_requests r
+            JOIN public.users u ON r.user_id = u.id
+            LEFT JOIN public.users reviewer ON r.reviewed_by = reviewer.id
+            WHERE u.manager_id = %s AND r.status = 'pending'
+            ORDER BY r.requested_at DESC
+        """, (session["user_id"],))
+    requests_raw = cursor.fetchall()
+
+    # 2. Fetch notifications
+    cursor.execute("""
+        SELECT n.id, n.message, n.action_type, n.created_at, n.is_read, 
+               u.username as sender_name, u.role as user_role
+        FROM public.user_notifications n
+        JOIN public.users u ON n.sender_id = u.id
+        WHERE n.recipient_id = %s
+        ORDER BY n.created_at DESC
+    """, (session["user_id"],))
+    notifications_raw = cursor.fetchall()
+
+    conn.close()
+
+    # Combine into a single feed
+    feed = []
+    
+    # Process requests
+    for r in requests_raw:
+        feed.append({
+            "type": "request",
+            "id": r["id"],
+            "user_id": r["user_id"],
+            "timestamp": r["requested_at"],
+            "status": r["status"],
+            
+            "username": r["username"],
+            "email": r["email"],
+            "phone_number": r["phone_number"],
+            "address": r["address"],
+            
+            "current_username": r["current_username"],
+            "current_email": r["current_email"],
+            "current_phone_number": r["current_phone_number"],
+            "current_address": r["current_address"],
+            
+            "user_role": r["user_role"],
+            "reviewer_name": r["reviewer_name"],
+            "reviewed_at": r["reviewed_at"],
+            "rejection_reason": r["rejection_reason"]
+        })
+        
+    # Process notifications
+    for n in notifications_raw:
+        feed.append({
+            "type": "notification",
+            "id": n["id"],
+            "timestamp": n["created_at"],
+            "message": n["message"],
+            "action_type": n["action_type"],
+            "is_read": n["is_read"],
+            "sender_name": n["sender_name"],
+            "user_role": n["user_role"]
+        })
+        
+    # Sort feed descending by timestamp
+    feed.sort(key=lambda x: x["timestamp"], reverse=True)
+
+    return render_template("inbox.html", feed=feed)
+
+
+
+# Approve profile change request
+@app.route("/inbox/approve/<int:req_id>", methods=["POST"])
+@login_required()
+def approve_request(req_id):
+    role = session.get("role")
+    if role not in ["admin", "team_lead"]:
+        return jsonify({"ok": False, "error": "Unauthorized"}), 403
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    # Fetch change request
+    cursor.execute("""
+        SELECT r.*, u.manager_id 
+        FROM public.user_change_requests r
+        JOIN public.users u ON r.user_id = u.id
+        WHERE r.id = %s AND r.status = 'pending'
+    """, (req_id,))
+    req = cursor.fetchone()
+
+    if not req:
+        conn.close()
+        return jsonify({"ok": False, "error": "Request not found or already processed."})
+
+    # If team_lead, check if user is in their team
+    if role == "team_lead" and req["manager_id"] != session["user_id"]:
+        conn.close()
+        return jsonify({"ok": False, "error": "Unauthorized to approve this request."}), 403
+
+    # Update user details
+    cursor.execute("""
+        UPDATE public.users
+        SET username = %s, email = %s, phone_number = %s, address = %s
+        WHERE id = %s
+    """, (req["username"], req["email"], req["phone_number"], req["address"], req["user_id"]))
+
+    # Update change request status
+    cursor.execute("""
+        UPDATE public.user_change_requests
+        SET status = 'approved', reviewed_by = %s, reviewed_at = CURRENT_TIMESTAMP
+        WHERE id = %s
+    """, (session["user_id"], req_id))
+
+    conn.commit()
+    conn.close()
+
+    log_action(session["user_id"], f"Approved profile update request #{req_id} for user #{req['user_id']}")
+
+    return jsonify({"ok": True})
+
+
+# Reject profile change request
+@app.route("/inbox/reject/<int:req_id>", methods=["POST"])
+@login_required()
+def reject_request(req_id):
+    role = session.get("role")
+    if role not in ["admin", "team_lead"]:
+        return jsonify({"ok": False, "error": "Unauthorized"}), 403
+
+    reason = request.form.get("reason", "").strip()
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    # Fetch change request
+    cursor.execute("""
+        SELECT r.*, u.manager_id 
+        FROM public.user_change_requests r
+        JOIN public.users u ON r.user_id = u.id
+        WHERE r.id = %s AND r.status = 'pending'
+    """, (req_id,))
+    req = cursor.fetchone()
+
+    if not req:
+        conn.close()
+        return jsonify({"ok": False, "error": "Request not found or already processed."})
+
+    # If team_lead, check if user is in their team
+    if role == "team_lead" and req["manager_id"] != session["user_id"]:
+        conn.close()
+        return jsonify({"ok": False, "error": "Unauthorized to reject this request."}), 403
+
+    # Update change request status
+    cursor.execute("""
+        UPDATE public.user_change_requests
+        SET status = 'rejected', reviewed_by = %s, reviewed_at = CURRENT_TIMESTAMP, rejection_reason = %s
+        WHERE id = %s
+    """, (session["user_id"], reason, req_id))
+
+    conn.commit()
+    conn.close()
+
+    log_action(session["user_id"], f"Rejected profile update request #{req_id} for user #{req['user_id']} Reason: {reason}")
+
+    return jsonify({"ok": True})
+
 
 #Change password
 @app.route("/account/change_password", methods=["POST"])
@@ -3305,10 +4424,85 @@ def export_records():
     
         where_clause = " AND ".join(query_parts)
         
+        # Check daily export limits before querying full records
+        user_id = session["user_id"]
+        user_role = session["role"]
+        
+        cursor.execute("SELECT export_limit, role FROM users WHERE id = %s", (user_id,))
+        user_db_info = cursor.fetchone()
+        custom_limit = user_db_info['export_limit'] if user_db_info else None
+        
+        if custom_limit is not None:
+            active_limit = custom_limit
+        else:
+            cursor.execute("SELECT default_limit FROM role_export_limits WHERE role_name = %s", (user_role,))
+            role_limit_row = cursor.fetchone()
+            if role_limit_row:
+                active_limit = role_limit_row['default_limit']
+            else:
+                if user_role == 'admin':
+                    active_limit = 1000000
+                elif user_role == 'manager':
+                    active_limit = 100000
+                else:
+                    active_limit = 50000
+                    
+        cursor.execute("SELECT SUM(rows_count) AS total_exported FROM user_daily_exports WHERE user_id = %s AND export_date = CURRENT_DATE", (user_id,))
+        usage_row = cursor.fetchone()
+        today_usage = usage_row['total_exported'] if usage_row and usage_row['total_exported'] is not None else 0
+        
+        # Count matching records
+        cursor.execute(f"SELECT COUNT(*) as count FROM master_records WHERE {where_clause}", params)
+        records_count = cursor.fetchone()['count']
+        
+        if today_usage + records_count > active_limit:
+            conn.close()
+            return jsonify({
+                "error": f"Daily export limit exceeded. You have already exported {today_usage:,} rows today. This request contains {records_count:,} rows, which exceeds your daily limit of {active_limit:,} rows."
+            }), 400
+            
         # Query matching records
         select_query = f"SELECT * FROM master_records WHERE {where_clause} ORDER BY id DESC"
         cursor.execute(select_query, params)
         rows = cursor.fetchall()
+        
+        # Update user's daily exports count
+        cursor.execute("""
+            INSERT INTO user_daily_exports (user_id, export_date, rows_count)
+            VALUES (%s, CURRENT_DATE, %s)
+            ON CONFLICT (user_id, export_date) DO UPDATE SET rows_count = user_daily_exports.rows_count + EXCLUDED.rows_count
+        """, (user_id, records_count))
+        conn.commit()
+
+        # Log the export activity with filters state
+        search_terms = []
+        for arg_name, col_name in search_mappings.items():
+            val = request.args.get(arg_name, '').strip()
+            if val:
+                search_terms.append(f"{arg_name.capitalize()}: {val}")
+        for c in cols:
+            if c in ('id', 'file_id', 'custom_fields', 'created_at', 'updated_at', 'imported_by') or c in search_mappings.values():
+                continue
+            val = request.args.get(c, '').strip()
+            if val:
+                search_terms.append(f"{c.replace('_', ' ').title()}: {val}")
+        try:
+            custom_filters = json.loads(custom_filters_str)
+            for f in custom_filters:
+                fid = str(f.get('id', '')).strip()
+                fval = str(f.get('val', '')).strip()
+                if fid and fval:
+                    search_terms.append(f"{fid}: {fval}")
+        except Exception:
+            pass
+        if missing_field:
+            search_terms.append(f"Missing: {missing_field}")
+            
+        filters_desc = ", ".join(search_terms) if search_terms else "No filters"
+        action_msg = f"Exported {records_count} records. Filters: {filters_desc}"
+        
+        from helpers import log_action
+        log_action(user_id, action_msg, total=records_count)
         
         # Fetch active custom fields from registry to resolve names
         cursor.execute("SELECT id, field_name FROM field_registry WHERE is_active = 1")

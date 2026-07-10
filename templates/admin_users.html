@@ -1,1039 +1,664 @@
+{% include '_sidebar.html' %}
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>User Management — Paramantra</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
-  <link rel="icon" href="https://paramantra.us/aldius/images/favicon.png" type="image/gif">
+  <title>User Directory & Management — Paramantra</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
-    :root {
-      --red: #b91c1c;
-      --border: #e5e7eb;
-      --surface: #f9fafb;
+    body { font-family: 'Inter', sans-serif; background: #f0f2f8; color: #1f2937; }
+    
+    .page-header { margin-bottom: 24px; }
+    .page-title { font-size: 1.4rem; font-weight: 800; color: #111827; margin: 0; }
+    .page-desc { font-size: 0.82rem; color: #6b7280; margin: 0; }
+
+    /* Custom tabs styling */
+    .nav-tabs-custom {
+      display: flex; gap: 8px; border-bottom: 2px solid #e5e7eb; padding-bottom: 2px; margin-bottom: 24px;
+    }
+    .tab-btn {
+      background: none; border: none; font-size: 0.88rem; font-weight: 600; color: #6b7280;
+      padding: 10px 18px; border-radius: 10px; cursor: pointer; transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative; outline: none;
+    }
+    .tab-btn:hover { color: #b91c1c; background: rgba(185, 28, 28, 0.04); transform: translateY(-1px); }
+    .tab-btn.active { 
+      color: #b91c1c; 
+      background: #fee2e2; 
+      box-shadow: 0 4px 14px rgba(185, 28, 28, 0.15);
+      font-weight: 700;
+      transform: translateY(-1px);
     }
 
-    body {
-      background: #f4f5f7;
-      font-family: system-ui, -apple-system, sans-serif;
+    /* Search & Action bar */
+    .filter-bar {
+      background: rgba(255, 255, 255, 0.9); border-radius: 14px; padding: 16px 24px; border: 1px solid #e5e7eb;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.04); margin-bottom: 20px;
+      display: flex; align-items: center; justify-content: space-between; gap: 16px;
+      backdrop-filter: blur(8px);
     }
-
-    .card {
-      border: 1px solid var(--border);
-      border-radius: 10px;
+    .search-input-wrapper { position: relative; flex-grow: 1; max-width: 380px; }
+    .search-input-wrapper i { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: #9ca3af; }
+    .search-input-wrapper input {
+      width: 100%; padding: 10px 14px 10px 42px; border-radius: 10px; border: 1px solid #e5e7eb;
+      font-size: 0.88rem; outline: none; transition: all 0.2s;
     }
+    .search-input-wrapper input:focus { border-color: #b91c1c; box-shadow: 0 0 0 3px rgba(185,28,28,0.1); }
 
-    .card-body {
-      padding: 20px;
+    /* Row/Table Styling */
+    .directory-container {
+      background: #fff; border-radius: 20px; border: 1px solid #e5e7eb;
+      box-shadow: 0 12px 35px rgba(0,0,0,0.06); overflow: hidden;
     }
-
-    .form-label {
-      font-size: 0.8rem;
-      font-weight: 600;
-      color: #374151;
-      margin-bottom: 4px;
+    .table-directory { width: 100%; margin: 0; }
+    .table-directory th {
+      background: #fcfcfd; border-bottom: 2px solid #f1f3f5; padding: 18px 24px;
+      font-size: 0.78rem; font-weight: 800; color: #4b5563; text-transform: uppercase;
+      letter-spacing: 0.5px;
     }
-
-    .form-control,
-    .form-select {
-      border-radius: 7px;
-      border-color: var(--border);
+    .table-directory td {
+      padding: 18px 24px; border-bottom: 1px solid #f1f3f5; vertical-align: middle;
       font-size: 0.88rem;
     }
-
-    .form-control:focus,
-    .form-select:focus {
-      border-color: #fca5a5;
-      box-shadow: 0 0 0 3px rgba(185, 28, 28, 0.1);
+    
+    /* Interactive Row Hover Anim */
+    .table-directory tbody tr.user-row {
+      transition: all 0.2s ease;
+    }
+    .table-directory tbody tr.user-row:hover {
+      background-color: #fafbfc !important;
+      transform: scale(1.002);
+      box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+      cursor: default;
     }
 
-    .btn-danger,
-    .btn-danger:focus {
-      background: var(--red);
-      border-color: var(--red);
+    .user-info-cell { display: flex; align-items: center; gap: 14px; }
+    .user-avatar {
+      width: 40px; height: 40px; border-radius: 50%;
+      background: linear-gradient(135deg, #fee2e2, #fecaca); color: #b91c1c; font-weight: 700;
+      display: flex; align-items: center; justify-content: center; font-size: 0.95rem;
+      box-shadow: 0 2px 8px rgba(185, 28, 28, 0.1);
     }
+    .user-name-text { font-weight: 700; color: #111827; }
+    .user-email-text { font-size: 0.76rem; color: #6b7280; display: block; }
 
-    .btn-danger:hover {
-      background: #991b1b;
-      border-color: #991b1b;
+    .status-badge {
+      font-size: 0.7rem; font-weight: 700; padding: 5px 12px; border-radius: 20px;
+      text-transform: uppercase; display: inline-flex; align-items: center; gap: 4px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
     }
+    .status-badge.active   { background: #dcfce7; color: #15803d; }
+    .status-badge.sleep    { background: #fef9c3; color: #a16207; }
+    .status-badge.disabled { background: #f3f4f6; color: #4b5563; }
+    .status-badge.deleted  { background: #fee2e2; color: #b91c1c; }
 
-    .table thead th {
-      background: var(--surface);
-      font-weight: 600;
-      font-size: 0.78rem;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      color: #6b7280;
-      border-bottom: 2px solid var(--border);
+    .action-btn {
+      background: #fff; border: 1px solid #e5e7eb; color: #4b5563;
+      padding: 7px 14px; border-radius: 10px; font-size: 0.8rem; font-weight: 600;
+      cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 2px 4px rgba(0,0,0,0.02);
       white-space: nowrap;
     }
-
-    .table td {
-      vertical-align: middle;
-      border-color: var(--border);
-      font-size: 0.88rem;
+    .action-btn:hover { 
+      background: #fee2e2; 
+      border-color: #fca5a5; 
+      color: #b91c1c; 
+      transform: translateY(-1px);
+      box-shadow: 0 4px 10px rgba(185,28,28,0.08);
     }
+    .action-btn:active { transform: translateY(0); }
 
-    .table-hover tbody tr:hover {
-      background: #fef2f2;
+    /* Collapsible Team section styling */
+    .team-sub-row { background: #fafbfc; border-top: 1.5px solid #fee2e2; }
+    .team-sub-card { padding: 20px 30px; }
+    .team-title { font-size: 0.8rem; font-weight: 700; color: #9ca3af; text-transform: uppercase; margin-bottom: 14px; }
+    .team-member-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 20px; background: #fff; border: 1px solid #e5e7eb;
+      border-radius: 12px; margin-bottom: 10px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.02);
+      transition: all 0.2s;
     }
+    .team-member-row:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.04); }
 
-    .pagination .page-link {
-      color: var(--red);
-      border: 1px solid var(--border);
-      background: #fff;
-      border-radius: 6px !important;
-      margin: 0 2px;
-      font-size: 0.83rem;
-      padding: 5px 11px;
-    }
-
-    .pagination .page-link:hover {
-      background: #fee2e2;
-      color: #991b1b;
-    }
-
-    .pagination .page-item.active .page-link {
-      background: var(--red);
-      border-color: var(--red);
-      color: #fff;
-    }
-
-    .pagination .page-item.disabled .page-link {
-      background: #f3f4f6;
-      color: #9ca3af;
-    }
-
-    .badge {
-      font-weight: 500;
-    }
-
-    .alert {
-      border-radius: 8px;
-      font-size: 0.875rem;
-    }
-
-    .page-hdr h2 {
-      font-size: 1.3rem;
-      font-weight: 700;
-      color: #111827;
-      margin-bottom: 3px;
-    }
-
-    .page-hdr p {
-      font-size: 0.875rem;
-      color: #6b7280;
-      margin: 0;
-    }
-
-    .btn-xs {
-      font-size: 0.78rem;
-      padding: 3px 9px;
-      border-radius: 5px;
-    }
-
-    /* Reports-To column */
-    .rt-cell {
-      font-size: 0.8rem;
-      line-height: 1.7;
-      min-width: 140px;
-    }
-
-    .rt-label {
-      color: #9ca3af;
-      font-size: 0.71rem;
-      font-weight: 600;
-      margin-right: 2px;
-    }
-
-    .rt-name {
-      font-weight: 700;
-      color: #111827;
-    }
-
-    .rt-sub {
-      font-size: 0.72rem;
-      color: #6b7280;
-      display: block;
-    }
-
-    .rt-unset {
-      color: #f59e0b;
-      font-size: 0.78rem;
-      font-weight: 600;
-    }
-
-    .rt-wrong {
-      color: #ef4444;
-      font-size: 0.78rem;
-      font-weight: 600;
-    }
-
-    .rt-btn {
-      background: none;
-      border: none;
-      padding: 0;
-      cursor: pointer;
-      margin-left: 4px;
-      vertical-align: middle;
-      line-height: 1;
-    }
-
-    .rt-set {
-      color: #b91c1c;
-      font-size: 0.72rem;
-      font-weight: 600;
-      text-decoration: underline;
-    }
-
-    .rt-set:hover {
-      color: #7f1d1d;
-    }
-
-    .rt-edit {
-      color: #9ca3af;
-      font-size: 0.75rem;
-    }
-
-    .rt-edit:hover {
-      color: #b91c1c;
-    }
-
-    /* Orphan warning */
-    .orphan-box {
-      background: #fffbeb;
-      border: 1px solid #fde68a;
-      border-left: 4px solid #f59e0b;
-      border-radius: 8px;
-      padding: 16px 20px;
-      margin-bottom: 20px;
-    }
-
-    .orphan-box h6 {
-      color: #92400e;
-      font-weight: 700;
-      font-size: 0.92rem;
-      margin-bottom: 10px;
-    }
-
-    .orphan-item {
-      background: #fff;
-      border: 1px solid #fde68a;
-      border-radius: 6px;
-      padding: 10px 14px;
-      margin-bottom: 8px;
-      font-size: 0.83rem;
-    }
-
-    .orphan-flash {
-      font-size: 0.82rem;
-      border-radius: 6px;
-      padding: 7px 12px;
-      margin-bottom: 8px;
-      display: none;
-    }
-
-    /* Pure CSS/JS overlay modal */
-    .overlay-backdrop {
-      display: none;
-      position: fixed;
-      inset: 0;
-      background: rgba(0, 0, 0, 0.45);
-      z-index: 1055;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .overlay-backdrop.open {
-      display: flex;
-    }
-
-    .overlay-dialog {
-      background: #fff;
-      border-radius: 14px;
-      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
-      width: 100%;
-      max-width: 420px;
-      margin: 16px;
-      position: relative;
-    }
-
-    .overlay-header {
-      padding: 18px 22px 12px;
-      border-bottom: 1px solid var(--border);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-
-    .overlay-title {
-      font-size: 1rem;
-      font-weight: 600;
-      margin: 0;
-    }
-
-    .overlay-close {
-      background: none;
-      border: none;
-      font-size: 1.1rem;
-      color: #9ca3af;
-      cursor: pointer;
-      padding: 0 4px;
-      line-height: 1;
-    }
-
-    .overlay-close:hover {
-      color: #374151;
-    }
-
-    .overlay-body {
-      padding: 14px 22px 6px;
-    }
-
-    .overlay-footer {
-      padding: 10px 22px 18px;
-      display: flex;
-      gap: 8px;
-      justify-content: flex-end;
-      border-top: 1px solid var(--border);
-    }
-
-    .table td,
-    .table th {
-      border-left: 1px solid #e5e7eb;
-      padding-left: 16px;
-    }
-
-    /* Responsive: hide lower-priority columns on small screens */
-    @media (max-width: 767px) {
-      .col-hide-sm {
-        display: none;
-      }
-
-      .page-hdr h2 {
-        font-size: 1.1rem;
-      }
-
-      .container {
-        padding-left: 12px;
-        padding-right: 12px;
-      }
-
-      .table td,
-      .table th {
-        padding-left: 10px;
-        font-size: 0.82rem;
-      }
-
-      .btn-xs {
-        font-size: 0.74rem;
-        padding: 2px 7px;
-      }
-
-      .card-body {
-        padding: 14px;
-      }
-    }
-
-    @media (max-width: 575px) {
-      .col-hide-xs {
-        display: none;
-      }
-
-      .overlay-dialog {
-        margin: 8px;
-      }
-    }
-
-    .app-layout {
-      display: flex;
-      min-height: 100vh;
-    }
-
-    .sidebar {
-      width: 260px;
-      background: #fff;
-      border-right: 1px solid #e5e7eb;
-      position: fixed;
-      top: 0;
-      left: 0;
-      bottom: 0;
-    }
-
-    .content-area {
-      flex: 1;
-      margin-left: 260px;
-      padding: 24px;
-    }
-
-    .sidebar-brand {
-      background: #b91c1c;
-      padding: 20px;
-      border-bottom: 1px solid #991b1b;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-    }
-
-    .sidebar-brand h5 {
-      margin: 0;
-      font-weight: 700;
-    }
-
-    .sidebar-brand small {
-      color: #6b7280;
-    }
-
-    .sidebar-link {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 12px 16px;
-      color: #374151;
-      text-decoration: none;
-      border-radius: 8px;
-      margin: 4px 10px;
-    }
-
-    .sidebar-link:hover {
-      background: #fef2f2;
-      color: #b91c1c;
-    }
-
-    .sidebar-link i {
-      font-size: 1rem;
-    }
-
-    .sidebar-logo {
-      width: 42px;
-      height: 42px;
-      object-fit: contain;
-    }
+    .content-area { padding: 24px; }
   </style>
 </head>
-
 <body>
-  <div class="app-layout">
+<div class="app-layout d-flex">
+  <div class="content-area flex-grow-1">
 
-    {% include '_sidebar.html' %}
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <div class="page-header">
+        <h1 class="page-title">Users & Team Directory</h1>
+        <p class="page-desc">Manage profiles, role assignments, system status, limits, and view manager reports</p>
+      </div>
+      {% if caller_role == 'admin' %}
+      <button class="btn btn-danger btn-sm px-3 rounded-3 fw-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#createUserModal">
+        <i class="bi bi-person-plus me-1"></i> Add New User
+      </button>
+      {% endif %}
+    </div>
 
-    <main class="content-area">
+    <!-- Tabbed Role Groups -->
+    <div class="nav-tabs-custom">
+      {% if caller_role == 'admin' %}
+      <button class="tab-btn active" id="tabBtn-all" onclick="switchTab('all')">All Roles</button>
+      <button class="tab-btn" id="tabBtn-admin" onclick="switchTab('admin')">Admins</button>
+      <button class="tab-btn" id="tabBtn-manager" onclick="switchTab('manager')">Managers</button>
+      {% endif %}
+      <button class="tab-btn {% if caller_role == 'manager' %}active{% endif %}" id="tabBtn-team_lead" onclick="switchTab('team_lead')">Team Leaders</button>
+      <button class="tab-btn" id="tabBtn-user" onclick="switchTab('user')">Standard Users</button>
+    </div>
 
-      <div class="container my-4 my-md-5">
-        <div class="page-hdr mb-4 d-flex justify-content-between align-items-center">
-          <div>
-            <h2><i class="bi bi-people-fill me-2" style="color:#b91c1c;"></i>User Management</h2>
-            <p class="text-muted mb-0">Enable, disable, reset passwords, change roles and hierarchy.</p>
-          </div>
-          <div>
-            <button class="btn btn-success" onclick="window.location.href='/api/users/export';">
-              <i class="bi bi-file-earmark-excel me-1"></i> Export Users
-            </button>
-          </div>
-        </div>
+    <!-- Filter/Search Bar -->
+    <div class="filter-bar">
+      <div class="search-input-wrapper">
+        <i class="bi bi-search"></i>
+        <input type="text" id="searchInput" placeholder="Search by name, email..." oninput="filterGrid()">
+      </div>
+      <div class="d-flex gap-2">
+        <select class="form-select form-select-sm" id="statusFilter" style="border-radius: 8px; width: 140px;" onchange="filterGrid()">
+          <option value="all">All Statuses</option>
+          <option value="active">Active</option>
+          <option value="sleep">Sleep</option>
+          <option value="disabled">Disabled</option>
+          <option value="deleted">Deleted</option>
+        </select>
+      </div>
+    </div>
 
-        {# ── Transient flash messages ── #}
-        {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}<div class="mb-3" id="flashArea">{% for category, message in messages %}
-          {% if "Temporary password" in message or "temporary password" in message %}
-          <div class="alert alert-warning" style="border-left:4px solid #f59e0b;">
-            <div class="d-flex align-items-center gap-2 mb-2">
-              <i class="bi bi-key-fill" style="color:#b45309;font-size:1.1rem;"></i>
-              <strong style="color:#92400e;">Temporary Password Generated</strong>
-              <span class="badge"
-                style="background:#fef3c7;color:#92400e;border:1px solid #fde68a;font-size:0.75rem;">Show once — copy
-                now</span>
-            </div>
-            {% set parts = message.split(":") %}
-            {% set pw = parts[1].strip() if parts|length > 1 else message %}
-            <p class="mb-2 text-muted" style="font-size:0.85rem;">{{ parts[0] }}:</p>
-            <div class="d-flex align-items-center gap-2">
-              <input id="tmp-pw-field" type="text" readonly value="{{ pw }}"
-                class="form-control font-monospace fw-semibold"
-                style="font-size:1.05rem;letter-spacing:0.06em;background:#fffbeb;border-color:#fde68a;color:#1f2937;border-radius:7px;">
-              <button type="button" id="copyBtn" onclick="copyPw()" class="btn btn-sm btn-outline-warning flex-shrink-0"
-                style="border-radius:7px;white-space:nowrap;">
-                <i class="bi bi-clipboard"></i> Copy
-              </button>
-            </div>
-          </div>
-          {% elif "Hierarchy updated" not in message %}
-          <div class="alert alert-{{ category }} alert-dismissible fade show">
-            {{ message|safe }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-          </div>
-          {% endif %}
-          {% endfor %}
-        </div>{% endif %}{% endwith %}
-
-        {# ── Orphan warning ── #}
-        {% if session.get("role_change_warning") %}
-        {% set warn = session.get("role_change_warning") %}
-        <div class="orphan-box mb-4" id="orphanBox">
-          <h6><i class="bi bi-exclamation-triangle-fill me-2" style="color:#f59e0b;"></i>Hierarchy Disruption Warning
-          </h6>
-          <p style="font-size:0.83rem;color:#78350f;margin-bottom:12px;">
-            <strong>{{ warn.changed_user }}</strong>'s role changed from
-            <strong>{{ warn.old_role.replace("_"," ").title() }}</strong> to
-            <strong>{{ warn.new_role.replace("_"," ").title() }}</strong>.
-            These users still have them as supervisor — reassign each one:
-          </p>
-          <div id="orphanFlash"></div>
-          {% for group in warn.dependents %}
-          <div class="orphan-item" id="orphan-item-{{ group.user.id }}">
-            <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
-              <div>
-                <strong>{{ group.user.username }}</strong>
-                <span class="badge ms-1"
-                  style="font-size:0.7rem;background:#f3f4f6;color:#374151;border:1px solid #e5e7eb;">{{
-                  group.user.role.replace("_"," ").title() }}</span>
-                <span style="font-size:0.75rem;color:#9ca3af;margin-left:4px;">still has <strong>{{ warn.changed_user
-                    }}</strong> as supervisor</span>
-              </div>
-              <button type="button" class="btn btn-xs btn-outline-warning"
-                onclick="openReassign({{ group.user.id }},'{{ group.user.username }}','{{ group.user.role }}',{{ group.user.manager_id if group.user.manager_id else 'null' }})">
-                <i class="bi bi-arrow-repeat me-1"></i>Reassign
-              </button>
-            </div>
-            {% if group.sub_dependents %}
-            <div class="mt-2 ps-3" style="border-left:2px solid #fde68a;">
-              {% for sub in group.sub_dependents %}
-              <div style="font-size:0.75rem;color:#6b7280;margin-bottom:2px;">
-                <i class="bi bi-arrow-return-right me-1"></i>
-                <strong>{{ sub.username }}</strong> ({{ sub.role.replace("_"," ").title() }}) — also affected
-              </div>
-              {% endfor %}
-              <div style="font-size:0.73rem;color:#92400e;margin-top:4px;">
-                <i class="bi bi-info-circle me-1"></i>Reassigning {{ group.user.username }}'s supervisor cascades to
-                these users.
-              </div>
-            </div>
-            {% endif %}
-          </div>
-          {% endfor %}
-          <div class="text-end mt-2">
-            <a href="{{ url_for('dismiss_orphan_warning') }}" class="btn btn-xs btn-outline-secondary">
-              <i class="bi bi-x me-1"></i>Dismiss
-            </a>
-          </div>
-        </div>
-        {% endif %}
-
-        {# ── Filters ── #}
-        <div class="card shadow-sm mb-4">
-          <div class="card-body" style="padding:16px 20px;">
-            <form method="get" action="{{ url_for('manage_users') }}" class="row g-2 align-items-end">
-              <div class="col-12 col-md-3">
-                <label class="form-label">Search</label>
-                <div class="input-group input-group-sm">
-                  <span class="input-group-text bg-white border-end-0"
-                    style="border-color:var(--border-color);border-radius:7px 0 0 7px;"><i
-                      class="bi bi-search text-muted" style="font-size:0.78rem;"></i></span>
-                  <input type="text" name="search" value="{{ search }}" class="form-control border-start-0"
-                    placeholder="Search by username..." style="border-radius:0 7px 7px 0;">
+    <!-- Directory Container (Row Wise Table Layout) -->
+    <div class="directory-container">
+      <table class="table table-directory align-middle">
+        <thead>
+          <tr>
+            <th>User / Email</th>
+            <th>Role</th>
+            <th>Reports To</th>
+            <th>Export Limit</th>
+            <th>Status</th>
+            <th>Created</th>
+            <th class="text-end">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="directoryTableBody">
+          {% for u in users %}
+          <tr class="user-row" id="row-{{ u.id }}" data-id="{{ u.id }}" data-username="{{ u.username | lower }}" data-email="{{ (u.email or '') | lower }}" data-role="{{ u.role }}" data-status="{{ u.status or 'active' }}" data-manager-id="{{ u.manager_id }}">
+            <td>
+              <div class="user-info-cell">
+                <div class="user-avatar">
+                  {{ (u.username or 'U')[0].upper() }}
+                </div>
+                <div>
+                  <span class="user-name-text">{{ u.username }}</span>
+                  <span class="user-email-text">{{ u.email or 'No email address' }}</span>
                 </div>
               </div>
-              <div class="col-6 col-sm-4 col-md-2">
-                <label class="form-label">Role</label>
-                <select name="role" class="form-select form-select-sm">
-                  <option value="">All Roles</option>
-                  {% if caller_role == "admin" %}
-                  <option value="admin" {% if role_filter=="admin" %}selected{% endif %}>Admin</option>
-                  <option value="manager" {% if role_filter=="manager" %}selected{% endif %}>Manager</option>
-                  <option value="team_lead" {% if role_filter=="team_lead" %}selected{% endif %}>Team Lead</option>
-                  <option value="user" {% if role_filter=="user" %}selected{% endif %}>User</option>
-                  {% elif caller_role=="manager" %}
-                  <option value="team_lead" {% if role_filter=="team_lead" %}selected{% endif %}>Team Lead</option>
-                  <option value="user" {% if role_filter=="user" %}selected{% endif %}>User</option>
-                  {% elif caller_role=="team_lead" %}
-                  <option value="user" {% if role_filter=="user" %}selected{% endif %}>User</option>
-                  {% endif %}
-                </select>
-              </div>
-              <div class="col-6 col-sm-4 col-md-2">
-                <label class="form-label">Status</label>
-                <select name="status" class="form-select form-select-sm">
-                  <option value="">All Status</option>
-                  <option value="active" {% if status_filter=="active" %}selected{% endif %}>Active</option>
-                  <option value="inactive" {% if status_filter=="inactive" %}selected{% endif %}>Inactive</option>
-                </select>
-              </div>
-              <div class="col-12 col-sm-4 col-md-3">
-                <label class="form-label">Sort By</label>
-                <select name="sort" class="form-select form-select-sm">
-                  <option value="">Username (A–Z)</option>
-                  <option value="username_desc" {% if sort=="username_desc" %}selected{% endif %}>Username (Z–A)
-                  </option>
-                  <option value="newest" {% if sort=="newest" %}selected{% endif %}>Recently Created</option>
-                  <option value="oldest" {% if sort=="oldest" %}selected{% endif %}>Oldest First</option>
-                  <option value="role" {% if sort=="role" %}selected{% endif %}>Role</option>
-                </select>
-              </div>
-              <div class="col-12 col-md-2 d-flex gap-2">
-                <button type="submit" class="btn btn-sm btn-danger w-100" style="border-radius:7px;">Apply</button>
-                {% if search or role_filter or status_filter or sort %}
-                <a href="{{ url_for('manage_users') }}" class="btn btn-sm btn-outline-secondary"
-                  style="border-radius: 7px; font-size: 0.83rem;" title="Clear filters"><i class="bi bi-x"></i></a>
+            </td>
+            <td>
+              <span class="text-uppercase fw-bold" style="font-size: 0.72rem; color: #6b7280; letter-spacing: 0.5px;">{{ u.role }}</span>
+            </td>
+            <td>
+              <span class="text-muted">{{ u.manager_username or 'System Direct / None' }}</span>
+            </td>
+            <td>
+              <span>
+                {% if u.export_limit is none or u.export_limit == 0 %}
+                  {{ role_limits[u.role] }} (Default)
+                {% else %}
+                  {{ u.export_limit }}
+                {% endif %}
+              </span>
+            </td>
+            <td>
+              <span class="status-badge {{ u.status or 'active' }}">
+                {{ u.status or 'active' }}
+              </span>
+            </td>
+            <td>
+              <span class="text-muted" style="font-size: 0.8rem;">{{ u.created_at.strftime('%d %b %Y') if u.created_at else '—' }}</span>
+            </td>
+            <td class="text-end">
+              <div class="d-inline-flex gap-2">
+                <!-- Manage Button -->
+                <button class="action-btn" 
+                        data-id="{{ u.id }}" 
+                        data-username="{{ u.username }}" 
+                        data-email="{{ u.email or '' }}" 
+                        data-role="{{ u.role }}" 
+                        data-manager-id="{{ u.manager_id or '' }}" 
+                        data-export-limit="{{ u.export_limit or '' }}" 
+                        data-status="{{ u.status or 'active' }}" 
+                        onclick="openEditModal(this)">
+                  <i class="bi bi-pencil-square text-danger"></i> Manage
+                </button>
+
+                <!-- Pass Button -->
+                <button class="action-btn" onclick="triggerResetPwd({{ u.id }}, '{{ u.username }}')">
+                  <i class="bi bi-shield-lock"></i> Pass
+                </button>
+
+                <!-- Expand Team (Managers & Team Leads only) -->
+                {% if u.role in ['manager', 'team_lead'] %}
+                <button class="action-btn" id="btnToggleTeam-{{ u.id }}" onclick="toggleTeamDrawer({{ u.id }})">
+                  <i class="bi bi-people"></i> Team (<span class="team-count" data-manager-id="{{ u.id }}">0</span>)
+                </button>
                 {% endif %}
               </div>
-            </form>
-          </div>
-        </div>
+            </td>
+          </tr>
 
-        {# ── Table ── #}
-        <div class="card shadow-sm">
-          <div class="card-body p-0">
-            <div class="table-responsive">
-              <table class="table table-hover align-middle mb-0" style="min-width:520px;">
-                <thead>
-                  <tr>
-                    <th style="width:50px;" class="col-hide-xs">ID</th>
-                    <th style="width:150px;">Username</th>
-                    <th style="width:160px;">Role</th>
-                    <th style="width:160px;" class="col-hide-sm">Reports To</th>
-                    <th style="width:90px;" class="col-hide-xs">Status</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-
-                  {% set RANK = {"admin":4,"manager":3,"team_lead":2,"user":1} %}
-                  {% set can_manage = caller_role in ["admin","manager"] %}
-
-                  {% for user in users %}
-
-                  {% if user.role == "admin" %}
-                  {% set rt_state = "dash" %}
-                  {% elif user.role == "manager" %}
-                  {% if user.manager_username %}
-                  {% set rt_state = "ok" if user.manager_role == "admin" else "wrong" %}
-                  {% else %}
-                  {% set rt_state = "implicit" %}
-                  {% endif %}
-                  {% elif user.role == "team_lead" %}
-                  {% if user.manager_username %}
-                  {% set rt_state = "ok" if user.manager_role == "manager" else "wrong" %}
-                  {% else %}
-                  {% set rt_state = "unset" %}
-                  {% endif %}
-                  {% else %}
-                  {% if user.manager_username %}
-                  {% set rt_state = "ok" if user.manager_role in ["team_lead","manager"] else "wrong" %}
-                  {% else %}
-                  {% set rt_state = "unset" %}
-                  {% endif %}
-                  {% endif %}
-
-                  <tr>
-                    <td class="text-muted col-hide-xs" style="font-size:0.8rem;">{{ user.id }}</td>
-                    <td class="fw-semibold">{{ user.username }}</td>
-
-                    {# Role cell — FIX: use caller_username instead of session.get("username") #}
-                    <td>
-                      {% set is_self = user.username == caller_username %}
-                      {% set trank = RANK[user.role] if user.role in RANK else 0 %}
-                      {% set crank = RANK[caller_role] if caller_role in RANK else 0 %}
-                      {% if not is_self and trank < crank %} <form method="POST"
-                        action="{{ url_for('change_role', user_id=user.id) }}" class="d-flex gap-1 align-items-center"
-                        onsubmit="return confirmRole(this,'{{ user.username }}')">
-                        <select name="new_role" class="form-select form-select-sm" style="font-size:0.82rem;">
-                          {% if caller_role == "admin" %}
-                          <option value="user" {% if user.role=="user" %}selected{% endif %}>User</option>
-                          <option value="team_lead" {% if user.role=="team_lead" %}selected{% endif %}>Team Lead
-                          </option>
-                          <option value="manager" {% if user.role=="manager" %}selected{% endif %}>Manager</option>
-                          <option value="admin" {% if user.role=="admin" %}selected{% endif %}>Admin</option>
-                          {% else %}
-                          <option value="user" {% if user.role=="user" %}selected{% endif %}>User</option>
-                          <option value="team_lead" {% if user.role=="team_lead" %}selected{% endif %}>Team Lead
-                          </option>
-                          {% endif %}
-                        </select>
-                        <input type="hidden" name="_search" value="{{ search }}">
-                        <input type="hidden" name="_role_filter" value="{{ role_filter }}">
-                        <input type="hidden" name="_status_filter" value="{{ status_filter }}">
-                        <input type="hidden" name="_sort" value="{{ sort }}">
-                        <input type="hidden" name="_page" value="{{ page }}">
-
-                        <button type="submit" class="btn btn-xs btn-outline-primary flex-shrink-0">Set</button>
-                        </form>
-                        {% else %}
-                        {% if user.role=="admin" %}<span class="badge"
-                          style="background:#fef2f2;color:#b91c1c;border:1px solid #fecaca;">Admin</span>
-                        {% elif user.role=="manager" %}<span class="badge"
-                          style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;">Manager</span>
-                        {% elif user.role=="team_lead" %}<span class="badge"
-                          style="background:#ecfeff;color:#0891b2;border:1px solid #a5f3fc;">Team Lead</span>
-                        {% else %}<span class="badge"
-                          style="background:#f9fafb;color:#374151;border:1px solid #e5e7eb;">User</span>{% endif %}
-                        {% endif %}
-                    </td>
-
-                    {# Reports-To cell #}
-                    <td class="rt-cell col-hide-sm">
-                      {% if rt_state == "dash" %}
-                      <span style="color:#d1d5db;">—</span>
-
-                      {% elif rt_state == "implicit" %}
-                      <span class="rt-label">Admin:</span>
-                      <span class="rt-name">{{ caller_username }}</span>
-                      <span class="rt-sub" style="color:#a78bfa;font-size:0.7rem;">not yet saved in DB</span>
-
-                      {% elif rt_state == "unset" %}
-                      <span class="rt-unset"><i class="bi bi-exclamation-circle me-1"></i>Not assigned</span>
-                      {% if can_manage %}
-                      <button type="button" class="rt-btn rt-set"
-                        onclick="openReassign({{ user.id }},'{{ user.username }}','{{ user.role }}',{{ user.manager_id if user.manager_id else 'null' }})">Set</button>
-                      {% endif %}
-
-                      {% elif rt_state == "wrong" %}
-                      <span class="rt-wrong"><i class="bi bi-exclamation-triangle me-1"></i>Wrong hierarchy</span>
-                      <span class="rt-sub" style="color:#9ca3af;">
-                        Now: {{ user.manager_username }}
-                        ({{ user.manager_role.replace("_"," ").title() if user.manager_role else "?" }})
-                      </span>
-                      {% if can_manage %}
-                      <button type="button" class="rt-btn rt-set"
-                        onclick="openReassign({{ user.id }},'{{ user.username }}','{{ user.role }}',{{ user.manager_id if user.manager_id else 'null' }})">Fix</button>
-                      {% endif %}
-
-                      {% else %}
-                      {% if user.role == "manager" %}
-                      <span class="rt-label">Admin:</span><span class="rt-name">{{ user.manager_username }}</span>
-
-                      {% elif user.role == "team_lead" %}
-                      <span class="rt-label">Mgr:</span><span class="rt-name">{{ user.manager_username }}</span>
-                      {% if caller_role == "admin" %}
-                      <button type="button" class="rt-btn rt-edit" title="Change manager"
-                        onclick="openReassign({{ user.id }},'{{ user.username }}','{{ user.role }}',{{ user.manager_id if user.manager_id else 'null' }})">
-                        <i class="bi bi-pencil"></i>
-                      </button>
-                      {% endif %}
-
-                      {% else %}
-                      <span class="rt-label">TL:</span><span class="rt-name">{{ user.manager_username }}</span>
-                      {% if can_manage %}
-                      <button type="button" class="rt-btn rt-edit" title="Change team lead"
-                        onclick="openReassign({{ user.id }},'{{ user.username }}','{{ user.role }}',{{ user.manager_id if user.manager_id else 'null' }})">
-                        <i class="bi bi-pencil"></i>
-                      </button>
-                      {% endif %}
-                      {% if user.grandmanager_username %}
-                      <span class="rt-sub"><span class="rt-label">Mgr:</span>{{ user.grandmanager_username }}</span>
-                      {% endif %}
-                      {% endif %}
-                      {% endif %}
-                    </td>
-
-                    {# Status #}
-                    <td class="col-hide-xs">
-                      {% if user.is_active %}<span class="badge"
-                        style="background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0;">Active</span>
-                      {% else %}<span class="badge"
-                        style="background:#f9fafb;color:#6b7280;border:1px solid #e5e7eb;">Inactive</span>{% endif %}
-                    </td>
-
-                    {# Actions — FIX: use caller_username instead of session.get("username") #}
-                    <td>
-                      {% if user.username == caller_username %}
-                      <span class="text-muted" style="font-size:0.8rem;">Current user</span>
-                      {% elif (RANK[user.role] if user.role in RANK else 0) >= (RANK[caller_role] if caller_role in RANK
-                      else 0) %}
-                      <span class="text-muted" style="font-size:0.8rem;"><i
-                          class="bi bi-shield-fill me-1"></i>Protected</span>
-                      {% else %}
-                      <div class="d-flex gap-1 flex-wrap">
-                        <a href="{{ url_for('toggle_user', user_id=user.id, _search=search, _role_filter=role_filter, _status_filter=status_filter, _sort=sort, _page=page) }}"
-                          class="btn btn-xs {% if user.is_active %}btn-outline-danger{% else %}btn-outline-success{% endif %}">
-                          <i
-                            class="bi {% if user.is_active %}bi-person-dash{% else %}bi-person-check{% endif %} me-1"></i>
-                          {{ "Disable" if user.is_active else "Enable" }}
-                        </a>
-                        <form method="POST" action="{{ url_for('reset_password', user_id=user.id) }}"
-                          onsubmit="return confirm('Reset password for {{ user.username }}?')">
-                          <input type="hidden" name="_search" value="{{ search }}">
-                          <input type="hidden" name="_role_filter" value="{{ role_filter }}">
-                          <input type="hidden" name="_status_filter" value="{{ status_filter }}">
-                          <input type="hidden" name="_sort" value="{{ sort }}">
-                          <input type="hidden" name="_page" value="{{ page }}">
-
-                          <button type="submit" class="btn btn-xs btn-outline-warning">
-                            <i class="bi bi-key me-1"></i>Reset PW
-                          </button>
-                        </form>
-                      </div>
-                      {% endif %}
-                    </td>
-                  </tr>
-                  {% else %}
-                  <tr>
-                    <td colspan="6" class="text-center py-5" style="color:#9ca3af;">
-                      <i class="bi bi-inbox" style="font-size:1.8rem;display:block;margin-bottom:8px;"></i>No users
-                      found.
-                    </td>
-                  </tr>
-                  {% endfor %}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-
-        <div class="d-flex justify-content-between align-items-center mt-3 px-1">
-          <small class="text-muted" style="font-size:0.8rem;">
-            {% if total_users > 0 %}Showing {{ start }}–{{ end }} of {{ total_users }} result{{ 's' if total_users != 1
-            else '' }}{% else %}No results{% endif %}
-          </small>
-        </div>
-
-        {% if total_pages > 1 %}
-        <nav class="mt-3">
-          <ul class="pagination justify-content-center flex-wrap mb-0">
-            {% if page > 1 %}<li class="page-item"><a class="page-link"
-                href="{{ url_for('manage_users', page=page-1, search=search, role=role_filter, status=status_filter, sort=sort) }}"><i
-                  class="bi bi-chevron-left" style="font-size:0.7rem;"></i></a></li>{% endif %}
-            {% if page > 3 %}<li class="page-item"><a class="page-link"
-                href="{{ url_for('manage_users', page=1, search=search, role=role_filter, status=status_filter, sort=sort) }}">1</a>
-            </li>
-            <li class="page-item disabled"><span class="page-link">…</span></li>{% endif %}
-            {% for p in range(page-2, page+3) %}{% if 1<=p<=total_pages %}<li
-              class="page-item {% if p==page %}active{% endif %}"><a class="page-link"
-                href="{{ url_for('manage_users', page=p, search=search, role=role_filter, status=status_filter, sort=sort) }}">{{
-                p }}</a></li>{% endif %}{% endfor %}
-              {% if page < total_pages-2 %}<li class="page-item disabled"><span class="page-link">…</span></li>
-                <li class="page-item"><a class="page-link"
-                    href="{{ url_for('manage_users', page=total_pages, search=search, role=role_filter, status=status_filter, sort=sort) }}">{{
-                    total_pages }}</a></li>{% endif %}
-                {% if page < total_pages %}<li class="page-item"><a class="page-link"
-                    href="{{ url_for('manage_users', page=page+1, search=search, role=role_filter, status=status_filter, sort=sort) }}"><i
-                      class="bi bi-chevron-right" style="font-size:0.7rem;"></i></a></li>{% endif %}
-          </ul>
-        </nav>
-        {% endif %}
-
-      </div>{# /container #}
-
-      {# Overlay modal #}
-      <div class="overlay-backdrop" id="overlayBackdrop" onclick="handleBackdropClick(event)">
-        <div class="overlay-dialog" id="overlayDialog">
-          <div class="overlay-header">
-            <h5 class="overlay-title">
-              <i class="bi bi-diagram-3 me-2" style="color:#b91c1c;"></i>Set Hierarchy
-            </h5>
-            <button class="overlay-close" onclick="closeOverlay()" title="Close">&#x2715;</button>
-          </div>
-
-          <form id="reassignForm" method="POST" action="">
-            <div class="overlay-body">
-
-              <input type="hidden" name="_search" id="hSearch" value="{{ search }}">
-              <input type="hidden" name="_role_filter" id="hRoleFilter" value="{{ role_filter }}">
-              <input type="hidden" name="_status_filter" id="hStatusFilter" value="{{ status_filter }}">
-              <input type="hidden" name="_sort" id="hSort" value="{{ sort }}">
-              <input type="hidden" name="_page" id="hPage" value="{{ page }}">
-
-              <p class="mb-3 text-muted" style="font-size:0.83rem;">
-                Setting supervisor for <strong id="mUsername">—</strong>
-                <span class="badge ms-1" id="mRoleBadge"
-                  style="font-size:0.7rem;background:#f3f4f6;color:#374151;border:1px solid #e5e7eb;"></span>
-              </p>
-
-              <div id="adminRow" style="display:none;" class="mb-3">
-                <label class="form-label">Admin (supervisor)</label>
-                <select class="form-select form-select-sm" id="adminSel" name="new_manager_id">
-                  <option value="">— Select admin —</option>
-                  {% for adm in available_admins %}
-                  <option value="{{ adm.id }}">{{ adm.username }}</option>
-                  {% endfor %}
-                </select>
-                <div class="form-text" style="font-size:0.74rem;">This manager will report to the selected admin. Moving
-                  to a different admin removes them from your view.</div>
-              </div>
-
-              <div id="mgrRow" style="display:none;" class="mb-3">
-                <label class="form-label">Manager (supervisor)</label>
-                <select class="form-select form-select-sm" id="mgrSel" name="new_manager_id">
-                  <option value="">— Select manager —</option>
-                  {% for mgr in available_managers %}
-                  <option value="{{ mgr.id }}">{{ mgr.username }}</option>
-                  {% endfor %}
-                </select>
-                <div class="form-text" style="font-size:0.74rem;">This team lead will report to the selected manager.
+          <!-- Collapsible team sub-row -->
+          {% if u.role in ['manager', 'team_lead'] %}
+          <tr class="team-sub-row" id="teamRow-{{ u.id }}" style="display: none;">
+            <td colspan="7">
+              <div class="team-sub-card">
+                <div class="team-title"><i class="bi bi-diagram-3 me-1"></i> Direct Reporting Members</div>
+                <div id="teamList-{{ u.id }}">
+                  <!-- Filled dynamically by JavaScript -->
                 </div>
               </div>
+            </td>
+          </tr>
+          {% endif %}
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
 
-              <div id="tlRow" style="display:none;" class="mb-3">
-                <label class="form-label">Team Lead (direct supervisor)</label>
-                <select class="form-select form-select-sm" id="tlSel" name="new_manager_id">
-                  <option value="">— No team lead (unassigned) —</option>
-                  {% for tl in available_tls %}
-                  <option value="{{ tl.id }}">{{ tl.username }}</option>
-                  {% endfor %}
-                </select>
-                <div class="form-text" style="font-size:0.74rem;">Their manager is inferred automatically from the TL's
-                  supervisor.</div>
-              </div>
+  </div>
+</div>
 
-              <div id="mInfo"
-                style="display:none;font-size:0.78rem;padding:8px 12px;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:6px;margin-top:4px;">
-              </div>
+<!-- Edit User Modal -->
+<div class="modal fade" id="editUserModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold"><i class="bi bi-gear-fill me-2 text-danger"></i>Manage User Account</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form id="editUserForm">
+        <input type="hidden" id="editUserId">
+        <div class="modal-body">
+          
+          <div class="mb-3">
+            <label for="editUsername" class="form-label">Username</label>
+            <input type="text" class="form-control" id="editUsername" required>
+          </div>
+
+          <div class="mb-3">
+            <label for="editEmail" class="form-label">Email Address</label>
+            <input type="email" class="form-control" id="editEmail">
+          </div>
+
+          {% if caller_role == 'admin' %}
+          <div class="mb-3">
+            <label for="editRole" class="form-label">Role Privilege</label>
+            <select class="form-select" id="editRole">
+              <option value="admin">Administrator</option>
+              <option value="manager">Manager</option>
+              <option value="team_lead">Team Leader</option>
+              <option value="user">Standard User</option>
+            </select>
+          </div>
+          {% else %}
+          <input type="hidden" id="editRole">
+          {% endif %}
+
+          <div class="mb-3">
+            <label for="editManager" class="form-label">Reports To (Manager / Lead)</label>
+            <select class="form-select" id="editManager">
+              <option value="none">None / Direct System</option>
+              {% for m in available_managers %}
+                <option value="{{ m.id }}">{{ m.username }} (Manager)</option>
+              {% endfor %}
+              {% for tl in available_tls %}
+                <option value="{{ tl.id }}">{{ tl.username }} (Team Lead)</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label for="editExportLimit" class="form-label">Export Record Limit</label>
+            <input type="number" class="form-control" id="editExportLimit" placeholder="Defaults to role default limits">
+          </div>
+
+          <div class="mb-3">
+            <label for="editStatus" class="form-label">Account Status</label>
+            <select class="form-select" id="editStatus">
+              <option value="active">Active</option>
+              <option value="sleep">Sleep</option>
+              <option value="disabled">Disabled</option>
+              <option value="deleted">Deleted</option>
+            </select>
+          </div>
+
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-danger px-4" id="saveUserBtn">Save Changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Password Reset Modal -->
+<div class="modal fade" id="resetPwdModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-sm">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold text-danger"><i class="bi bi-shield-lock-fill me-2"></i>Reset Password</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form id="resetPwdForm">
+        <input type="hidden" id="resetPwdUserId">
+        <div class="modal-body">
+          <p class="small text-muted">Set a new password for <strong id="resetPwdUsername">user</strong>.</p>
+          <div class="mb-3">
+            <label for="newPassword" class="form-label">New Password</label>
+            <input type="password" class="form-control" id="newPassword" required placeholder="Minimum 6 characters">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-danger btn-sm px-3" id="btnDoReset">Reset Password</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Create User Modal (Admin only) -->
+{% if caller_role == 'admin' %}
+<div class="modal fade" id="createUserModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold"><i class="bi bi-person-plus-fill me-2 text-danger"></i>Create New User Account</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form action="/admin/create_user" method="POST">
+        <div class="modal-body">
+          <input type="hidden" name="csrf" value="{{ session.csrf or '' }}">
+          <div class="mb-3">
+            <label for="createUsername" class="form-label">Username</label>
+            <input type="text" name="username" class="form-control" id="createUsername" required>
+          </div>
+          <div class="mb-3">
+            <label for="createPassword" class="form-label">Initial Password</label>
+            <input type="password" name="password" class="form-control" id="createPassword" required>
+          </div>
+          <div class="mb-3">
+            <label for="createRole" class="form-label">Role</label>
+            <select name="role" class="form-select" id="createRole">
+              <option value="admin">Administrator</option>
+              <option value="manager">Manager</option>
+              <option value="team_lead" selected>Team Leader</option>
+              <option value="user">Standard User</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label for="createManager" class="form-label">Reports To</label>
+            <select name="manager_id" class="form-select" id="createManager">
+              <option value="">None / Direct System</option>
+              {% for m in available_managers %}
+                <option value="{{ m.id }}">{{ m.username }} (Manager)</option>
+              {% endfor %}
+              {% for tl in available_tls %}
+                <option value="{{ tl.id }}">{{ tl.username }} (Team Lead)</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-danger px-4">Create Account</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+  let currentTab = 'all';
+  {% if caller_role == 'manager' %}
+    currentTab = 'team_lead';
+  {% endif %}
+
+  const editModal = new bootstrap.Modal(document.getElementById('editUserModal'));
+  const resetPwdModal = new bootstrap.Modal(document.getElementById('resetPwdModal'));
+
+  // Build client-side users list
+  const allUsers = [];
+  document.querySelectorAll('.user-row').forEach(row => {
+    allUsers.push({
+      id: parseInt(row.getAttribute('data-id')),
+      username: row.getAttribute('data-username'),
+      email: row.getAttribute('data-email'),
+      role: row.getAttribute('data-role'),
+      status: row.getAttribute('data-status'),
+      managerId: row.getAttribute('data-manager-id') ? parseInt(row.getAttribute('data-manager-id')) : null,
+      element: row
+    });
+  });
+
+  // Calculate direct team counts
+  allUsers.forEach(u => {
+    if (u.managerId) {
+      const parentCountSpan = document.querySelector(`.team-count[data-manager-id="${u.managerId}"]`);
+      if (parentCountSpan) {
+        let cnt = parseInt(parentCountSpan.innerText) || 0;
+        parentCountSpan.innerText = cnt + 1;
+      }
+    }
+  });
+
+  function switchTab(tabName) {
+    currentTab = tabName;
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.classList.remove('active');
+    });
+    const activeBtn = document.getElementById('tabBtn-' + tabName);
+    if (activeBtn) activeBtn.classList.add('active');
+    
+    // Hide all team drawers when switching tabs
+    document.querySelectorAll('.team-sub-row').forEach(row => {
+      row.style.display = 'none';
+    });
+    
+    filterGrid();
+  }
+
+  function filterGrid() {
+    const searchVal = document.getElementById('searchInput').value.trim().toLowerCase();
+    const statusVal = document.getElementById('statusFilter').value;
+
+    allUsers.forEach(u => {
+      let matchesTab = (currentTab === 'all') || (u.role === currentTab);
+      let matchesSearch = !searchVal || u.username.includes(searchVal) || u.email.includes(searchVal);
+      let matchesStatus = (statusVal === 'all') || (u.status === statusVal);
+
+      if (matchesTab && matchesSearch && matchesStatus) {
+        u.element.style.display = 'table-row';
+      } else {
+        u.element.style.display = 'none';
+        
+        // Hide associated team drawer row as well
+        const teamRow = document.getElementById('teamRow-' + u.id);
+        if (teamRow) teamRow.style.display = 'none';
+      }
+    });
+  }
+
+  // Toggle reporting team sub-row list
+  function toggleTeamDrawer(managerId) {
+    const teamRow = document.getElementById('teamRow-' + managerId);
+    const listContainer = document.getElementById('teamList-' + managerId);
+    const toggleBtn = document.getElementById('btnToggleTeam-' + managerId);
+
+    if (teamRow.style.display === 'table-row') {
+      teamRow.style.display = 'none';
+      const cnt = document.querySelector(`.team-count[data-manager-id="${managerId}"]`).innerText;
+      toggleBtn.innerHTML = `<i class="bi bi-people"></i> Team (${cnt})`;
+    } else {
+      const team = allUsers.filter(u => u.managerId === managerId);
+      listContainer.innerHTML = '';
+      if (team.length === 0) {
+        listContainer.innerHTML = '<div class="text-muted small py-2">No direct reports found.</div>';
+      } else {
+        team.forEach(member => {
+          const item = document.createElement('div');
+          item.className = 'team-member-row';
+          item.innerHTML = `
+            <div>
+              <span class="team-member-name">${member.username}</span>
+              <span class="team-member-role">${member.role}</span>
             </div>
-
-            <div class="overlay-footer">
-              <button type="button" class="btn btn-light btn-sm px-4" onclick="closeOverlay()"
-                style="border-radius:7px;font-size:0.85rem;">Cancel</button>
-              <button type="submit" class="btn btn-sm px-4 text-white"
-                style="background:#b91c1c;border:none;border-radius:7px;font-size:0.85rem;">
-                <i class="bi bi-check-lg me-1"></i>Save
+            <div class="d-flex align-items-center gap-2">
+              <span class="status-badge ${member.status}">${member.status}</span>
+              <button class="action-btn" 
+                      data-id="${member.id}" 
+                      data-username="${member.username}" 
+                      data-email="${member.email || ''}" 
+                      data-role="${member.role}" 
+                      data-manager-id="${member.managerId || ''}" 
+                      data-export-limit="${document.querySelector(`#row-${member.id}`).querySelector('td:nth-child(4)').innerText.trim().split(' ')[0]}" 
+                      data-status="${member.status}" 
+                      onclick="openEditModal(this)">
+                <i class="bi bi-pencil-square text-danger"></i> Manage
               </button>
             </div>
-          </form>
-        </div>
-      </div>
-
-      <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-      <script>
-        var CALLER_ROLE = "{{ caller_role }}";
-        var CALLER_ID = {{ caller_id }};
-
-        function copyPw() {
-          var v = document.getElementById("tmp-pw-field");
-          if (!v) return;
-          navigator.clipboard.writeText(v.value).then(function () {
-            var b = document.getElementById("copyBtn");
-            b.innerHTML = '<i class="bi bi-check-lg"></i> Copied';
-            b.classList.replace("btn-outline-warning", "btn-success");
-            setTimeout(function () { b.innerHTML = '<i class="bi bi-clipboard"></i> Copy'; b.classList.replace("btn-success", "btn-outline-warning"); }, 2000);
-          });
-        }
-
-        function confirmRole(form, uname) {
-          var sel = form.querySelector("select[name='new_role']");
-          var cur = sel.querySelector("option[selected]");
-          var old = cur ? cur.value : sel.value;
-          if (sel.value === old) return false;
-          return confirm("Change role of '" + uname + "' from " + old.replace(/_/g, " ") + " to " + sel.value.replace(/_/g, " ") + "?\n\nIf they supervise others you will see a warning below.");
-        }
-
-        function openReassign(uid, uname, urole, currentMgrId) {
-          currentMgrId = currentMgrId || null;
-          var form = document.getElementById("reassignForm");
-          if (!form) return;
-          form.reset();
-
-          var adminSel = document.getElementById("adminSel");
-          var mgrSel = document.getElementById("mgrSel");
-          var tlSel = document.getElementById("tlSel");
-          var adminRow = document.getElementById("adminRow");
-          var mgrRow = document.getElementById("mgrRow");
-          var tlRow = document.getElementById("tlRow");
-          var mInfo = document.getElementById("mInfo");
-
-          adminRow.style.display = "none"; adminSel.disabled = true; adminSel.value = "";
-          mgrRow.style.display = "none"; mgrSel.disabled = true; mgrSel.value = "";
-          tlRow.style.display = "none"; tlSel.disabled = true; tlSel.value = "";
-          mInfo.style.display = "none"; mInfo.textContent = "";
-
-          document.getElementById("mUsername").textContent = uname;
-          document.getElementById("mRoleBadge").textContent = urole.replace(/_/g, " ");
-          document.getElementById("reassignForm").action = "/admin/reassign_manager/" + uid;
-
-          if (urole === "manager") {
-            adminRow.style.display = ""; adminSel.disabled = false;
-            adminSel.value = currentMgrId ? String(currentMgrId) : String(CALLER_ID);
-            mInfo.style.display = "block";
-            mInfo.textContent = "Selecting a different admin will move this manager out of your view.";
-          } else if (urole === "team_lead") {
-            mgrRow.style.display = ""; mgrSel.disabled = false;
-            mgrSel.value = currentMgrId ? String(currentMgrId) : (CALLER_ROLE === "manager" ? String(CALLER_ID) : "");
-            if (CALLER_ROLE === "manager") {
-              mInfo.style.display = "block";
-              mInfo.textContent = "You are pre-selected as this team lead's supervisor.";
-            }
-          } else {
-            tlRow.style.display = ""; tlSel.disabled = false;
-            if (currentMgrId) { tlSel.value = String(currentMgrId); }
-          }
-
-          var backdrop = document.getElementById("overlayBackdrop");
-          backdrop.classList.remove("open");
-          void backdrop.offsetWidth;
-          backdrop.classList.add("open");
-          document.body.style.overflow = "hidden";
-        }
-
-        function closeOverlay() {
-          var backdrop = document.getElementById("overlayBackdrop");
-          if (backdrop) backdrop.classList.remove("open");
-          document.body.style.overflow = "";
-        }
-
-        function handleBackdropClick(e) {
-          if (e.target === document.getElementById("overlayBackdrop")) closeOverlay();
-        }
-
-        document.addEventListener("keydown", function (e) {
-          if (e.key === "Escape") closeOverlay();
+          `;
+          listContainer.appendChild(item);
         });
+      }
+      teamRow.style.display = 'table-row';
+      toggleBtn.innerHTML = `<i class="bi bi-chevron-up"></i> Hide Team`;
+    }
+  }
 
-        document.getElementById("reassignForm").addEventListener("submit", function (e) {
-          var orphanBox = document.getElementById("orphanBox");
-          if (!orphanBox) return;
-          e.preventDefault();
-          var form = this;
-          var action = form.action;
-          var data = new FormData(form);
-          var uid = action.split("/").filter(Boolean).pop();
+  // Open Edit Modal directly using button data attributes
+  function openEditModal(btn) {
+    const id = btn.getAttribute('data-id');
+    const username = btn.getAttribute('data-username');
+    const email = btn.getAttribute('data-email');
+    const role = btn.getAttribute('data-role');
+    const managerId = btn.getAttribute('data-manager-id');
+    const exportLimit = btn.getAttribute('data-export-limit');
+    const status = btn.getAttribute('data-status');
 
-          fetch(action, {
-            method: "POST",
-            body: data,
-            headers: { "X-Requested-With": "XMLHttpRequest" }
-          })
-            .then(function (resp) { return resp.json(); })
-            .then(function (json) {
-              if (!json.ok) {
-                var flash = document.getElementById("orphanFlash");
-                flash.innerHTML = '<div style="font-size:0.82rem;border-radius:6px;padding:7px 12px;background:#fef2f2;color:#b91c1c;border:1px solid #fecaca;">'
-                  + '<i class="bi bi-exclamation-circle me-1"></i>' + (json.error || "Error saving.") + '</div>';
-                setTimeout(function () { flash.innerHTML = ""; }, 3500);
-                return;
-              }
-              var item = document.getElementById("orphan-item-" + uid);
-              if (item) {
-                item.style.transition = "opacity 0.4s";
-                item.style.opacity = "0";
-                setTimeout(function () { item.remove(); }, 450);
-              }
-              var flash = document.getElementById("orphanFlash");
-              flash.innerHTML = '<div style="font-size:0.82rem;border-radius:6px;padding:7px 12px;background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0;">'
-                + '<i class="bi bi-check-circle me-1"></i>Hierarchy updated for <strong>' + json.username + '</strong>.</div>';
-              setTimeout(function () { flash.innerHTML = ""; }, 3500);
-              closeOverlay();
-              setTimeout(function () {
-                var orphanBox2 = document.getElementById("orphanBox");
-                if (orphanBox2 && orphanBox2.querySelectorAll(".orphan-item").length === 0) {
-                  orphanBox2.style.transition = "opacity 0.5s";
-                  orphanBox2.style.opacity = "0";
-                  setTimeout(function () {
-                    orphanBox2.remove();
-                    fetch("{{ url_for('dismiss_orphan_warning') }}");
-                  }, 500);
-                }
-              }, 500);
-            })
-            .catch(function (err) {
-              console.error("Reassign fetch failed:", err);
-              form.submit();
-            });
-        });
-      </script>
-    </main>
-  </div>
+    document.getElementById('editUserId').value = id;
+    document.getElementById('editUsername').value = username;
+    document.getElementById('editEmail').value = email;
+    
+    const roleSelect = document.getElementById('editRole');
+    if (roleSelect) roleSelect.value = role;
+    
+    document.getElementById('editManager').value = managerId || 'none';
+    document.getElementById('editExportLimit').value = (exportLimit.includes('Default') || !exportLimit) ? '' : exportLimit;
+    document.getElementById('editStatus').value = status || 'active';
 
+    editModal.show();
+  }
+
+  // Handle Edit Save
+  document.getElementById('editUserForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const id = document.getElementById('editUserId').value;
+    const saveBtn = document.getElementById('saveUserBtn');
+    
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Saving…';
+
+    const fd = new FormData();
+    fd.append('username', document.getElementById('editUsername').value.trim());
+    fd.append('email', document.getElementById('editEmail').value.trim());
+    
+    const roleSelect = document.getElementById('editRole');
+    if (roleSelect) {
+      fd.append('role', roleSelect.value);
+    }
+    fd.append('manager_id', document.getElementById('editManager').value);
+    fd.append('export_limit', document.getElementById('editExportLimit').value);
+    fd.append('status', document.getElementById('editStatus').value);
+
+    try {
+      const r = await fetch(`/admin/users/update/${id}`, {
+        method: 'POST',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        body: fd
+      });
+      const data = await r.json();
+      if (data.ok) {
+        editModal.hide();
+        window.location.reload();
+      } else {
+        alert(data.error || 'Failed to update user details.');
+      }
+    } catch(err) {
+      alert('Network request failed.');
+    } finally {
+      saveBtn.disabled = false;
+      saveBtn.innerHTML = 'Save Changes';
+    }
+  });
+
+  // Reset Password Flow
+  function triggerResetPwd(id, username) {
+    document.getElementById('resetPwdUserId').value = id;
+    document.getElementById('resetPwdUsername').innerText = username;
+    document.getElementById('newPassword').value = '';
+    resetPwdModal.show();
+  }
+
+  document.getElementById('resetPwdForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const id = document.getElementById('resetPwdUserId').value;
+    const pwd = document.getElementById('newPassword').value;
+    const submitBtn = document.getElementById('btnDoReset');
+
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Resetting…';
+
+    const fd = new FormData();
+    fd.append('new_password', pwd);
+
+    try {
+      const r = await fetch(`/admin/users/reset_password/${id}`, {
+        method: 'POST',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        body: fd
+      });
+      const data = await r.json();
+      if (data.ok) {
+        resetPwdModal.hide();
+        alert('Password successfully reset!');
+      } else {
+        alert(data.error || 'Failed to reset password.');
+      }
+    } catch(err) {
+      alert('Network request failed.');
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = 'Reset Password';
+    }
+  });
+
+  // Run initial tab check
+  {% if caller_role == 'manager' %}
+  switchTab('team_lead');
+  {% else %}
+  switchTab('all');
+  {% endif %}
+</script>
 </body>
-
 </html>

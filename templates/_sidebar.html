@@ -649,12 +649,12 @@
   <div id="sidebarData" data-role='{{ session.role|default("") }}' style="display:none;"></div>
 
   <div class="py-2">
-    {% if session.role in ["admin", "manager"] %}
     <a href="{{ url_for('dashboard') }}" class="sidebar-link{% if request.endpoint == 'dashboard' %} active{% endif %}">
       <i class="bi bi-grid"></i>
       <span class="sidebar-text">Dashboard</span>
     </a>
 
+    {% if session.role in ["admin", "manager"] %}
     <a href="{{ url_for('data_health') }}"
       class="sidebar-link{% if request.endpoint == 'data_health' %} active{% endif %}">
       <i class="bi bi-heart-pulse"></i>
@@ -702,6 +702,7 @@
     </a>
     {% endif %}
 
+
     {% if session.role in ["admin", "manager"] %}
     <a href="{{ url_for('list_users') }}"
       class="sidebar-link{% if request.endpoint == 'list_users' %} active{% endif %}">
@@ -731,6 +732,12 @@
       <span class="sidebar-text">Permissions</span>
     </a>
     {% endif %}
+    <a href="{{ url_for('profile') }}"
+      class="sidebar-link{% if request.endpoint == 'profile' %} active{% endif %}"
+      style="margin-top:8px; border-top: 1px solid var(--border-color); padding-top:12px;">
+      <i class="bi bi-person-circle"></i>
+      <span class="sidebar-text">My Profile</span>
+    </a>
   </div>
 
   <!-- Tab-style Collapse mini button centered on vertical axis, flush with edge -->
@@ -751,14 +758,57 @@
       header.innerHTML = `
         <div class="header-left"></div>
         <div class="header-right">
-          <button class="btn-theme-toggle" id="btnThemeToggle" title="Toggle Theme">
+          <button class="btn-theme-toggle" id="btnThemeToggle" title="Toggle Theme" style="margin-right: 8px;">
             <i class="bi bi-sun" id="themeIconSun"></i>
             <i class="bi bi-moon" id="themeIconMoon" style="display:none;"></i>
           </button>
-          <a href="{{ url_for('logout') }}" class="btn-logout-top" title="Logout">
-            <i class="bi bi-box-arrow-right"></i>
-            <span>Logout</span>
-          </a>
+          
+          {% if session.role in ["admin", "team_lead"] %}
+          <div style="position:relative; margin-right: 8px;">
+            <button id="btnInboxToggle" style="background:none;border:1px solid var(--border-color);border-radius:50%;width:36px;height:36px;display:inline-flex;align-items:center;justify-content:center;color:var(--text-main);position:relative;cursor:pointer;" title="Inbox & Notifications">
+              <i class="bi bi-bell"></i>
+              {% if pending_requests_count or unread_notifications_count %}
+              <span style="position:absolute;top:-4px;right:-4px;width:18px;height:18px;border-radius:50%;background:#ef4444;color:#fff;font-size:0.65rem;font-weight:700;display:flex;align-items:center;justify-content:center;" id="inboxTotalBadge">
+                {{ (pending_requests_count or 0) + (unread_notifications_count or 0) }}
+              </span>
+              {% endif %}
+            </button>
+            
+            <div id="inboxDropdown" style="display:none;position:absolute;right:0;top:calc(100% + 6px);background:var(--bg-card);border:1px solid var(--border-color);border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,0.12);min-width:320px;z-index:9999;overflow:hidden;">
+              <div style="padding:12px 16px;border-bottom:1px solid var(--border-color);font-weight:700;font-size:0.85rem;color:var(--text-main);display:flex;justify-content:space-between;align-items:center;">
+                <span>Notifications & Requests</span>
+                <button id="btnMarkAllRead" style="background:none;border:none;color:#b91c1c;font-size:0.75rem;cursor:pointer;font-weight:600;padding:0;">Mark read</button>
+              </div>
+              <div id="inboxList" style="max-height:300px;overflow-y:auto;padding:8px 0;">
+                <div style="padding:20px;text-align:center;color:var(--text-muted);font-size:0.8rem;">
+                  <span class="spinner-border spinner-border-sm me-2"></span>Loading...
+                </div>
+              </div>
+              <a href="/inbox" style="display:block;text-align:center;padding:10px;font-size:0.8rem;font-weight:600;color:#b91c1c;text-decoration:none;border-top:1px solid var(--border-color);background:var(--bg-primary);">
+                Open Full Inbox
+              </a>
+            </div>
+          </div>
+          {% endif %}
+
+          <div style="position:relative;">
+            <button id="btnUserMenu" style="background:none;border:1px solid var(--border-color);border-radius:20px;padding:5px 14px;cursor:pointer;display:flex;align-items:center;gap:8px;color:var(--text-main);font-size:0.85rem;font-weight:600;">
+              <span style="width:28px;height:28px;border-radius:50%;background:var(--red-accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:0.85rem;font-weight:700;">{{ (session.username or 'U')[0].upper() }}</span>
+              <span>{{ session.username or 'User' }}</span>
+              <i class="bi bi-chevron-down" style="font-size:0.7rem;"></i>
+            </button>
+            <div id="userMenuDrop" style="display:none;position:absolute;right:0;top:calc(100% + 6px);background:var(--bg-card);border:1px solid var(--border-color);border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,0.12);min-width:180px;z-index:9999;overflow:hidden;">
+              <a href="/profile" style="display:flex;align-items:center;gap:10px;padding:11px 16px;color:var(--text-main);text-decoration:none;font-size:0.85rem;border-bottom:1px solid var(--border-color);">
+                <i class="bi bi-person-circle" style="color:var(--red-accent);"></i> My Profile
+              </a>
+              <a href="/profile" style="display:flex;align-items:center;gap:10px;padding:11px 16px;color:var(--text-main);text-decoration:none;font-size:0.85rem;border-bottom:1px solid var(--border-color);">
+                <i class="bi bi-shield-lock" style="color:var(--red-accent);"></i> Change Password
+              </a>
+              <a href="{{ url_for('logout') }}" style="display:flex;align-items:center;gap:10px;padding:11px 16px;color:#b91c1c;text-decoration:none;font-size:0.85rem;font-weight:600;">
+                <i class="bi bi-box-arrow-right"></i> Logout
+              </a>
+            </div>
+          </div>
         </div>
       `;
 
@@ -799,6 +849,142 @@
         updateThemeUI(theme);
       });
     }
+
+    // 2.5 Setup User Menu Dropdown Toggle
+    const btnUserMenu = document.getElementById('btnUserMenu');
+    const userMenuDrop = document.getElementById('userMenuDrop');
+    if (btnUserMenu && userMenuDrop) {
+      btnUserMenu.addEventListener('click', function (e) {
+        e.stopPropagation();
+        const isShown = userMenuDrop.style.display === 'block';
+        userMenuDrop.style.display = isShown ? 'none' : 'block';
+        const inboxDrop = document.getElementById('inboxDropdown');
+        if (inboxDrop) inboxDrop.style.display = 'none';
+      });
+    }
+
+    // 2.6 Setup Inbox Dropdown Toggle, API fetch & Mark read
+    const btnInboxToggle = document.getElementById('btnInboxToggle');
+    const inboxDropdown = document.getElementById('inboxDropdown');
+    const inboxList = document.getElementById('inboxList');
+    const inboxTotalBadge = document.getElementById('inboxTotalBadge');
+    const btnMarkAllRead = document.getElementById('btnMarkAllRead');
+
+    if (btnInboxToggle && inboxDropdown) {
+      btnInboxToggle.addEventListener('click', async function (e) {
+        e.stopPropagation();
+        const isShown = inboxDropdown.style.display === 'block';
+        inboxDropdown.style.display = isShown ? 'none' : 'block';
+        if (userMenuDrop) userMenuDrop.style.display = 'none';
+
+        if (!isShown) {
+          // Load preview from API
+          inboxList.innerHTML = `
+            <div style="padding:20px;text-align:center;color:var(--text-muted);font-size:0.8rem;">
+              <span class="spinner-border spinner-border-sm me-2" style="color:#b91c1c;"></span>Loading...
+            </div>
+          `;
+          try {
+            const r = await fetch('/api/inbox/preview');
+            const data = await r.json();
+            if (data.ok) {
+              let html = '';
+              
+              // 1. Render pending change requests
+              if (data.requests && data.requests.length > 0) {
+                html += '<div style="padding:4px 16px; font-size:0.72rem; font-weight:700; color:#b91c1c; text-transform:uppercase; letter-spacing:0.5px; border-bottom:1px solid var(--border-color); background:var(--bg-primary);">Pending Approvals</div>';
+                data.requests.forEach(req => {
+                  html += `
+                    <a href="/inbox" style="display:flex; gap:10px; padding:10px 16px; border-bottom:1px solid var(--border-color); color:var(--text-main); text-decoration:none; align-items:flex-start; font-size:0.8rem; background:#fff8f8;">
+                      <div style="width:28px; height:28px; border-radius:50%; background:#fee2e2; color:#b91c1c; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-weight:700; font-size:0.8rem;">
+                        ${(req.current_username || 'U')[0].toUpperCase()}
+                      </div>
+                      <div style="flex:1;">
+                        <div><strong>${req.current_username}</strong> requested profile changes.</div>
+                        <div style="font-size:0.7rem; color:var(--text-muted); margin-top:2px;">Click to review & apply</div>
+                      </div>
+                    </a>
+                  `;
+                });
+              }
+
+              // 2. Render notifications
+              if (data.notifications && data.notifications.length > 0) {
+                html += '<div style="padding:4px 16px; font-size:0.72rem; font-weight:700; color:#374151; text-transform:uppercase; letter-spacing:0.5px; border-bottom:1px solid var(--border-color); background:var(--bg-primary);">Activity Alerts</div>';
+                data.notifications.forEach(n => {
+                  let ic = 'bi-bell-fill';
+                  let bg = '#f3f4f6';
+                  let cl = '#6b7280';
+                  if (n.action_type === 'export') {
+                    ic = 'bi-box-arrow-up'; bg = '#d1fae5'; cl = '#059669';
+                  } else if (n.action_type === 'import') {
+                    ic = 'bi-upload'; bg = '#dbeafe'; cl = '#2563eb';
+                  } else if (n.action_type === 'clean') {
+                    ic = 'bi-magic'; bg = '#cffafe'; cl = '#0891b2';
+                  }
+                  
+                  const unreadStyle = !n.is_read ? 'background:#f9fafb; font-weight:600;' : '';
+
+                  html += `
+                    <div style="display:flex; gap:10px; padding:10px 16px; border-bottom:1px solid var(--border-color); font-size:0.8rem; align-items:flex-start; ${unreadStyle}">
+                      <div style="width:28px; height:28px; border-radius:50%; background:${bg}; color:${cl}; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:0.85rem;">
+                        <i class="bi ${ic}"></i>
+                      </div>
+                      <div style="flex:1;">
+                        <div style="line-height:1.3;">${n.message}</div>
+                        <div style="font-size:0.7rem; color:var(--text-muted); margin-top:2px;">
+                          ${new Date(n.created_at).toLocaleDateString([], {day:'2-digit', month:'short'})}, ${new Date(n.created_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
+                        </div>
+                      </div>
+                    </div>
+                  `;
+                });
+              }
+
+              if (html === '') {
+                html = '<div style="padding:30px 20px; text-align:center; color:var(--text-muted); font-size:0.8rem;"><i class="bi bi-inbox fs-4 d-block mb-2"></i>No new notifications or requests.</div>';
+              }
+              inboxList.innerHTML = html;
+            } else {
+              inboxList.innerHTML = '<div style="padding:20px;text-align:center;color:#ef4444;font-size:0.8rem;">Failed to load inbox preview.</div>';
+            }
+          } catch(err) {
+            inboxList.innerHTML = '<div style="padding:20px;text-align:center;color:#ef4444;font-size:0.8rem;">Error loading inbox preview.</div>';
+          }
+        }
+      });
+
+      document.addEventListener('click', function () {
+        inboxDropdown.style.display = 'none';
+        if (userMenuDrop) userMenuDrop.style.display = 'none';
+      });
+
+      inboxDropdown.addEventListener('click', function (e) {
+        e.stopPropagation();
+      });
+    }
+
+    if (btnMarkAllRead) {
+      btnMarkAllRead.addEventListener('click', async function (e) {
+        e.preventDefault();
+        try {
+          const r = await fetch('/api/notifications/read', { method: 'POST' });
+          const data = await r.json();
+          if (data.ok) {
+            if (inboxTotalBadge) inboxTotalBadge.remove();
+            // Refresh preview if open
+            if (inboxDropdown.style.display === 'block') {
+              btnInboxToggle.click(); // close
+              btnInboxToggle.click(); // reopen to refresh list view
+            }
+          }
+        } catch(err) {
+          console.error(err);
+        }
+      });
+    }
+
+
 
     // 3. Setup collapsible sidebar
     const sidebar = document.querySelector('.sidebar');

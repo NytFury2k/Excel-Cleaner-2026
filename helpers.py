@@ -182,7 +182,9 @@ def get_db_connection():
 def log_action(user_id, action, total=0, valid=0, invalid=0, removed=0,
                rules_applied=None, rule_counts=None):
     conn = get_db_connection()
-    cursor = conn.cursor()
+    cursor = conn.cursor(dictionary=True)
+    
+    # 1. Insert original log entry
     cursor.execute("""
         INSERT INTO logs (user_id, action, total_rows, valid_rows, invalid_rows, removed_rows,
                           rules_applied, rule_counts)
@@ -193,7 +195,61 @@ def log_action(user_id, action, total=0, valid=0, invalid=0, removed=0,
         json.dumps(rule_counts)   if rule_counts   else None,
     ))
     conn.commit()
+
+    # 2. Notification trigger: check if action is export, import, or clean
+    action_lower = action.lower()
+    action_type = None
+    if "export" in action_lower:
+        action_type = "export"
+    elif "upload" in action_lower or "ingested" in action_lower or "ingest" in action_lower:
+        action_type = "import"
+    elif "cleaned file" in action_lower:
+        action_type = "clean"
+
+    if action_type:
+        try:
+            # Query manager of the user doing the action
+            cursor.execute("SELECT manager_id, username FROM public.users WHERE id = %s", (user_id,))
+            user_row = cursor.fetchone()
+            if user_row:
+                manager_id = user_row["manager_id"]
+                sender_name = user_row["username"]
+                
+                # Format friendly message
+                msg_subject = f"performed {action_type}"
+                if action_type == "export":
+                    msg_subject = "exported records"
+                elif action_type == "import":
+                    msg_subject = "uploaded a spreadsheet"
+                elif action_type == "clean":
+                    msg_subject = "cleaned spreadsheet data"
+
+                formatted_msg = f"{sender_name} {msg_subject}: {action}"
+                
+                if manager_id:
+                    # Insert for manager (Team Leader)
+                    cursor.execute("""
+                        INSERT INTO public.user_notifications (recipient_id, sender_id, message, action_type)
+                        VALUES (%s, %s, %s, %s)
+                    """, (manager_id, user_id, formatted_msg, action_type))
+                else:
+                    # Send to all admins if user has no manager
+                    cursor.execute("SELECT id FROM public.users WHERE role = 'admin'")
+                    admins = cursor.fetchall()
+                    for admin in admins:
+                        admin_id = admin["id"]
+                        if admin_id != user_id:
+                            cursor.execute("""
+                                INSERT INTO public.user_notifications (recipient_id, sender_id, message, action_type)
+                                VALUES (%s, %s, %s, %s)
+                            """, (admin_id, user_id, formatted_msg, action_type))
+                conn.commit()
+        except Exception as e:
+            # Log failure but do not crash the request
+            logging.getLogger(__name__).warning(f"Failed to generate notifications: {e}")
+
     conn.close()
+
 
 
 # ── RBAC helpers ──────────────────────────────────────────────────────────────
@@ -413,6 +469,17 @@ def fetch_visible_logs(cursor, *, search=None, from_date=None, to_date=None,
             "%Loaded preset%",
         ])
         count_query += " )"
+    elif log_type == "import":
+        # Only upload/ingest events
+        count_query += " AND (logs.action LIKE %s OR logs.action LIKE %s)"
+        count_params.extend(["%Uploaded file%", "%Ingested%"])
+    elif log_type == "clean":
+        # Only data-cleaning events (rules applied)
+        count_query += " AND logs.action LIKE %s"
+        count_params.append("%Cleaned file%")
+    elif log_type == "export":
+        count_query += " AND logs.action LIKE %s"
+        count_params.append("%Exported%")
     if from_date:
         count_query += " AND DATE(logs.created_at) >= %s"
         count_params.append(from_date)
@@ -456,6 +523,15 @@ def fetch_visible_logs(cursor, *, search=None, from_date=None, to_date=None,
             "%Loaded preset%",
         ])
         data_query += " )"
+    elif log_type == "import":
+        data_query += " AND (logs.action LIKE %s OR logs.action LIKE %s)"
+        data_params.extend(["%Uploaded file%", "%Ingested%"])
+    elif log_type == "clean":
+        data_query += " AND logs.action LIKE %s"
+        data_params.append("%Cleaned file%")
+    elif log_type == "export":
+        data_query += " AND logs.action LIKE %s"
+        data_params.append("%Exported%")
     if from_date:
         data_query += " AND DATE(logs.created_at) >= %s"
         data_params.append(from_date)
@@ -814,16 +890,20 @@ def log_search(user_id, username, search_term):
         cursor = conn.cursor()
 
         if _table_exists(cursor, "search_logs"):
-            cursor.execute("""
-                INSERT INTO search_logs
-                (user_id, username, search_term)
-                VALUES (%s, %s, %s)
-            """, (user_id, username, search_term))
-        else:
-            cursor.execute("""
-                INSERT INTO logs (user_id, action)
-                VALUES (%s, %s)
-            """, (user_id, f"Searched: {search_term}"))
+            try:
+                cursor.execute("""
+                    INSERT INTO search_logs
+                    (user_id, username, search_term)
+                    VALUES (%s, %s, %s)
+                """, (user_id, username, search_term))
+            except Exception:
+                pass
+        
+        # Always write search activity to general activity logs table
+        cursor.execute("""
+            INSERT INTO logs (user_id, action)
+            VALUES (%s, %s)
+        """, (user_id, f"Searched records query: {search_term}"))
 
         conn.commit()
     except Exception as exc:

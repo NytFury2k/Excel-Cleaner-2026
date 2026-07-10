@@ -475,26 +475,35 @@
         <!-- Column cards form -->
         <form method="POST" action="{{ url_for('clean_data') }}" id="cleanForm">
           <!-- 1. Column Alignment -->
+          <h5 class="fw-bold mb-3 text-dark"><i class="bi bi-shuffle me-2 text-danger"></i>1. Match Spreadsheet Columns to System Schema</h5>
+          
+          {% for sheet in sheet_data %}
           <div class="card shadow-sm mb-4">
-            <div class="card-header bg-danger-subtle text-danger fw-bold py-2">
-              <i class="bi bi-shuffle me-2"></i>1. Match Spreadsheet Columns to System Schema
+            <div class="card-header bg-danger-subtle text-danger fw-bold py-2 d-flex justify-content-between align-items-center flex-wrap gap-2">
+              <div>
+                <i class="bi bi-file-earmark-spreadsheet-fill me-2"></i>File: <strong>{{ sheet.original_filename }}</strong> 
+                {% if sheet.sheet_name and sheet.sheet_name != 'CSV' %}
+                &nbsp;|&nbsp; Sheet: <strong>{{ sheet.sheet_name }}</strong>
+                {% endif %}
+              </div>
+              <span class="badge bg-danger" style="font-size:0.75rem;">{{ sheet.columns|length }} columns</span>
             </div>
             <div class="card-body">
-              <p class="text-muted small">Align each column in the uploaded file to either a Master column or a Custom field to apply its cleaning rules.</p>
+              <p class="text-muted small">Align each column in this sheet to either a Master column or a Custom field to apply its cleaning rules.</p>
               <div class="row g-3">
-                {% for col in columns %}
+                {% for col in sheet.columns %}
                 <div class="col-md-4">
-                  <label class="form-label small fw-bold">{{ col }}</label>
-                  <select class="form-select form-select-sm" name="map_col_{{ col|replace(' ', '_') }}">
+                  <label class="form-label small fw-bold text-truncate d-block" title="{{ col }}">{{ col }}</label>
+                  <select class="form-select form-select-sm" name="map_col_{{ sheet.sheet_id }}_{{ col|replace(' ', '_') }}">
                     <option value="ignore">[Ignore / Keep As Is]</option>
                     <optgroup label="Master Columns">
                       {% for m in master_fields %}
-                      <option value="master:{{ m.identifier }}" {% if suggestions[col] == 'master:' ~ m.identifier %}selected{% endif %}>{{ m.name }}</option>
+                      <option value="master:{{ m.identifier }}" {% if sheet.suggestions[col] == 'master:' ~ m.identifier %}selected{% endif %}>{{ m.name }}</option>
                       {% endfor %}
                     </optgroup>
                     <optgroup label="Custom Fields">
                       {% for c in custom_fields_registry %}
-                      <option value="custom:{{ c.id }}" {% if suggestions[col] == 'custom:' ~ c.id %}selected{% endif %}>{{ c.field_name }}</option>
+                      <option value="custom:{{ c.id }}" {% if sheet.suggestions[col] == 'custom:' ~ c.id %}selected{% endif %}>{{ c.field_name }}</option>
                       {% endfor %}
                     </optgroup>
                   </select>
@@ -503,6 +512,7 @@
               </div>
             </div>
           </div>
+          {% endfor %}
 
           <h5 class="fw-bold mb-3 text-dark mt-4"><i class="bi bi-shield-check me-2 text-danger"></i>2. Configure Master Column Rules</h5>
 

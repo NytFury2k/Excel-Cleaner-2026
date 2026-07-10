@@ -306,7 +306,7 @@
       height: 42px;
       object-fit: contain;
     }
-    
+
     /* Loading Overlay */
     #loadingOverlay {
       position: fixed;
@@ -321,6 +321,7 @@
       align-items: center;
       justify-content: center;
     }
+
     .spinner-border {
       width: 3rem;
       height: 3rem;
@@ -346,7 +347,9 @@
 
     <main class="content-area">
 
-      <div id="uploadData" data-allowed='[".xlsx",".xls",".csv"]' data-max-size="{{ config.get('MAX_UPLOAD_SIZE', 52428800) if config is defined else 52428800 }}" data-csrf='{{ session.get("csrf", "") }}' style="display:none;"></div>
+      <div id="uploadData" data-allowed='[".xlsx",".xls",".csv"]'
+        data-max-size="{{ config.get('MAX_UPLOAD_SIZE', 52428800) if config is defined else 52428800 }}"
+        data-csrf='{{ session.get("csrf", "") }}' style="display:none;"></div>
 
       <div class="container">
         {% with messages = get_flashed_messages(with_categories=true) %}
@@ -404,7 +407,8 @@
               </form>
               {% if session.get('role') == 'admin' %}
               <div class="text-center text-muted my-3 small">— OR —</div>
-              <a href="{{ url_for('api_clean_existing_data') }}" class="btn btn-outline-danger w-100 py-2 fw-semibold" style="border-radius:9px; font-size:0.95rem;">
+              <a href="{{ url_for('api_clean_existing_data') }}" class="btn btn-outline-danger w-100 py-2 fw-semibold"
+                style="border-radius:9px; font-size:0.95rem;">
                 <i class="bi bi-database-check me-2"></i>Clean Existing Data
               </a>
               {% endif %}
@@ -499,12 +503,12 @@
     });
 
     // Show loading overlay on form submit or clean existing click
-    document.getElementById("uploadForm").addEventListener("submit", function() {
+    document.getElementById("uploadForm").addEventListener("submit", function () {
       document.getElementById("loadingOverlay").style.display = "flex";
     });
     const cleanExistingBtn = document.querySelector('a[href="{{ url_for("api_clean_existing_data") }}"]');
     if (cleanExistingBtn) {
-      cleanExistingBtn.addEventListener("click", function() {
+      cleanExistingBtn.addEventListener("click", function () {
         document.getElementById("loadingOverlay").style.display = "flex";
       });
     }
