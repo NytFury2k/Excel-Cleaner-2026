@@ -311,10 +311,9 @@
       text-transform: uppercase; display: inline-flex; align-items: center; gap: 4px;
       box-shadow: 0 1px 3px rgba(0,0,0,0.04);
     }
-    .status-badge.active   { background: rgba(16,185,129,0.16); color: #86efac; }
-    .status-badge.sleep    { background: rgba(245,158,11,0.18); color: #fbbf24; }
-    .status-badge.disabled { background: rgba(107,114,128,0.18); color: #e5e7eb; }
-    .status-badge.deleted  { background: rgba(239,68,68,0.16); color: #fda4af; }
+    .status-badge.active      { background: rgba(16,185,129,0.16); color: #16a34a; }
+    .status-badge.deactivated { background: rgba(107,114,128,0.18); color: #6b7280; }
+    .status-badge.deleted     { background: rgba(239,68,68,0.16); color: #dc2626; }
 
     .action-btn {
       background: var(--surface); border: 1px solid var(--border); color: var(--muted);
@@ -415,8 +414,7 @@
         <select class="form-select form-select-sm" id="statusFilter" style="border-radius: 8px; width: 140px;" onchange="filterGrid()">
           <option value="all">All Statuses</option>
           <option value="active">Active</option>
-          <option value="sleep">Sleep</option>
-          <option value="disabled">Disabled</option>
+          <option value="deactivated">Deactivated</option>
           <option value="deleted">Deleted</option>
         </select>
       </div>
@@ -582,8 +580,7 @@
             <label for="editStatus" class="form-label">Account Status</label>
             <select class="form-select" id="editStatus">
               <option value="active">Active</option>
-              <option value="sleep">Sleep</option>
-              <option value="disabled">Disabled</option>
+              <option value="deactivated">Deactivated</option>
               <option value="deleted">Deleted</option>
             </select>
           </div>

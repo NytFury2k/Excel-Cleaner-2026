@@ -191,43 +191,49 @@
     .metric-card {
       background: #fff;
       border: 1px solid #e5e7eb;
-      border-radius: 8px;
-      padding: 10px 14px;
+      border-radius: 12px;
+      padding: 18px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.02);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .metric-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
     }
 
     .metric-label {
       font-size: .72rem;
       color: #6b7280;
-      font-weight: 600;
-      letter-spacing: 0.08em;
-      padding-left: 2px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
     }
 
     .metric-value {
-      font-size: 1.7rem;
+      font-size: 1.8rem;
       font-weight: 700;
       color: #111827;
-      margin-top: 6px;
-      padding-left: 5px;
+      margin-top: 4px;
     }
 
-    .metric-icon {
-      width: 42px;
-      height: 42px;
-      border-radius: 10px;
-      background: #fef2f2;
-      color: var(--red-accent);
+    .metric-icon-box {
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 1.1rem;
+      font-size: 1.3rem;
     }
 
     .metric-trend {
-      font-size: .75rem;
-      margin-top: 0px;
+      font-size: .78rem;
+      margin-top: 12px;
       color: #6b7280;
-      padding-left: 2px;
+      display: flex;
+      align-items: center;
+      gap: 5px;
     }
 
     @media (max-width: 575px) {
@@ -348,103 +354,120 @@
             <h3 style="font-size:1.35rem;font-weight:700;color:var(--text);margin-bottom:4px;">Dashboard</h3>
             <p class="text-muted" style="font-size:0.875rem;">Excel Cleaning & Data Processing Platform</p>
           </div>
-          <div>
-            <button class="btn btn-danger px-3 py-1" style="font-size: 0.9rem; font-weight:500;" data-bs-toggle="modal"
-              data-bs-target="#uploadModal">Upload Sheet</button>
-          </div>
         </div>
 
         <div class="row g-3 mb-4">
 
-          <div class="col-xl-3 col-lg-3 col-md-6">
+          <!-- Card 1 -->
+          <div class="col-xl-4 col-lg-4 col-md-6">
             <div class="metric-card">
-              <div class="d-flex justify-content-between align-items-start">
+              <div class="d-flex justify-content-between align-items-center">
                 <div>
-                  <div class="metric-label">FILES PROCESSED</div>
+                  <div class="metric-label">Files Processed</div>
                   <div class="metric-value">{{ total_files }}</div>
                 </div>
+                <div class="metric-icon-box" style="background:#ede9fe; color:#8b5cf6;">
+                  <i class="bi bi-file-earmark-check-fill"></i>
+                </div>
               </div>
-
               <div class="metric-trend text-muted">
-                <i class="bi bi-check-circle"></i>
-                Successfully processed files
+                <i class="bi bi-check-circle-fill text-success"></i>
+                <span>Successfully processed files</span>
               </div>
             </div>
           </div>
 
-          <div class="col-xl-3 col-lg-3 col-md-6">
+          <!-- Card 2 -->
+          <div class="col-xl-4 col-lg-4 col-md-6">
             <div class="metric-card">
-              <div class="d-flex justify-content-between align-items-start">
+              <div class="d-flex justify-content-between align-items-center">
                 <div>
-                  <div class="metric-label">ROWS CLEANED</div>
+                  <div class="metric-label">Rows Cleaned</div>
                   <div class="metric-value">{{ total_rows }}</div>
                 </div>
+                <div class="metric-icon-box" style="background:#ecfdf5; color:#10b981;">
+                  <i class="bi bi-magic"></i>
+                </div>
               </div>
-
               <div class="metric-trend text-muted">
-                Cleaned records
+                <i class="bi bi-shield-check text-success"></i>
+                <span>Cleaned and validated database records</span>
               </div>
             </div>
           </div>
 
-          <div class="col-xl-3 col-lg-3 col-md-6">
+          <!-- Card 3 -->
+          <div class="col-xl-4 col-lg-4 col-md-6">
             <div class="metric-card">
-              <div class="d-flex justify-content-between align-items-start">
+              <div class="d-flex justify-content-between align-items-center">
                 <div>
-                  <div class="metric-label">ACTIVE USERS</div>
+                  <div class="metric-label">Active Users</div>
                   <div class="metric-value">{{ active_users }}</div>
                 </div>
+                <div class="metric-icon-box" style="background:#e0f2fe; color:#0284c7;">
+                  <i class="bi bi-people-fill"></i>
+                </div>
               </div>
-
               <div class="metric-trend text-muted">
-                Current active accounts
+                <i class="bi bi-check-circle-fill text-info"></i>
+                <span>Registered system operator accounts</span>
               </div>
             </div>
           </div>
 
-          <div class="col-xl-3 col-lg-3 col-md-6">
+          <!-- Card 4 -->
+          <div class="col-xl-4 col-lg-4 col-md-6">
             <div class="metric-card">
-              <div class="d-flex justify-content-between align-items-start">
+              <div class="d-flex justify-content-between align-items-center">
                 <div>
-                  <div class="metric-label">UPLOADS TODAY</div>
+                  <div class="metric-label">Uploads Today</div>
                   <div class="metric-value">{{ uploads_today }}</div>
                 </div>
-              </div>
-
-              <div class="metric-trend text-muted">
-                Files uploaded today
-              </div>
-            </div>
-          </div>
-
-          <div class="col-xl-3 col-lg-3 col-md-6">
-            <div class="metric-card">
-              <div class="d-flex justify-content-between align-items-start">
-                <div>
-                  <div class="metric-label">DATA QUALITY SCORE</div>
-                  <div class="metric-value">87%</div>
+                <div class="metric-icon-box" style="background:#fef3c7; color:#d97706;">
+                  <i class="bi bi-cloud-upload-fill"></i>
                 </div>
               </div>
-
               <div class="metric-trend text-muted">
-                <i class="bi bi-exclamation-triangle-fill text-warning me-1"></i>
-                12k fields need attention
+                <i class="bi bi-calendar-check-fill text-warning"></i>
+                <span>Spreadsheet files uploaded today</span>
               </div>
             </div>
           </div>
 
-          <div class="col-xl-3 col-lg-3 col-md-6">
+          <!-- Card 5 -->
+          <div class="col-xl-4 col-lg-4 col-md-6">
             <div class="metric-card">
-              <div class="d-flex justify-content-between align-items-start">
+              <div class="d-flex justify-content-between align-items-center">
                 <div>
-                  <div class="metric-label">API CALLS TODAY</div>
+                  <div class="metric-label">Data Quality Score</div>
+                  <div class="metric-value">94.5%</div>
+                </div>
+                <div class="metric-icon-box" style="background:#fdf2f8; color:#db2777;">
+                  <i class="bi bi-heart-pulse-fill"></i>
+                </div>
+              </div>
+              <div class="metric-trend text-muted">
+                <i class="bi bi-arrow-up-right-circle-fill text-success"></i>
+                <span>Overall data completeness &amp; validation status</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 6 -->
+          <div class="col-xl-4 col-lg-4 col-md-6">
+            <div class="metric-card">
+              <div class="d-flex justify-content-between align-items-center">
+                <div>
+                  <div class="metric-label">API Calls Today</div>
                   <div class="metric-value">94.2k</div>
                 </div>
+                <div class="metric-icon-box" style="background:#f1f5f9; color:#475569;">
+                  <i class="bi bi-cpu-fill"></i>
+                </div>
               </div>
-
               <div class="metric-trend text-muted">
-                <i class="bi bi-arrow-up-short text-success fw-bold"></i>
-                6.4% vs yesterday
+                <i class="bi bi-arrow-up-short text-success"></i>
+                <span>+6.4% calls volume vs yesterday</span>
               </div>
             </div>
           </div>

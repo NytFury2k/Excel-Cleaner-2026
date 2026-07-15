@@ -118,7 +118,14 @@ def run_cleaning_pipeline(df, selected_rules, duplicate_columns=None, duplicate_
         return (pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), [], [], {})
     # Allow running the pipeline when only deduplication columns are provided
     if not selected_rules and not duplicate_columns:
-        return (pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), [], [], {})
+        summary = {
+            "total_rows": len(df),
+            "clean_rows": len(df),
+            "invalid_rows": 0,
+            "duplicate_rows_removed": 0,
+            "rules_trigger_counts": {}
+        }
+        return (df.copy(), pd.DataFrame(columns=df.columns), pd.DataFrame(columns=df.columns), [], [], summary)
 
     cleaned_df = df.copy()
     invalid_df = pd.DataFrame(columns=df.columns)
@@ -183,13 +190,20 @@ def run_cleaning_pipeline(df, selected_rules, duplicate_columns=None, duplicate_
         valid_selected_rules.append((rule_name, column, extras))
 
     if not valid_selected_rules and not duplicate_columns:
+        summary = {
+            "total_rows": len(df),
+            "clean_rows": len(cleaned_df),
+            "invalid_rows": len(invalid_df),
+            "duplicate_rows_removed": len(removed_duplicates),
+            "rules_trigger_counts": {}
+        }
         return (
-            pd.DataFrame(),
-            pd.DataFrame(),
-            pd.DataFrame(),
+            cleaned_df,
+            invalid_df,
+            removed_duplicates,
             [],
             incompatibility_errors,
-            {}
+            summary
         )
 
     # 3. CLEANING PASS — runs BEFORE validation so rules like normalize_currency

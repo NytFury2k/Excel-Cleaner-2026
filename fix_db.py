@@ -24,7 +24,9 @@ sql_statements = [
         email VARCHAR(255) NULL,
         requires_password_change SMALLINT NOT NULL DEFAULT 0,
         created_by INT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        status VARCHAR(50) DEFAULT 'active',
+        deactivated_at TIMESTAMP NULL
     )
     """,
     """

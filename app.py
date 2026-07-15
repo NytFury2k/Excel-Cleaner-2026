@@ -304,18 +304,41 @@ def admin_logs():
 
     # Fetch all users for user selector (admin sees all, manager sees their team)
     if session.get("role") == "admin":
-        cursor.execute("SELECT id, username, role FROM users WHERE is_active = 1 ORDER BY username")
+        cursor.execute("SELECT id, username, role, status FROM users WHERE status != 'deleted' ORDER BY username")
     else:
-        cursor.execute("SELECT id, username, role FROM users WHERE (id = %s OR manager_id = %s) AND is_active = 1 ORDER BY username",
+        cursor.execute("SELECT id, username, role, status FROM users WHERE (id = %s OR manager_id = %s) AND status != 'deleted' ORDER BY username",
                        (session["user_id"], session["user_id"]))
     all_users = cursor.fetchall()
 
     # Build user filter clause
     user_filter_sql = ""
     user_filter_params = []
+    selected_user = None
+    deactivated_days = None
+    active_dates = []
+
     if selected_user_id and selected_user_id.isdigit():
         user_filter_sql = " AND l.user_id = %s"
         user_filter_params = [int(selected_user_id)]
+        
+        # Fetch details for the selected user
+        cursor.execute("SELECT id, username, role, status, deactivated_at, is_active FROM users WHERE id = %s", (int(selected_user_id),))
+        selected_user = cursor.fetchone()
+        if selected_user:
+            if selected_user["status"] == "deactivated" and selected_user["deactivated_at"]:
+                from datetime import datetime
+                delta = datetime.utcnow() - selected_user["deactivated_at"]
+                deactivated_days = max(0, delta.days)
+                
+            # Fetch last active history dates
+            cursor.execute("""
+                SELECT DISTINCT DATE(created_at) as active_date
+                FROM logs
+                WHERE user_id = %s
+                ORDER BY active_date DESC
+                LIMIT 50
+            """, (int(selected_user_id),))
+            active_dates = [r["active_date"].strftime("%d %b %Y") for r in cursor.fetchall() if r.get("active_date")]
 
     # --- ANALYTICS STATS ---
     # Total counts per action category
@@ -392,6 +415,9 @@ def admin_logs():
                            stats=stats,
                            top_users=top_users,
                            rows_exported_today=rows_exported_today,
+                           selected_user=selected_user,
+                           deactivated_days=deactivated_days,
+                           active_dates=active_dates,
                            pagination_url=lambda p: url_for(
                                "admin_logs",
                                page=p,
@@ -697,6 +723,244 @@ def logs_period_stats():
         "unique_users":   int(stats.get("unique_users") or 0),
         "rows_exported":  rows_exported,
     })
+
+
+@app.route("/api/admin/users/<int:user_id>/calendar-data")
+@login_required()
+def user_calendar_data(user_id):
+    if session.get("role") not in ("admin", "manager", "team_lead"):
+        return jsonify({"error": "Access denied"}), 403
+
+    from datetime import datetime, timedelta
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    # 1. Fetch user metadata
+    cursor.execute("SELECT id, username, status, deactivated_at, created_at FROM users WHERE id = %s", (user_id,))
+    user = cursor.fetchone()
+    if not user:
+        conn.close()
+        return jsonify({"error": "User not found"}), 404
+
+    # 2. Fetch all activity logs (work done)
+    cursor.execute("""
+        SELECT created_at, action
+        FROM logs
+        WHERE user_id = %s
+        ORDER BY created_at ASC
+    """, (user_id,))
+    logs = cursor.fetchall()
+
+    # 3. Fetch status change logs (Deactivated / Activated)
+    cursor.execute("""
+        SELECT action, created_at
+        FROM logs
+        WHERE (action LIKE 'Deactivated user%%(id=%s)' OR action LIKE 'Activated user%%(id=%s)' 
+           OR action LIKE 'Deactivated user%%(id=%s)%%' OR action LIKE 'Activated user%%(id=%s)%%')
+        ORDER BY created_at ASC
+    """, (user_id, user_id, user_id, user_id))
+    status_logs = cursor.fetchall()
+
+    conn.close()
+
+    # Calculate status for the last 365 days
+    today = datetime.utcnow().date()
+    start_date = today - timedelta(days=365)
+
+    # Map work days
+    work_days = {} # YYYY-MM-DD -> list of actions
+    for log in logs:
+        if log["created_at"]:
+            day_str = log["created_at"].date().strftime("%Y-%m-%d")
+            if day_str not in work_days:
+                work_days[day_str] = []
+            work_days[day_str].append(log["action"])
+
+    # Map status updates timeline
+    # We parse the timeline of status changes: YYYY-MM-DD -> status ('active' or 'deactivated')
+    status_timeline = [] # list of (date, status)
+    for slog in status_logs:
+        action = slog["action"].lower()
+        if "deactivated" in action:
+            status_timeline.append((slog["created_at"].date(), "deactivated"))
+        elif "activated" in action:
+            status_timeline.append((slog["created_at"].date(), "active"))
+
+    # Also append the current status and deactivated_at if active/deactivated
+    if user["status"] == "deactivated" and user["deactivated_at"]:
+        status_timeline.append((user["deactivated_at"].date(), "deactivated"))
+
+    status_timeline.sort(key=lambda x: x[0])
+
+    daily_status = {}
+    current_date = start_date
+    while current_date <= today:
+        day_str = current_date.strftime("%Y-%m-%d")
+        
+        # User account state before creation is "not_created"
+        if user["created_at"] and current_date < user["created_at"].date():
+            daily_status[day_str] = "not_created"
+        else:
+            # Determine status by finding the last status log before or on current_date
+            day_status = "active" # default starting status
+            for change_date, state in status_timeline:
+                if change_date <= current_date:
+                    day_status = state
+                else:
+                    break
+            
+            # If there was work done, it is "work"
+            if day_str in work_days:
+                daily_status[day_str] = "work"
+            else:
+                daily_status[day_str] = day_status
+
+        current_date += timedelta(days=1)
+
+    return jsonify({
+        "user_id": user_id,
+        "username": user["username"],
+        "daily_status": daily_status,
+        "work_details": work_days,
+        "work_days_count": len(work_days),
+        "deactivated_at": user["deactivated_at"].strftime("%Y-%m-%d %H:%M:%S") if user["deactivated_at"] else None
+    })
+
+
+@app.route("/admin/users/<int:user_id>/calendar-export")
+@login_required()
+def user_calendar_export(user_id):
+    if session.get("role") not in ("admin", "manager", "team_lead"):
+        flash("Access denied.", "warning")
+        return redirect(url_for("admin_logs"))
+
+    from datetime import datetime, timedelta
+    import pandas as pd
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    # Fetch user metadata
+    cursor.execute("SELECT id, username, status, deactivated_at, created_at FROM users WHERE id = %s", (user_id,))
+    user = cursor.fetchone()
+    if not user:
+        conn.close()
+        flash("User not found.", "danger")
+        return redirect(url_for("admin_logs"))
+
+    # Fetch logs
+    cursor.execute("SELECT created_at, action FROM logs WHERE user_id = %s ORDER BY created_at ASC", (user_id,))
+    logs = cursor.fetchall()
+
+    # Fetch status logs
+    cursor.execute("""
+        SELECT action, created_at
+        FROM logs
+        WHERE (action LIKE 'Deactivated user%%(id=%s)' OR action LIKE 'Activated user%%(id=%s)'
+           OR action LIKE 'Deactivated user%%(id=%s)%%' OR action LIKE 'Activated user%%(id=%s)%%')
+        ORDER BY created_at ASC
+    """, (user_id, user_id, user_id, user_id))
+    status_logs = cursor.fetchall()
+
+    conn.close()
+
+    # Read date range parameters
+    from_date_str = request.args.get("from_date", "").strip()
+    to_date_str = request.args.get("to_date", "").strip()
+
+    today = datetime.utcnow().date()
+    
+    if from_date_str:
+        try:
+            start_date = datetime.strptime(from_date_str, "%Y-%m-%d").date()
+        except ValueError:
+            start_date = today - timedelta(days=365)
+    else:
+        start_date = today - timedelta(days=365)
+
+    if to_date_str:
+        try:
+            end_date = datetime.strptime(to_date_str, "%Y-%m-%d").date()
+        except ValueError:
+            end_date = today
+    else:
+        end_date = today
+
+    # Work mapping
+    work_days = {}
+    for log in logs:
+        if log["created_at"]:
+            day_str = log["created_at"].date().strftime("%Y-%m-%d")
+            if day_str not in work_days:
+                work_days[day_str] = []
+            work_days[day_str].append(log["action"])
+
+    # Status timeline
+    status_timeline = []
+    for slog in status_logs:
+        action = slog["action"].lower()
+        if "deactivated" in action:
+            status_timeline.append((slog["created_at"].date(), "deactivated"))
+        elif "activated" in action:
+            status_timeline.append((slog["created_at"].date(), "active"))
+
+    if user["status"] == "deactivated" and user["deactivated_at"]:
+        status_timeline.append((user["deactivated_at"].date(), "deactivated"))
+
+    status_timeline.sort(key=lambda x: x[0])
+
+    rows = []
+    current_date = start_date
+    while current_date <= end_date:
+        day_str = current_date.strftime("%Y-%m-%d")
+        
+        if user["created_at"] and current_date < user["created_at"].date():
+            current_date += timedelta(days=1)
+            continue # skip days before user existed
+            
+        day_status = "Active"
+        for change_date, state in status_timeline:
+            if change_date <= current_date:
+                day_status = "Deactivated" if state == "deactivated" else "Active"
+            else:
+                break
+                
+        has_work = "Yes" if day_str in work_days else "No"
+        actions_list = ", ".join(work_days[day_str]) if day_str in work_days else ""
+
+        rows.append({
+            "Date": day_str,
+            "User Status": day_status,
+            "Work Done": has_work,
+            "Activities Recorded": actions_list
+        })
+        current_date += timedelta(days=1)
+
+    # Reverse rows so newest are on top
+    rows.reverse()
+
+    df_export = pd.DataFrame(rows)
+    
+    # Save to buffer and send
+    import io
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df_export.to_excel(writer, sheet_name="Active History", index=False)
+    output.seek(0)
+
+    # Log action
+    log_action(session["user_id"], f"Exported active history calendar data for user '{user['username']}' (id={user_id})")
+
+    filename = f"active_history_{user['username']}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+    from flask import send_file
+    return send_file(
+        output,
+        download_name=filename,
+        as_attachment=True,
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+
 
 
 
@@ -1035,9 +1299,8 @@ def login():
         session["csrf"] = secrets.token_hex(16)
         return render_template("login.html", saved_username=username)
 
-    if user_status in ["disabled", "sleep"] or not user["is_active"]:
-        status_msg = "suspended (sleep)" if user_status == "sleep" else "disabled"
-        flash(f"Account is {status_msg}. Contact admin.", "danger")
+    if user_status in ["disabled", "deactivated"] or not user["is_active"]:
+        flash("Account is deactivated. Contact admin.", "danger")
         session["csrf"] = secrets.token_hex(16)
         return render_template("login.html", saved_username=username)
 
@@ -1444,14 +1707,62 @@ def upload():
         return redirect(url_for("login"))
 
     if request.method == "POST":
-        files = request.files.getlist("file")
-        if not files or all(f.filename == "" for f in files):
-            flash("No file selected.", "danger")
-            return render_template("upload.html")
-            
         import uuid
+        import re
+        import requests
+
+        google_sheet_url = request.form.get("google_sheet_url", "").strip()
+        files = []
+
+        if google_sheet_url:
+            match = re.search(r'https://docs\.google\.com/spreadsheets/d/([a-zA-Z0-9-_]+)', google_sheet_url)
+            if not match:
+                flash("Invalid Google Sheets URL format. Make sure it follows: https://docs.google.com/spreadsheets/d/SPREADSHEET_ID/edit...", "danger")
+                return render_template("upload.html")
+            
+            spreadsheet_id = match.group(1)
+            download_url = f"https://docs.google.com/spreadsheets/d/{spreadsheet_id}/export?format=xlsx"
+            
+            try:
+                resp = requests.get(download_url, timeout=30)
+                if resp.status_code != 200:
+                    flash(f"Failed to access Google Sheet (HTTP {resp.status_code}). Please verify sharing is set to 'Anyone with the link can view'.", "danger")
+                    return render_template("upload.html")
+                file_content = resp.content
+            except Exception as e:
+                flash(f"Failed to download Google Sheet: {e}", "danger")
+                return render_template("upload.html")
+                
+            safe_filename = "Google_Sheet.xlsx"
+            ext = ".xlsx"
+            unique_prefix = uuid.uuid4().hex[:8]
+            temp_file_path = f"temp_{session['user_id']}_{unique_prefix}{ext}"
+            with open(temp_file_path, "wb") as f:
+                f.write(file_content)
+                
+            class MockFile:
+                def __init__(self, path, name):
+                    self.filename = name
+                    self.path = path
+                def save(self, dest):
+                    import shutil
+                    # Avoid copying onto itself
+                    if os.path.abspath(self.path) != os.path.abspath(dest):
+                        shutil.copy2(self.path, dest)
+                def seek(self, offset, whence=0):
+                    pass
+                def tell(self):
+                    return os.path.getsize(self.path)
+            
+            files = [MockFile(temp_file_path, safe_filename)]
+        else:
+            files = request.files.getlist("file")
+            if not files or all(f.filename == "" for f in files):
+                flash("Please select an Excel/CSV file or enter a public Google Sheets URL.", "danger")
+                return render_template("upload.html")
+            
         uploaded_sheets = []
-        ALLOWED_EXTENSIONS = (".xls", ".xlsx", ".csv")
+        ALLOWED_EXTENSIONS = ('.xls', '.xlsx', '.csv')
         
         # User details for DB logging & background thread
         conn_user = get_db_connection()
@@ -2043,6 +2354,101 @@ def clean_data():
     except Exception:
         pass
 
+    # ── Store in DB if requested ──────────────────────────────────────────────
+    store_in_db = request.form.get("store_in_db", "0") == "1"
+    db_stored_count = 0
+    db_store_error  = None
+
+    if store_in_db:
+        # Master field identifier → DB column name (1-to-1 match by convention)
+        MASTER_FIELD_IDENTIFIERS = {
+            "full_name", "email_address", "primary_phone_number", "alternate_phone_number",
+            "company_name", "job_title", "department", "website_url", "address_line_1",
+            "address_line_2", "city", "state_province", "postal_zip_code", "country",
+            "linkedin_profile_url", "industry", "lead_source", "record_status",
+            "date_of_birth", "gender", "company_size", "annual_revenue"
+        }
+
+        # Build per-sheet column → master_field mapping from form data
+        # map_col_{sheet_id}_{safe_col} = "master:<identifier>" or "custom:<id>" or "ignore"
+        sheet_col_mappings = {}  # { sheet_id: { original_col: master_identifier or None } }
+        for sheet in uploaded_sheets:
+            sid = sheet["sheet_id"]
+            sheet_col_mappings[sid] = {}
+            # Read columns from results to get actual df columns
+            for res in results:
+                if res.get("safe_sheet_name") == sheet["safe_sheet_name"]:
+                    for col in res["cleaned_df"].columns:
+                        safe_col = col.replace(" ", "_")
+                        target = request.form.get(f"map_col_{sid}_{safe_col}") or \
+                                 request.form.get(f"map_col_{safe_col}")
+                        if target and target.startswith("master:"):
+                            master_id = target.split("master:")[1]
+                            if master_id in MASTER_FIELD_IDENTIFIERS:
+                                sheet_col_mappings[sid][col] = master_id
+
+        try:
+            conn_store = get_db_connection()
+            cursor_store = conn_store.cursor()
+            from datetime import datetime as _dt
+            imported_by = session.get("username") or str(session.get("user_id", "unknown"))
+            now = _dt.utcnow()
+
+            for sheet, res in zip(uploaded_sheets, results):
+                sid = sheet["sheet_id"]
+                mapping = sheet_col_mappings.get(sid, {})
+                if not mapping:
+                    continue  # no master columns mapped for this sheet — skip
+
+                cleaned = res["cleaned_df"]
+                for _, row in cleaned.iterrows():
+                    record = {field: None for field in MASTER_FIELD_IDENTIFIERS}
+                    for col, master_id in mapping.items():
+                        val = row.get(col)
+                        if val is not None and str(val).strip() not in ("", "nan", "NaT"):
+                            record[master_id] = str(val).strip()
+
+                    cursor_store.execute("""
+                        INSERT INTO master_records (
+                            file_id, full_name, email_address, primary_phone_number,
+                            alternate_phone_number, company_name, job_title, department,
+                            website_url, address_line_1, address_line_2, city, state_province,
+                            postal_zip_code, country, linkedin_profile_url, industry,
+                            lead_source, record_status, date_of_birth, gender,
+                            company_size, annual_revenue, created_at, updated_at, imported_by
+                        ) VALUES (
+                            %s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s
+                        )
+                    """, (
+                        sheet.get("file_id", 0),
+                        record["full_name"], record["email_address"],
+                        record["primary_phone_number"], record["alternate_phone_number"],
+                        record["company_name"], record["job_title"], record["department"],
+                        record["website_url"], record["address_line_1"], record["address_line_2"],
+                        record["city"], record["state_province"], record["postal_zip_code"],
+                        record["country"], record["linkedin_profile_url"], record["industry"],
+                        record["lead_source"], record["record_status"], record["date_of_birth"],
+                        record["gender"], record["company_size"], record["annual_revenue"],
+                        now, now, imported_by
+                    ))
+                    db_stored_count += 1
+
+            conn_store.commit()
+            conn_store.close()
+            flash(f"✅ {db_stored_count} cleaned record(s) saved to the database successfully.", "success")
+            log_action(session["user_id"], f"Stored {db_stored_count} cleaned records to master_records DB")
+
+        except Exception as _db_err:
+            db_store_error = str(_db_err)
+            app.logger.error(f"DB store error during clean: {_db_err}")
+            flash(f"Cleaning completed but DB storage failed: {_db_err}", "warning")
+            try:
+                conn_store.rollback()
+                conn_store.close()
+            except Exception:
+                pass
+    # ─────────────────────────────────────────────────────────────────────────
+
     if valid_after == 0:
         all_detailed_errors.append({
             "rule" : "dataset_empty",
@@ -2070,7 +2476,9 @@ def clean_data():
         cleaning_summary={},
         cleaned_rows=valid_after,
         invalid_rows=invalid_after,
-        removed=removed_count
+        removed=removed_count,
+        store_in_db=store_in_db,
+        db_stored_count=db_stored_count
     )
 
 
@@ -3076,13 +3484,13 @@ def update_user_details(user_id):
     # Prevent target user status updates on self unless allowed
     is_active = 1
     if new_status:
-        if new_status not in ["active", "sleep", "disabled", "deleted"]:
+        if new_status not in ["active", "deactivated", "deleted"]:
             conn.close()
             return jsonify({"ok": False, "error": "Invalid status value."}), 400
-        if user_id == caller_id and new_status in ["disabled", "deleted"]:
+        if user_id == caller_id and new_status in ["deactivated", "deleted"]:
             conn.close()
-            return jsonify({"ok": False, "error": "You cannot disable or delete your own account."}), 400
-        is_active = 1 if new_status in ["active", "sleep"] else 0
+            return jsonify({"ok": False, "error": "You cannot deactivate or delete your own account."}), 400
+        is_active = 1 if new_status == "active" else 0
 
     # Execute Update
     update_fields = ["username = %s", "email = %s"]
@@ -3105,6 +3513,12 @@ def update_user_details(user_id):
         params.append(new_status)
         update_fields.append("is_active = %s")
         params.append(is_active)
+        if new_status == "deactivated":
+            from datetime import datetime as _dt
+            update_fields.append("deactivated_at = %s")
+            params.append(_dt.utcnow())
+        elif new_status == "active":
+            update_fields.append("deactivated_at = NULL")
 
     params.append(user_id)
     query = f"UPDATE users SET {', '.join(update_fields)} WHERE id = %s"
@@ -3113,6 +3527,10 @@ def update_user_details(user_id):
     conn.close()
 
     log_action(caller_id, f"Updated user details for username '{username}' (id={user_id})")
+    if new_status == "deactivated":
+        log_action(caller_id, f"Deactivated user '{username}' (id={user_id})")
+    elif new_status == "active":
+        log_action(caller_id, f"Activated user '{username}' (id={user_id})")
 
     return jsonify({"ok": True, "message": "User details successfully updated."})
 
@@ -4804,6 +5222,18 @@ def history_view():
 
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
+
+    # Clean up any stale processing records (created > 5 minutes ago)
+    from datetime import datetime, timedelta
+    stale_time = datetime.utcnow() - timedelta(minutes=5)
+    try:
+        cursor.execute(
+            "UPDATE uploaded_files SET status = 'failed' WHERE status = 'processing' AND uploaded_at < %s",
+            (stale_time,)
+        )
+        conn.commit()
+    except Exception as e:
+        app.logger.error(f"Error clearing stale uploads: {e}")
 
     cursor.execute("SELECT COUNT(*) AS total FROM uploaded_files")
     total_row = cursor.fetchone() or {}

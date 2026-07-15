@@ -414,6 +414,91 @@
     /* ─── EMPTY STATE ───────────────────────────────────── */
     .empty-state { text-align: center; padding: 56px 20px; color: var(--text-muted); }
     .empty-state i { font-size: 2.5rem; display: block; margin-bottom: 12px; color: var(--text-muted); }
+    /* ─── CALENDAR STYLING ───────────────────────────────── */
+    .calendar-container {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .calendar-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    .calendar-title {
+      font-weight: 700;
+      color: #111827;
+      font-size: 0.95rem;
+    }
+    .calendar-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 6px;
+      text-align: center;
+    }
+    .calendar-weekday {
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: #6b7280;
+      text-transform: uppercase;
+      padding-bottom: 4px;
+    }
+    .calendar-day {
+      aspect-ratio: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.8rem;
+      font-weight: 600;
+      border-radius: 6px;
+      position: relative;
+      cursor: default;
+    }
+    /* Calendar Day States */
+    .calendar-day.not-created {
+      color: #d1d5db;
+      background: #f3f4f6;
+      opacity: 0.4;
+    }
+    .calendar-day.inactive {
+      color: #4b5563;
+      background: #f3f4f6;
+      border: 1px solid #e5e7eb;
+    }
+    .calendar-day.work {
+      color: #ffffff !important;
+      background: #22c55e !important;
+      box-shadow: 0 0 4px rgba(34, 197, 94, 0.4);
+    }
+    .calendar-day.deactivated {
+      color: #ffffff !important;
+      background: #ef4444 !important;
+      box-shadow: 0 0 4px rgba(239, 68, 68, 0.4);
+    }
+    .calendar-day.empty {
+      visibility: hidden;
+    }
+    .calendar-legend {
+      display: flex;
+      justify-content: center;
+      gap: 14px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      margin-top: 14px;
+      padding-top: 12px;
+      border-top: 1px solid #f3f4f6;
+    }
+    .legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .legend-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+    }
   </style>
 </head>
 
@@ -447,6 +532,160 @@
         </a>
       </div>
     </div>
+
+    {% if selected_user %}
+    <div class="card shadow-sm mb-4 border-0" style="background:#fff; border-radius:12px; box-shadow:0 2px 12px rgba(0,0,0,0.05); padding:16px 20px;">
+      <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+        <div class="d-flex align-items-center gap-3">
+          <div class="d-flex align-items-center justify-content-center text-white rounded-circle" 
+               style="width:42px; height:42px; background: {% if selected_user.status == 'deactivated' %}#6b7280{% else %}#16a34a{% endif %}; font-size:1.2rem;">
+            <i class="bi {% if selected_user.status == 'deactivated' %}bi-person-x-fill{% else %}bi-person-check-fill{% endif %}"></i>
+          </div>
+          <div>
+            <h5 class="mb-0 fw-bold" style="font-size:1.05rem; color:#111827;">{{ selected_user.username }}</h5>
+            <p class="mb-0 text-muted small">Role: <span class="text-uppercase fw-semibold">{{ selected_user.role }}</span></p>
+          </div>
+        </div>
+        
+        <div class="d-flex align-items-center gap-2">
+          <span class="small fw-semibold text-muted">Account Status:</span>
+          {% if selected_user.status == 'deactivated' %}
+            <button class="btn btn-sm btn-light px-3 py-1 fw-bold d-inline-flex align-items-center gap-2" 
+                    style="border-radius:20px; font-size:0.82rem; border:1px solid #d1d5db; color:#374151;" 
+                    data-bs-toggle="modal" data-bs-target="#activeHistoryModal">
+              <span class="rounded-circle bg-secondary d-inline-block" style="width:8px; height:8px;"></span>
+              Deactivated ({{ deactivated_days }} days) — <span class="text-danger text-decoration-underline" style="cursor:pointer;">View Active History</span>
+            </button>
+          {% else %}
+            <span class="badge bg-success-subtle text-success px-3 py-2 fw-bold d-inline-flex align-items-center gap-1" 
+                  style="border-radius:20px; font-size:0.82rem;">
+              <span class="rounded-circle bg-success d-inline-block" style="width:8px; height:8px;"></span>
+              Active
+            </span>
+            <button class="btn btn-sm btn-link text-decoration-underline p-0 ms-2" 
+                    style="font-size:0.82rem; color:var(--red);"
+                    data-bs-toggle="modal" data-bs-target="#activeHistoryModal">
+              View Active History
+            </button>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal for Active History Calendar -->
+    <div class="modal fade" id="activeHistoryModal" tabindex="-1" aria-labelledby="activeHistoryModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered" style="max-width: 440px;">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 14px;">
+          <div class="modal-header bg-danger-subtle text-danger d-flex align-items-center justify-content-between" style="border-radius: 14px 14px 0 0; padding:16px 20px;">
+            <h5 class="modal-title fw-bold" id="activeHistoryModalLabel" style="font-size:1.1rem; margin:0;">
+              <i class="bi bi-calendar3 me-2"></i>Active History Calendar
+            </h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body" style="padding:20px;">
+            <div class="calendar-container">
+              
+              <!-- Month selection controls -->
+              <div class="calendar-header">
+                <button type="button" class="btn btn-sm btn-outline-secondary py-1 px-2" id="prevMonthBtn" onclick="navigateMonth(-1)">
+                  <i class="bi bi-chevron-left"></i> Prev
+                </button>
+                <div class="calendar-title" id="calendarMonthTitle">-</div>
+                <button type="button" class="btn btn-sm btn-outline-secondary py-1 px-2" id="nextMonthBtn" onclick="navigateMonth(1)">
+                  Next <i class="bi bi-chevron-right"></i>
+                </button>
+              </div>
+
+              <!-- Weekdays header row -->
+              <div class="calendar-grid">
+                <div class="calendar-weekday">Su</div>
+                <div class="calendar-weekday">Mo</div>
+                <div class="calendar-weekday">Tu</div>
+                <div class="calendar-weekday">We</div>
+                <div class="calendar-weekday">Th</div>
+                <div class="calendar-weekday">Fr</div>
+                <div class="calendar-weekday">Sa</div>
+              </div>
+
+              <!-- Days grid populated dynamically -->
+              <div class="calendar-grid" id="calendarDaysGrid"></div>
+
+              <!-- Legend -->
+              <div class="calendar-legend">
+                <div class="legend-item">
+                  <span class="legend-dot" style="background:#22c55e;"></span>
+                  <span>Work Done</span>
+                </div>
+                <div class="legend-item">
+                  <span class="legend-dot" style="background:#ef4444;"></span>
+                  <span>Deactivated</span>
+                </div>
+                <div class="legend-item">
+                  <span class="legend-dot" style="background:#f3f4f6; border:1px solid #d1d5db;"></span>
+                  <span>Idle / Active</span>
+                </div>
+              </div>
+
+              <!-- Day activity click details (hidden by default) -->
+              <div id="calendarDayDetails" class="mt-3 p-3 rounded-3" style="background:#f8fafc; border: 1px solid #e2e8f0; display: none;">
+                <h6 class="fw-bold mb-2 text-dark d-flex align-items-center gap-2" style="font-size:0.85rem; margin:0;">
+                  <i class="bi bi-info-circle text-danger"></i> <span id="detailsDateTitle">Details</span>
+                </h6>
+                <div id="detailsContent" style="font-size:0.8rem; color:#475569; max-height:100px; overflow-y:auto; margin-top:6px;"></div>
+              </div>
+
+            </div>
+          </div>
+          <div class="modal-footer flex-column border-top-0 pt-0" style="padding:16px 20px;">
+            
+            <!-- Summary Card (hidden by default) -->
+            <div id="rangeSummaryCard" class="w-100 mb-3 p-3 rounded-3" style="background:#fee2e2; border: 1px solid #fecaca; display: none;">
+              <h6 class="fw-bold mb-2 text-danger" style="font-size:0.85rem; margin:0 0 8px 0;"><i class="bi bi-activity me-1"></i>Range Summary Statistics</h6>
+              <div class="row text-center g-2" style="font-size:0.8rem; color:#7f1d1d;">
+                <div class="col-4" style="border-right: 1px solid #fca5a5;">
+                  <strong id="sumActiveDays" style="font-size:1.1rem; display:block; color:#b91c1c;">0</strong>
+                  Active Days
+                </div>
+                <div class="col-4" style="border-right: 1px solid #fca5a5;">
+                  <strong id="sumDeactDays" style="font-size:1.1rem; display:block; color:#b91c1c;">0</strong>
+                  Deactivated Days
+                </div>
+                <div class="col-4">
+                  <strong id="sumWorkDays" style="font-size:1.1rem; display:block; color:#b91c1c;">0</strong>
+                  Work Done Days
+                </div>
+              </div>
+            </div>
+
+            <!-- Date inputs for Range Export -->
+            <div class="w-100 mb-3 text-start">
+              <h6 class="fw-bold mb-2 text-dark" style="font-size:0.85rem; margin:0 0 6px 0;"><i class="bi bi-file-earmark-arrow-down-fill me-1"></i>Export &amp; Summary Date Range</h6>
+              <div class="d-flex align-items-center gap-2">
+                <div class="flex-grow-1">
+                  <label class="small text-muted mb-1" style="font-size:0.75rem;">From</label>
+                  <input type="date" id="exportFromDate" class="form-control form-control-sm" style="border-radius:6px;">
+                </div>
+                <div class="flex-grow-1">
+                  <label class="small text-muted mb-1" style="font-size:0.75rem;">To</label>
+                  <input type="date" id="exportToDate" class="form-control form-control-sm" style="border-radius:6px;">
+                </div>
+              </div>
+            </div>
+
+            <!-- Action buttons -->
+            <div class="d-flex gap-2 w-100">
+              <button type="button" onclick="generateRangeSummaryAndExport()" 
+                      class="btn btn-danger flex-grow-1 py-2 fw-semibold d-inline-flex align-items-center justify-content-center gap-2"
+                      style="border-radius:9px; font-size:0.9rem;">
+                <i class="bi bi-file-earmark-excel"></i> Export &amp; Show Summary
+              </button>
+              <button type="button" class="btn btn-outline-secondary px-4 py-2" data-bs-dismiss="modal" style="border-radius:9px; font-size:0.9rem;">Close</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
 
     <!-- ═══ PERIOD SELECTOR ════════════════════════════════ -->
     <div class="d-flex align-items-center gap-3 mb-4 flex-wrap">
@@ -982,6 +1221,202 @@ document.querySelectorAll('.attr-toggle').forEach(label => {
     updateChartDatasets();
   });
 });
+
+// ── Calendar Rendering Code ───────────────────────────────────────────────
+let calendarYear = new Date().getFullYear();
+let calendarMonth = new Date().getMonth(); // 0-11
+let userCalendarData = {}; // YYYY-MM-DD -> status
+let userWorkDetails = {};  // YYYY-MM-DD -> list of actions
+
+// Load calendar data when modal is opened
+const activeHistoryModalEl = document.getElementById('activeHistoryModal');
+if (activeHistoryModalEl) {
+  activeHistoryModalEl.addEventListener('show.bs.modal', async function () {
+    if (!userId) return;
+    
+    // Set to current date
+    const d = new Date();
+    calendarYear = d.getFullYear();
+    calendarMonth = d.getMonth();
+    
+    // Reset day details panel & summary card & inputs
+    document.getElementById('calendarDayDetails').style.display = 'none';
+    document.getElementById('rangeSummaryCard').style.display = 'none';
+    document.getElementById('exportFromDate').value = '';
+    document.getElementById('exportToDate').value = '';
+    
+    try {
+      const res = await fetch(`/api/admin/users/${userId}/calendar-data`);
+      const payload = await res.json();
+      if (!payload.error) {
+        userCalendarData = payload.daily_status || {};
+        userWorkDetails = payload.work_details || {};
+        renderCalendar();
+      }
+    } catch (err) {
+      console.error("Error loading calendar details:", err);
+    }
+  });
+}
+
+function renderCalendar() {
+  const monthNames = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+  ];
+  
+  // Update header text
+  const titleEl = document.getElementById('calendarMonthTitle');
+  if (titleEl) {
+    titleEl.textContent = `${monthNames[calendarMonth]} ${calendarYear}`;
+  }
+  
+  const grid = document.getElementById('calendarDaysGrid');
+  if (!grid) return;
+  grid.innerHTML = '';
+  
+  // Get first day of month (0 = Sun, 1 = Mon, etc.)
+  const firstDayIndex = new Date(calendarYear, calendarMonth, 1).getDay();
+  // Get number of days in month
+  const numDays = new Date(calendarYear, calendarMonth + 1, 0).getDate();
+  
+  // Render empty cells for days from previous month
+  for (let i = 0; i < firstDayIndex; i++) {
+    const emptyCell = document.createElement('div');
+    emptyCell.className = 'calendar-day empty';
+    grid.appendChild(emptyCell);
+  }
+  
+  // Render days of the current month
+  for (let day = 1; day <= numDays; day++) {
+    const dayCell = document.createElement('div');
+    dayCell.className = 'calendar-day';
+    dayCell.textContent = day;
+    dayCell.style.cursor = 'pointer';
+    
+    // Format date string YYYY-MM-DD
+    const y = calendarYear;
+    const m = String(calendarMonth + 1).padStart(2, '0');
+    const d = String(day).padStart(2, '0');
+    const dateStr = `${y}-${m}-${d}`;
+    
+    // Check status in userCalendarData
+    const status = userCalendarData[dateStr] || 'inactive';
+    
+    if (status === 'work') {
+      dayCell.classList.add('work');
+      dayCell.title = "Work Done (Click to view)";
+    } else if (status === 'deactivated') {
+      dayCell.classList.add('deactivated');
+      dayCell.title = "Account Deactivated (Click to view)";
+    } else if (status === 'not_created') {
+      dayCell.classList.add('not-created');
+      dayCell.style.cursor = 'default';
+      dayCell.title = "Account Not Created Yet";
+    } else {
+      dayCell.classList.add('inactive');
+      dayCell.title = "Idle / Active (Click to view)";
+    }
+    
+    // Click listener to show activity/status details for the clicked date
+    if (status !== 'not_created') {
+      dayCell.addEventListener('click', function() {
+        const detailsPanel = document.getElementById('calendarDayDetails');
+        const titleEl = document.getElementById('detailsDateTitle');
+        const contentEl = document.getElementById('detailsContent');
+        
+        // Format readable date label, e.g. "15 July 2026"
+        const formattedDate = `${day} ${monthNames[calendarMonth]} ${calendarYear}`;
+        titleEl.textContent = `Details for ${formattedDate}`;
+        
+        if (status === 'work') {
+          const actions = userWorkDetails[dateStr] || [];
+          let actionsHtml = '<ul class="mb-0 ps-3">';
+          actions.forEach(act => {
+            actionsHtml += `<li>${act}</li>`;
+          });
+          actionsHtml += '</ul>';
+          contentEl.innerHTML = actionsHtml;
+        } else if (status === 'deactivated') {
+          contentEl.innerHTML = `<span class="text-danger fw-semibold"><i class="bi bi-x-circle me-1"></i>Account was deactivated on this date.</span>`;
+        } else {
+          contentEl.innerHTML = `<span class="text-muted"><i class="bi bi-info-circle me-1"></i>Account was active but no work operations were recorded.</span>`;
+        }
+        
+        detailsPanel.style.display = 'block';
+      });
+    }
+    
+    grid.appendChild(dayCell);
+  }
+}
+
+function navigateMonth(direction) {
+  calendarMonth += direction;
+  if (calendarMonth < 0) {
+    calendarMonth = 11;
+    calendarYear -= 1;
+  } else if (calendarMonth > 11) {
+    calendarMonth = 0;
+    calendarYear += 1;
+  }
+  renderCalendar();
+}
+
+function generateRangeSummaryAndExport() {
+  const fromVal = document.getElementById('exportFromDate').value;
+  const toVal = document.getElementById('exportToDate').value;
+  
+  if (!fromVal || !toVal) {
+    alert("Please select both 'From' and 'To' dates for the export range.");
+    return;
+  }
+  
+  const fromDate = new Date(fromVal);
+  const toDate = new Date(toVal);
+  
+  if (fromDate > toDate) {
+    alert("'From' date cannot be after 'To' date.");
+    return;
+  }
+  
+  // Calculate summary counts inside selected date range
+  let activeDays = 0;
+  let deactDays = 0;
+  let workDays = 0;
+  
+  let current = new Date(fromDate);
+  while (current <= toDate) {
+    const y = current.getFullYear();
+    const m = String(current.getMonth() + 1).padStart(2, '0');
+    const d = String(current.getDate()).padStart(2, '0');
+    const dateStr = `${y}-${m}-${d}`;
+    
+    const status = userCalendarData[dateStr];
+    if (status) {
+      if (status === 'work') {
+        workDays++;
+        activeDays++; // working implies active
+      } else if (status === 'deactivated') {
+        deactDays++;
+      } else if (status === 'active' || status === 'inactive') {
+        activeDays++;
+      }
+    }
+    
+    current.setDate(current.getDate() + 1);
+  }
+  
+  // Update UI summary tags
+  document.getElementById('sumActiveDays').textContent = activeDays;
+  document.getElementById('sumDeactDays').textContent = deactDays;
+  document.getElementById('sumWorkDays').textContent = workDays;
+  document.getElementById('rangeSummaryCard').style.display = 'block';
+  
+  // Trigger Excel file download
+  const exportUrl = `/admin/users/${userId}/calendar-export?from_date=${fromVal}&to_date=${toVal}`;
+  window.location.href = exportUrl;
+}
 
 // ── Init ─────────────────────────────────────────────────────────────────────
 loadDashboard('week');

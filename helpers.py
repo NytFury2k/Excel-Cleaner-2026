@@ -1077,12 +1077,12 @@ def ingest_uploaded_file(file_id, file_path, username):
             
             cursor.executemany(insert_query, insert_data)
             
-            # Update file status and row count
-            cursor.execute(
-                "UPDATE uploaded_files SET total_rows = %s, status = 'completed' WHERE id = %s",
-                (len(records_to_insert), file_id)
-            )
-            conn.commit()
+        # Update file status and row count
+        cursor.execute(
+            "UPDATE uploaded_files SET total_rows = %s, rows_imported = %s, rows_rejected = 0, status = 'completed' WHERE id = %s",
+            (len(records_to_insert), len(records_to_insert), file_id)
+        )
+        conn.commit()
             
     except Exception as e:
         conn.rollback()

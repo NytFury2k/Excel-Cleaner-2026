@@ -581,14 +581,32 @@
             <!-- Dynamically populated custom field rule cards -->
           </div>
 
-          <!-- Submit bar -->
-          <div class="submit-bar">
-            <button type="submit" class="btn btn-danger px-5 py-2"
-              style="border-radius:8px;font-size:0.95rem;font-weight:600;">
-              <i class="bi bi-magic me-2"></i>Clean Data
+          <!-- Hidden flag: set by JS when clicking either clean button -->
+          <input type="hidden" name="store_in_db" id="storeInDbInput" value="0">
+
+          <!-- Submit bar — two flat buttons -->
+          <div class="submit-bar d-flex align-items-center gap-3 flex-wrap">
+
+            <!-- Option 1: Clean Only -->
+            <button type="submit" id="btnCleanOnly"
+              onclick="document.getElementById('storeInDbInput').value='0';"
+              class="btn btn-danger px-4 py-2 d-flex align-items-center gap-2"
+              style="border-radius:9px;font-size:0.95rem;font-weight:600;">
+              <i class="bi bi-magic"></i>
+              <span>Clean Only</span>
             </button>
-            <a href="{{ url_for('upload') }}" class="btn btn-outline-secondary px-5 py-2"
-              style="border-radius:8px;font-size:0.95rem;">
+
+            <!-- Option 2: Clean & Store in DB -->
+            <button type="submit" id="btnCleanAndStore"
+              onclick="document.getElementById('storeInDbInput').value='1';"
+              class="btn btn-outline-danger px-4 py-2 d-flex align-items-center gap-2"
+              style="border-radius:9px;font-size:0.95rem;font-weight:600;">
+              <i class="bi bi-cloud-upload-fill"></i>
+              <span>Clean &amp; Store in Database</span>
+            </button>
+
+            <a href="{{ url_for('upload') }}" class="btn btn-outline-secondary px-4 py-2"
+              style="border-radius:9px;font-size:0.95rem;">
               <i class="bi bi-arrow-left me-1"></i>Back
             </a>
           </div>
@@ -1065,10 +1083,21 @@
           var cleanForm = document.querySelector("form[action*='clean_data']");
           if (cleanForm) {
             cleanForm.addEventListener("submit", function(e) {
+              var storeInDb = document.getElementById("storeInDbInput").value === "1";
+
               // Show overlay
               var overlay = document.getElementById("cleaningLoaderOverlay");
+              var loaderTitle = overlay ? overlay.querySelector(".loader-title") : null;
+              var loaderSub   = overlay ? overlay.querySelector(".loader-subtitle") : null;
               if (overlay) {
                 overlay.style.display = "flex";
+                if (storeInDb) {
+                  if (loaderTitle) loaderTitle.textContent = "Cleaning & Storing to Database";
+                  if (loaderSub)   loaderSub.textContent   = "Please wait while the engine cleans your data and saves it to master records...";
+                } else {
+                  if (loaderTitle) loaderTitle.textContent = "Cleaning Spreadsheet";
+                  if (loaderSub)   loaderSub.textContent   = "Please wait while the validation & cleaning engines run...";
+                }
               }
 
               // Progress bar animation (asymptotic slow down)
@@ -1085,11 +1114,18 @@
 
               // Ticker message cycler
               var ticker = document.getElementById("loaderTicker");
-              var messages = [
+              var messages = storeInDb ? [
                 "Running validation engine...",
                 "Validating email addresses and phone numbers...",
                 "Removing duplicate records...",
-                "Ingesting records to Supabase...",
+                "Mapping columns to master schema...",
+                "Inserting cleaned rows into database...",
+                "Committing transaction to Supabase...",
+                "Rendering interactive preview table..."
+              ] : [
+                "Running validation engine...",
+                "Validating email addresses and phone numbers...",
+                "Removing duplicate records...",
                 "Resolving schema column mappings...",
                 "Rendering interactive preview table..."
               ];
