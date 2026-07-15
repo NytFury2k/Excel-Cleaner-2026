@@ -191,49 +191,43 @@
     .metric-card {
       background: #fff;
       border: 1px solid #e5e7eb;
-      border-radius: 12px;
-      padding: 18px;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.02);
-      transition: transform 0.2s, box-shadow 0.2s;
-    }
-
-    .metric-card:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+      border-radius: 8px;
+      padding: 10px 14px;
     }
 
     .metric-label {
       font-size: .72rem;
       color: #6b7280;
-      font-weight: 700;
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      padding-left: 2px;
     }
 
     .metric-value {
-      font-size: 1.8rem;
+      font-size: 1.7rem;
       font-weight: 700;
       color: #111827;
-      margin-top: 4px;
+      margin-top: 6px;
+      padding-left: 5px;
     }
 
-    .metric-icon-box {
-      width: 48px;
-      height: 48px;
-      border-radius: 12px;
+    .metric-icon {
+      width: 42px;
+      height: 42px;
+      border-radius: 10px;
+      background: #fef2f2;
+      color: var(--red-accent);
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 1.3rem;
+      font-size: 1.1rem;
     }
 
     .metric-trend {
-      font-size: .78rem;
-      margin-top: 12px;
+      font-size: .75rem;
+      margin-top: 0px;
       color: #6b7280;
-      display: flex;
-      align-items: center;
-      gap: 5px;
+      padding-left: 2px;
     }
 
     @media (max-width: 575px) {
@@ -354,339 +348,103 @@
             <h3 style="font-size:1.35rem;font-weight:700;color:var(--text);margin-bottom:4px;">Dashboard</h3>
             <p class="text-muted" style="font-size:0.875rem;">Excel Cleaning & Data Processing Platform</p>
           </div>
+          <div>
+            <button class="btn btn-danger px-3 py-1" style="font-size: 0.9rem; font-weight:500;" data-bs-toggle="modal"
+              data-bs-target="#uploadModal">Upload Sheet</button>
+          </div>
         </div>
 
         <div class="row g-3 mb-4">
 
-          <!-- Card 1 -->
-          <div class="col-xl-4 col-lg-4 col-md-6">
+          <div class="col-xl-3 col-lg-3 col-md-6">
             <div class="metric-card">
-              <div class="d-flex justify-content-between align-items-center">
+              <div class="d-flex justify-content-between align-items-start">
                 <div>
-                  <div class="metric-label">Files Processed</div>
+                  <div class="metric-label">FILES PROCESSED</div>
                   <div class="metric-value">{{ total_files }}</div>
                 </div>
-                <div class="metric-icon-box" style="background:#ede9fe; color:#8b5cf6;">
-                  <i class="bi bi-file-earmark-check-fill"></i>
-                </div>
               </div>
+
               <div class="metric-trend text-muted">
-                <i class="bi bi-check-circle-fill text-success"></i>
-                <span>Successfully processed files</span>
+                <i class="bi bi-check-circle"></i>
+                Successfully processed files
               </div>
             </div>
           </div>
 
-          <!-- Card 2 -->
-          <div class="col-xl-4 col-lg-4 col-md-6">
+          <div class="col-xl-3 col-lg-3 col-md-6">
             <div class="metric-card">
-              <div class="d-flex justify-content-between align-items-center">
+              <div class="d-flex justify-content-between align-items-start">
                 <div>
-                  <div class="metric-label">Rows Cleaned</div>
+                  <div class="metric-label">ROWS CLEANED</div>
                   <div class="metric-value">{{ total_rows }}</div>
                 </div>
-                <div class="metric-icon-box" style="background:#ecfdf5; color:#10b981;">
-                  <i class="bi bi-magic"></i>
-                </div>
               </div>
+
               <div class="metric-trend text-muted">
-                <i class="bi bi-shield-check text-success"></i>
-                <span>Cleaned and validated database records</span>
+                Cleaned records
               </div>
             </div>
           </div>
 
-          <!-- Card 3 -->
-          <div class="col-xl-4 col-lg-4 col-md-6">
+          <div class="col-xl-3 col-lg-3 col-md-6">
             <div class="metric-card">
-              <div class="d-flex justify-content-between align-items-center">
+              <div class="d-flex justify-content-between align-items-start">
                 <div>
-                  <div class="metric-label">Active Users</div>
+                  <div class="metric-label">ACTIVE USERS</div>
                   <div class="metric-value">{{ active_users }}</div>
                 </div>
-                <div class="metric-icon-box" style="background:#e0f2fe; color:#0284c7;">
-                  <i class="bi bi-people-fill"></i>
-                </div>
               </div>
+
               <div class="metric-trend text-muted">
-                <i class="bi bi-check-circle-fill text-info"></i>
-                <span>Registered system operator accounts</span>
+                Current active accounts
               </div>
             </div>
           </div>
 
-          <!-- Card 4 -->
-          <div class="col-xl-4 col-lg-4 col-md-6">
+          <div class="col-xl-3 col-lg-3 col-md-6">
             <div class="metric-card">
-              <div class="d-flex justify-content-between align-items-center">
+              <div class="d-flex justify-content-between align-items-start">
                 <div>
-                  <div class="metric-label">Uploads Today</div>
+                  <div class="metric-label">UPLOADS TODAY</div>
                   <div class="metric-value">{{ uploads_today }}</div>
                 </div>
-                <div class="metric-icon-box" style="background:#fef3c7; color:#d97706;">
-                  <i class="bi bi-cloud-upload-fill"></i>
-                </div>
               </div>
+
               <div class="metric-trend text-muted">
-                <i class="bi bi-calendar-check-fill text-warning"></i>
-                <span>Spreadsheet files uploaded today</span>
+                Files uploaded today
               </div>
             </div>
           </div>
 
-          <!-- Card 5 -->
-          <div class="col-xl-4 col-lg-4 col-md-6">
+          <div class="col-xl-3 col-lg-3 col-md-6">
             <div class="metric-card">
-              <div class="d-flex justify-content-between align-items-center">
+              <div class="d-flex justify-content-between align-items-start">
                 <div>
-                  <div class="metric-label">Data Quality Score</div>
-                  <div class="metric-value">94.5%</div>
-                </div>
-                <div class="metric-icon-box" style="background:#fdf2f8; color:#db2777;">
-                  <i class="bi bi-heart-pulse-fill"></i>
+                  <div class="metric-label">DATA QUALITY SCORE</div>
+                  <div class="metric-value">87%</div>
                 </div>
               </div>
+
               <div class="metric-trend text-muted">
-                <i class="bi bi-arrow-up-right-circle-fill text-success"></i>
-                <span>Overall data completeness &amp; validation status</span>
+                <i class="bi bi-exclamation-triangle-fill text-warning me-1"></i>
+                12k fields need attention
               </div>
             </div>
           </div>
 
-          <!-- Card 6 -->
-          <div class="col-xl-4 col-lg-4 col-md-6">
+          <div class="col-xl-3 col-lg-3 col-md-6">
             <div class="metric-card">
-              <div class="d-flex justify-content-between align-items-center">
+              <div class="d-flex justify-content-between align-items-start">
                 <div>
-                  <div class="metric-label">API Calls Today</div>
+                  <div class="metric-label">API CALLS TODAY</div>
                   <div class="metric-value">94.2k</div>
                 </div>
-                <div class="metric-icon-box" style="background:#f1f5f9; color:#475569;">
-                  <i class="bi bi-cpu-fill"></i>
-                </div>
               </div>
+
               <div class="metric-trend text-muted">
-                <i class="bi bi-arrow-up-short text-success"></i>
-                <span>+6.4% calls volume vs yesterday</span>
-              </div>
-            </div>
-          </div>
-
-        </div>
-
-        <!-- Search & Filtering Engine Console (Full Width & Compact) -->
-        <div class="row g-3 mb-4">
-          <div class="col-12">
-            <div class="card shadow-sm">
-              <div class="card-header d-flex justify-content-between align-items-center py-2">
-                <span class="small fw-bold"><i class="bi bi-sliders me-2 text-danger"></i>Search & Filtering
-                  Engine</span>
-              </div>
-              <div class="card-body p-3">
-                <form id="filterForm" class="row g-2">
-                  <div class="col-md-2">
-                    <label class="form-label small mb-1">Full Name</label>
-                    <input type="text" class="form-control form-control-sm" id="filterName" placeholder="Name...">
-                  </div>
-                  <div class="col-md-2">
-                    <label class="form-label small mb-1">Email Address</label>
-                    <input type="text" class="form-control form-control-sm" id="filterEmail" placeholder="Email...">
-                  </div>
-                  <div class="col-md-2">
-                    <label class="form-label small mb-1">Primary Phone</label>
-                    <input type="text" class="form-control form-control-sm" id="filterPhone" placeholder="Phone...">
-                  </div>
-                  <div class="col-md-2">
-                    <label class="form-label small mb-1">Company Name</label>
-                    <input type="text" class="form-control form-control-sm" id="filterCompany" placeholder="Company...">
-                  </div>
-                  <div class="col-md-2 d-flex align-items-end">
-                    <button type="button" class="btn btn-danger btn-sm w-100 py-1 fw-semibold"
-                      id="toggleMoreFiltersBtn">Filter More</button>
-                  </div>
-                  <div class="col-md-2 d-flex align-items-end">
-                    <button type="submit" class="btn btn-danger btn-sm w-100 py-1 fw-semibold">
-                      <i class="bi bi-search me-2"></i>Query Records
-                    </button>
-                  </div>
-
-                  <!-- Collapsible More Filters Container -->
-                  <div class="col-12 mt-2 d-none" id="moreFiltersWrapper">
-                    <div class="card bg-light-subtle border-light-subtle p-3">
-                      <div class="row g-2">
-                        <div class="col-md-2">
-                          <label class="form-label small mb-1">Alternate Phone</label>
-                          <input type="text" class="form-control form-control-sm" id="filterAlternatePhone"
-                            placeholder="Alt Phone...">
-                        </div>
-                        <div class="col-md-2">
-                          <label class="form-label small mb-1">Job Title</label>
-                          <input type="text" class="form-control form-control-sm" id="filterJobTitle"
-                            placeholder="Job Title...">
-                        </div>
-                        <div class="col-md-2">
-                          <label class="form-label small mb-1">Department</label>
-                          <input type="text" class="form-control form-control-sm" id="filterDepartment"
-                            placeholder="Department...">
-                        </div>
-                        <div class="col-md-2">
-                          <label class="form-label small mb-1">Website URL</label>
-                          <input type="text" class="form-control form-control-sm" id="filterWebsiteUrl"
-                            placeholder="Website...">
-                        </div>
-                        <div class="col-md-2">
-                          <label class="form-label small mb-1">Address Line 1</label>
-                          <input type="text" class="form-control form-control-sm" id="filterAddress1"
-                            placeholder="Address 1...">
-                        </div>
-                        <div class="col-md-2">
-                          <label class="form-label small mb-1">Address Line 2</label>
-                          <input type="text" class="form-control form-control-sm" id="filterAddress2"
-                            placeholder="Address 2...">
-                        </div>
-                        <div class="col-md-2">
-                          <label class="form-label small mb-1">City</label>
-                          <input type="text" class="form-control form-control-sm" id="filterCity" placeholder="City...">
-                        </div>
-                        <div class="col-md-2">
-                          <label class="form-label small mb-1">State / Province</label>
-                          <input type="text" class="form-control form-control-sm" id="filterStateProvince"
-                            placeholder="State/Prov...">
-                        </div>
-                        <div class="col-md-2">
-                          <label class="form-label small mb-1">Postal / ZIP Code</label>
-                          <input type="text" class="form-control form-control-sm" id="filterPostalZip"
-                            placeholder="ZIP Code...">
-                        </div>
-                        <div class="col-md-2">
-                          <label class="form-label small mb-1">Country</label>
-                          <input type="text" class="form-control form-control-sm" id="filterCountry"
-                            placeholder="Country...">
-                        </div>
-                        <div class="col-md-2">
-                          <label class="form-label small mb-1">LinkedIn Profile</label>
-                          <input type="text" class="form-control form-control-sm" id="filterLinkedIn"
-                            placeholder="LinkedIn...">
-                        </div>
-                        <div class="col-md-2">
-                          <label class="form-label small mb-1">Industry</label>
-                          <input type="text" class="form-control form-control-sm" id="filterIndustry"
-                            placeholder="Industry...">
-                        </div>
-                        <div class="col-md-2">
-                          <label class="form-label small mb-1">Lead Source</label>
-                          <input type="text" class="form-control form-control-sm" id="filterLeadSource"
-                            placeholder="Lead Source...">
-                        </div>
-                        <div class="col-md-2">
-                          <label class="form-label small mb-1">Record Status</label>
-                          <input type="text" class="form-control form-control-sm" id="filterRecordStatus"
-                            placeholder="Status...">
-                        </div>
-                        <div class="col-md-2">
-                          <label class="form-label small mb-1">Date of Birth</label>
-                          <input type="text" class="form-control form-control-sm" id="filterDOB" placeholder="DOB...">
-                        </div>
-                        <div class="col-md-2">
-                          <label class="form-label small mb-1">Gender</label>
-                          <input type="text" class="form-control form-control-sm" id="filterGender"
-                            placeholder="Gender...">
-                        </div>
-                        <div class="col-md-2">
-                          <label class="form-label small mb-1">Company Size</label>
-                          <input type="text" class="form-control form-control-sm" id="filterCompanySize"
-                            placeholder="Size...">
-                        </div>
-                        <div class="col-md-2">
-                          <label class="form-label small mb-1">Annual Revenue</label>
-                          <input type="text" class="form-control form-control-sm" id="filterAnnualRevenue"
-                            placeholder="Revenue...">
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <!-- Multiple Custom Attribute Filters Container -->
-                  <div class="col-12 mt-2">
-                    <div class="d-flex justify-content-between align-items-center mb-1">
-                      <span class="small fw-semibold text-muted"><i
-                          class="bi bi-funnel-fill text-danger me-1"></i>Custom Attributes Filters</span>
-                      <button type="button" class="btn btn-sm btn-secondary py-0 px-2" id="addCustomFilterBtn"
-                        style="font-size: 0.72rem; border-radius: 5px;">
-                        <i class="bi bi-plus-circle me-1"></i>Add Custom Filter
-                      </button>
-                    </div>
-                    <div id="customFiltersWrapper" class="row g-2">
-                      <!-- Dynamic rows of custom filters will be added here -->
-                    </div>
-                  </div>
-                </form>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Data Quality & Completeness Stats Widget -->
-        <div class="row g-3 mb-4 d-none" id="missingStatsCard">
-          <div class="col-12">
-            <div class="card shadow-sm">
-              <div class="card-header d-flex justify-content-between align-items-center py-2 bg-light-subtle">
-                <span class="small fw-bold"><i class="bi bi-shield-exclamation me-2 text-danger"></i>Result Set
-                  Completeness (Click card to filter records with missing values)</span>
-                <button type="button" class="btn btn-sm btn-outline-danger py-0 px-2" id="clearMissingFilterBtn"
-                  style="display: none; font-size: 0.75rem;">
-                  <i class="bi bi-x-circle me-1"></i>Clear Missing Filter
-                </button>
-              </div>
-              <div class="card-body p-3">
-                <div class="row g-2" id="missingStatsContainer">
-                  <!-- Dynamic boxes injected here via JS -->
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="row g-3 mb-4">
-
-          <!-- Master Records Column (Full Width) -->
-          <div class="col-12">
-            <!-- Master Records Table -->
-            <div class="card shadow-sm">
-              <div class="card-header d-flex justify-content-between align-items-center py-2">
-                <span><i class="bi bi-database me-2 text-danger"></i>Master Records</span>
-                <button type="button" class="btn btn-success btn-sm fw-semibold" id="exportFilteredBtn">Export Filtered Records</button>
-              </div>
-              <div class="card-body p-0">
-                <div class="table-responsive">
-                  <table class="table table-hover align-middle mb-0" id="recordsTable">
-                    <thead>
-                      <tr>
-                        <th>ID</th>
-                        <th>Name</th>
-                        <th>Email</th>
-                        <th>Phone</th>
-                        <th>Company</th>
-                        <th>Location</th>
-                        <th class="text-center">Custom Fields</th>
-                        <th class="text-center">Action</th>
-                      </tr>
-                    </thead>
-                    <tbody id="recordsTableBody">
-                      <tr>
-                        <td colspan="8" class="text-center py-5">
-                          <div class="spinner-border text-danger" role="status">
-                            <span class="visually-hidden">Loading...</span>
-                          </div>
-                          <p class="text-muted mt-2 mb-0">Querying database records...</p>
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-                <!-- Pagination -->
-                <div class="d-flex flex-wrap justify-content-between align-items-center p-3" id="paginationControls">
-                </div>
+                <i class="bi bi-arrow-up-short text-success fw-bold"></i>
+                6.4% vs yesterday
               </div>
             </div>
           </div>
@@ -694,119 +452,120 @@
         </div>
 
         <!-- Bottom Info & Activity Layer -->
-        <div class="row g-3">
+          <div class="row g-3">
 
-          <!-- Recent Activity Column (Full Width) -->
-          <div class="col-12">
-            <div class="card shadow-sm">
-              <div class="card-header">
-                Recent Activity
-              </div>
-              <div class="card-body p-0">
-                {% include "_logs_table.html" %}
+            <!-- Recent Activity Column (Full Width) -->
+            <div class="col-12">
+              <div class="card shadow-sm">
+                <div class="card-header">
+                  Recent Activity
+                </div>
+                <div class="card-body p-0">
+                  {% set hide_add_filter = True %}
+                  {% include "_logs_table.html" %}
+                </div>
               </div>
             </div>
-          </div>
 
-          <!-- System Overview Widget (Full Width) -->
-          <div class="col-12">
-            <div class="card shadow-sm">
-              <div class="card-header">
-                System Overview
-              </div>
-              <div class="card-body">
-                <div class="row text-center">
-                  <div class="col-md-4 border-end">
-                    <small class="text-muted d-block">Role</small>
-                    <strong class="fs-6">{{ session.role|title }}</strong>
-                  </div>
-                  <div class="col-md-4 border-end">
-                    <small class="text-muted d-block">Last Upload</small>
-                    <strong class="fs-6">{{ last_upload }}</strong>
-                  </div>
-                  <div class="col-md-4">
-                    <small class="text-muted d-block">Active Users</small>
-                    <strong class="fs-6">{{ active_users }}</strong>
+            <!-- System Overview Widget (Full Width) -->
+            <div class="col-12">
+              <div class="card shadow-sm">
+                <div class="card-header">
+                  System Overview
+                </div>
+                <div class="card-body">
+                  <div class="row text-center">
+                    <div class="col-md-4 border-end">
+                      <small class="text-muted d-block">Role</small>
+                      <strong class="fs-6">{{ session.role|title }}</strong>
+                    </div>
+                    <div class="col-md-4 border-end">
+                      <small class="text-muted d-block">Last Upload</small>
+                      <strong class="fs-6">{{ last_upload }}</strong>
+                    </div>
+                    <div class="col-md-4">
+                      <small class="text-muted d-block">Active Users</small>
+                      <strong class="fs-6">{{ active_users }}</strong>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
 
-          <!-- Active Integrations widget (Full Width) -->
-          <div class="col-12">
-            <div class="card shadow-sm">
-              <div class="card-header d-flex justify-content-between align-items-center">
-                <span>Active integrations</span>
-                <a href="#" class="btn btn-sm btn-danger py-0 px-2"
-                  style="font-size: 0.75rem; border-radius: 3px;">Manage</a>
-              </div>
-              <div class="card-body p-0">
-                <table class="table table-hover align-middle mb-0" style="font-size: 0.85rem;">
-                  <tbody>
-                    <tr>
-                      <td>
-                        <i class="bi bi-circle-fill text-success me-2" style="font-size: 0.65rem;"></i>
-                        ERP — SAP Business One
-                      </td>
-                      <td class="text-end text-muted font-monospace" style="font-size: 0.78rem;">live</td>
-                    </tr>
-                    <tr>
-                      <td>
-                        <i class="bi bi-circle-fill text-success me-2" style="font-size: 0.65rem;"></i>
-                        Tally Prime (Accounts)
-                      </td>
-                      <td class="text-end text-muted font-monospace" style="font-size: 0.78rem;">live</td>
-                    </tr>
-                    <tr>
-                      <td>
-                        <i class="bi bi-circle-fill text-warning me-2" style="font-size: 0.65rem;"></i>
-                        WhatsApp Business API
-                      </td>
-                      <td class="text-end text-muted font-monospace" style="font-size: 0.78rem;">lag 4m</td>
-                    </tr>
-                    <tr>
-                      <td>
-                        <i class="bi bi-circle-fill text-success me-2" style="font-size: 0.65rem;"></i>
-                        Email (SMTP outbound)
-                      </td>
-                      <td class="text-end text-muted font-monospace" style="font-size: 0.78rem;">live</td>
-                    </tr>
-                    <tr>
-                      <td>
-                        <i class="bi bi-circle-fill text-warning me-2" style="font-size: 0.65rem;"></i>
-                        3rd-party Marketplace API
-                      </td>
-                      <td class="text-end text-muted font-monospace" style="font-size: 0.78rem;">lag 12m</td>
-                    </tr>
-                    <tr>
-                      <td>
-                        <i class="bi bi-circle-fill text-secondary me-2" style="font-size: 0.65rem;"></i>
-                        IoT Sensor feed
-                      </td>
-                      <td class="text-end text-muted font-monospace" style="font-size: 0.78rem;">paused</td>
-                    </tr>
-                    <tr>
-                      <td>
-                        <i class="bi bi-circle-fill text-success me-2" style="font-size: 0.65rem;"></i>
-                        Razorpay (Payments)
-                      </td>
-                      <td class="text-end text-muted font-monospace" style="font-size: 0.78rem;">live</td>
-                    </tr>
-                  </tbody>
-                </table>
+            <!-- Active Integrations widget (Full Width) -->
+            <div class="col-12">
+              <div class="card shadow-sm">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                  <span>Active integrations</span>
+                  <a href="#" class="btn btn-sm btn-danger py-0 px-2"
+                    style="font-size: 0.75rem; border-radius: 3px;">Manage</a>
+                </div>
+                <div class="card-body p-0">
+                  <table class="table table-hover align-middle mb-0" style="font-size: 0.85rem;">
+                    <tbody>
+                      <tr>
+                        <td>
+                          <i class="bi bi-circle-fill text-success me-2" style="font-size: 0.65rem;"></i>
+                          ERP — SAP Business One
+                        </td>
+                        <td class="text-end text-muted font-monospace" style="font-size: 0.78rem;">live</td>
+                      </tr>
+                      <tr>
+                        <td>
+                          <i class="bi bi-circle-fill text-success me-2" style="font-size: 0.65rem;"></i>
+                          Tally Prime (Accounts)
+                        </td>
+                        <td class="text-end text-muted font-monospace" style="font-size: 0.78rem;">live</td>
+                      </tr>
+                      <tr>
+                        <td>
+                          <i class="bi bi-circle-fill text-warning me-2" style="font-size: 0.65rem;"></i>
+                          WhatsApp Business API
+                        </td>
+                        <td class="text-end text-muted font-monospace" style="font-size: 0.78rem;">lag 4m</td>
+                      </tr>
+                      <tr>
+                        <td>
+                          <i class="bi bi-circle-fill text-success me-2" style="font-size: 0.65rem;"></i>
+                          Email (SMTP outbound)
+                        </td>
+                        <td class="text-end text-muted font-monospace" style="font-size: 0.78rem;">live</td>
+                      </tr>
+                      <tr>
+                        <td>
+                          <i class="bi bi-circle-fill text-warning me-2" style="font-size: 0.65rem;"></i>
+                          3rd-party Marketplace API
+                        </td>
+                        <td class="text-end text-muted font-monospace" style="font-size: 0.78rem;">lag 12m</td>
+                      </tr>
+                      <tr>
+                        <td>
+                          <i class="bi bi-circle-fill text-secondary me-2" style="font-size: 0.65rem;"></i>
+                          IoT Sensor feed
+                        </td>
+                        <td class="text-end text-muted font-monospace" style="font-size: 0.78rem;">paused</td>
+                      </tr>
+                      <tr>
+                        <td>
+                          <i class="bi bi-circle-fill text-success me-2" style="font-size: 0.65rem;"></i>
+                          Razorpay (Payments)
+                        </td>
+                        <td class="text-end text-muted font-monospace" style="font-size: 0.78rem;">live</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
+
           </div>
 
         </div>
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
       </div>
-      <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
-  </div>
-
-  </main>
+    </main>
 
   </div>
 
@@ -841,471 +600,18 @@
   </div>
 
   <!-- View Custom Details Modal -->
-  <div class="modal fade" id="detailsModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title" id="detailsModalTitle">Custom Attributes</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <div class="modal-body" id="detailsModalBody">
-          <!-- Populated dynamically via AJAX -->
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div id="customFieldsData" data-fields='{{ custom_fields|tojson }}' style="display:none;"></div>
+  <script id="customFieldsData" type="application/json">
+    {{ custom_fields|tojson|safe }}
+  </script>
 
   <script>
     document.addEventListener("DOMContentLoaded", function () {
-      const rawFields = document.getElementById("customFieldsData").getAttribute("data-fields");
+      const rawFields = document.getElementById("customFieldsData").textContent;
       window.customFieldsRegistry = JSON.parse(rawFields || "[]");
 
       window.selectedMissingField = "";
       let currentPage = 1;
       const perPage = 15;
-
-      const filterForm = document.getElementById("filterForm");
-      const recordsTableBody = document.getElementById("recordsTableBody");
-      const paginationControls = document.getElementById("paginationControls");
-      const customFiltersWrapper = document.getElementById("customFiltersWrapper");
-      const addCustomFilterBtn = document.getElementById("addCustomFilterBtn");
-
-      // 1. Add multiple custom filter rows
-      function addCustomFilterRow(initialFieldId = "", initialValue = "") {
-        const rowDiv = document.createElement("div");
-        rowDiv.className = "col-md-6 custom-filter-row";
-
-        let optionsHtml = '<option value="">-- Select Custom Attribute --</option>';
-        if (window.customFieldsRegistry) {
-          window.customFieldsRegistry.forEach(f => {
-            const selected = String(f.id) === String(initialFieldId) ? "selected" : "";
-            optionsHtml += `<option value="${f.id}" ${selected}>${f.field_name}</option>`;
-          });
-        }
-
-        rowDiv.innerHTML = `
-                <div class="input-group input-group-sm">
-                    <select class="form-select custom-filter-field" style="max-width: 180px;" required>
-                        ${optionsHtml}
-                    </select>
-                    <input type="text" class="form-control custom-filter-val" placeholder="Filter value..." value="${initialValue}" required>
-                    <button type="button" class="btn btn-danger btn-remove-custom-filter">
-                        <i class="bi bi-trash-fill"></i>
-                    </button>
-                </div>
-            `;
-
-        customFiltersWrapper.appendChild(rowDiv);
-
-        // Attach delete handler
-        rowDiv.querySelector(".btn-remove-custom-filter").addEventListener("click", function () {
-          rowDiv.remove();
-        });
-      }
-
-      if (addCustomFilterBtn) {
-        addCustomFilterBtn.addEventListener("click", () => addCustomFilterRow());
-      }
-
-      const toggleMoreFiltersBtn = document.getElementById("toggleMoreFiltersBtn");
-      const moreFiltersWrapper = document.getElementById("moreFiltersWrapper");
-      if (toggleMoreFiltersBtn && moreFiltersWrapper) {
-        toggleMoreFiltersBtn.addEventListener("click", function () {
-          if (moreFiltersWrapper.classList.contains("d-none")) {
-            moreFiltersWrapper.classList.remove("d-none");
-            toggleMoreFiltersBtn.innerHTML = '<i class="bi bi-funnel-fill me-1"></i>Filter Less';
-            toggleMoreFiltersBtn.classList.remove("btn-outline-danger");
-            toggleMoreFiltersBtn.classList.add("btn-danger");
-          } else {
-            moreFiltersWrapper.classList.add("d-none");
-            toggleMoreFiltersBtn.innerHTML = '<i class="bi bi-funnel me-1"></i>Filter More';
-            toggleMoreFiltersBtn.classList.add("btn-outline-danger");
-            toggleMoreFiltersBtn.classList.remove("btn-danger");
-          }
-        });
-      }
-
-      const exportFilteredBtn = document.getElementById("exportFilteredBtn");
-      if (exportFilteredBtn) {
-        exportFilteredBtn.addEventListener("click", function () {
-          const name = document.getElementById("filterName").value.trim();
-          const email = document.getElementById("filterEmail").value.trim();
-          const phone = document.getElementById("filterPhone").value.trim();
-          const company = document.getElementById("filterCompany").value.trim();
-
-          const customFilters = [];
-          document.querySelectorAll(".custom-filter-row").forEach(row => {
-            const fid = row.querySelector(".custom-filter-field").value;
-            const val = row.querySelector(".custom-filter-val").value.trim();
-            if (fid && val) {
-              customFilters.push({ id: fid, val: val });
-            }
-          });
-
-          const queryParams = {
-            name: name,
-            email: email,
-            phone: phone,
-            company: company,
-            custom_filters: JSON.stringify(customFilters)
-          };
-
-          const moreFields = [
-            { id: "filterAlternatePhone", param: "alternate_phone_number" },
-            { id: "filterJobTitle", param: "job_title" },
-            { id: "filterDepartment", param: "department" },
-            { id: "filterWebsiteUrl", param: "website_url" },
-            { id: "filterAddress1", param: "address_line_1" },
-            { id: "filterAddress2", param: "address_line_2" },
-            { id: "filterCity", param: "city" },
-            { id: "filterStateProvince", param: "state_province" },
-            { id: "filterPostalZip", param: "postal_zip_code" },
-            { id: "filterCountry", param: "country" },
-            { id: "filterLinkedIn", param: "linkedin_profile_url" },
-            { id: "filterIndustry", param: "industry" },
-            { id: "filterLeadSource", param: "lead_source" },
-            { id: "filterRecordStatus", param: "record_status" },
-            { id: "filterDOB", param: "date_of_birth" },
-            { id: "filterGender", param: "gender" },
-            { id: "filterCompanySize", param: "company_size" },
-            { id: "filterAnnualRevenue", param: "annual_revenue" }
-          ];
-
-          moreFields.forEach(f => {
-            const el = document.getElementById(f.id);
-            if (el) {
-              const val = el.value.trim();
-              if (val) {
-                queryParams[f.param] = val;
-              }
-            }
-          });
-
-          if (window.selectedMissingField) {
-            queryParams["missing_field"] = window.selectedMissingField;
-          }
-
-          const params = new URLSearchParams(queryParams);
-          window.location.href = `/api/records/export?${params.toString()}`;
-        });
-      }
-
-      // 2. Fetch and render records
-      function fetchRecords(page = 1) {
-        currentPage = page;
-        if (!recordsTableBody) return;
-        recordsTableBody.innerHTML = `
-                <tr>
-                    <td colspan="8" class="text-center py-5">
-                        <div class="spinner-border text-danger" role="status">
-                            <span class="visually-hidden">Loading...</span>
-                        </div>
-                        <p class="text-muted mt-2 mb-0">Querying database records...</p>
-                    </td>
-                </tr>
-            `;
-
-        // Gather filters
-        const name = document.getElementById("filterName").value.trim();
-        const email = document.getElementById("filterEmail").value.trim();
-        const phone = document.getElementById("filterPhone").value.trim();
-        const company = document.getElementById("filterCompany").value.trim();
-
-        const customFilters = [];
-        document.querySelectorAll(".custom-filter-row").forEach(row => {
-          const fid = row.querySelector(".custom-filter-field").value;
-          const val = row.querySelector(".custom-filter-val").value.trim();
-          if (fid && val) {
-            customFilters.push({ id: fid, val: val });
-          }
-        });
-
-        // Construct query parameters
-        const queryParams = {
-          page: page,
-          per_page: perPage,
-          name: name,
-          email: email,
-          phone: phone,
-          company: company,
-          custom_filters: JSON.stringify(customFilters)
-        };
-
-        // Gather and set other master columns dynamically
-        const moreFields = [
-          { id: "filterAlternatePhone", param: "alternate_phone_number" },
-          { id: "filterJobTitle", param: "job_title" },
-          { id: "filterDepartment", param: "department" },
-          { id: "filterWebsiteUrl", param: "website_url" },
-          { id: "filterAddress1", param: "address_line_1" },
-          { id: "filterAddress2", param: "address_line_2" },
-          { id: "filterCity", param: "city" },
-          { id: "filterStateProvince", param: "state_province" },
-          { id: "filterPostalZip", param: "postal_zip_code" },
-          { id: "filterCountry", param: "country" },
-          { id: "filterLinkedIn", param: "linkedin_profile_url" },
-          { id: "filterIndustry", param: "industry" },
-          { id: "filterLeadSource", param: "lead_source" },
-          { id: "filterRecordStatus", param: "record_status" },
-          { id: "filterDOB", param: "date_of_birth" },
-          { id: "filterGender", param: "gender" },
-          { id: "filterCompanySize", param: "company_size" },
-          { id: "filterAnnualRevenue", param: "annual_revenue" }
-        ];
-
-        moreFields.forEach(f => {
-          const el = document.getElementById(f.id);
-          if (el) {
-            const val = el.value.trim();
-            if (val) {
-              queryParams[f.param] = val;
-            }
-          }
-        });
-
-        const params = new URLSearchParams(queryParams);
-
-        if (window.selectedMissingField) {
-          params.set("missing_field", window.selectedMissingField);
-        }
-
-        fetch(`/api/records?${params.toString()}`)
-          .then(res => {
-            if (!res.ok) throw new Error("Network response was not ok");
-            return res.json();
-          })
-          .then(data => {
-            renderTable(data.records);
-            renderPagination(data.total, data.page, data.pages);
-            renderMissingStats(data.missing_stats);
-          })
-          .catch(err => {
-            console.error(err);
-            recordsTableBody.innerHTML = `
-                        <tr>
-                            <td colspan="8" class="text-center py-5 text-danger">
-                                <i class="bi bi-exclamation-triangle-fill fs-3 mb-2 d-block"></i>
-                                An error occurred while fetching database records. Please try again.
-                            </td>
-                        </tr>
-                    `;
-          });
-      }
-
-      function renderTable(records) {
-        if (!records || records.length === 0) {
-          recordsTableBody.innerHTML = `
-                    <tr>
-                        <td colspan="8" class="text-center py-5 text-muted">
-                            <i class="bi bi-folder2-open fs-2 mb-3 d-block"></i>
-                            No matching records found. Try adjusting your query parameters.
-                        </td>
-                    </tr>
-                `;
-          return;
-        }
-
-        let html = "";
-        records.forEach(r => {
-          const hasCustom = r.custom_fields && Object.keys(r.custom_fields).length > 0;
-          const location = [r.city, r.state, r.country].filter(Boolean).join(", ") || "--";
-
-          html += `
-                    <tr>
-                        <td><span class="badge bg-secondary">#${r.id}</span></td>
-                        <td><strong>${r.name || "--"}</strong></td>
-                        <td><span class="text-muted">${r.email || "--"}</span></td>
-                        <td><span class="text-muted">${r.phone ? String(r.phone).replace(/\.0+$/, '') : "--"}</span></td>
-                        <td><span class="text-muted">${r.company || "--"}</span></td>
-                        <td><span class="text-muted small">${location}</span></td>
-                        <td class="text-center">
-                            ${hasCustom ?
-              `<span class="badge bg-danger-subtle text-danger px-3 py-1">${Object.keys(r.custom_fields).length} attributes</span>` :
-              `<span class="text-muted small">none</span>`
-            }
-                        </td>
-                        <td class="text-center">
-                            <button class="btn btn-sm btn-danger btn-view-details" data-id="${r.id}">
-                                View Details
-                            </button>
-                        </td>
-                    </tr>
-                `;
-        });
-        recordsTableBody.innerHTML = html;
-
-        // Attach listeners to View Details buttons
-        document.querySelectorAll(".btn-view-details").forEach(btn => {
-          btn.addEventListener("click", function () {
-            const recordId = this.getAttribute("data-id");
-            showRecordDetails(recordId);
-          });
-        });
-      }
-
-      function renderPagination(total, page, pages) {
-        if (total === 0 || !paginationControls) {
-          paginationControls.innerHTML = "";
-          return;
-        }
-
-        const startIdx = (page - 1) * perPage + 1;
-        const endIdx = Math.min(page * perPage, total);
-
-        let html = `
-                <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 w-100 px-3">
-                  <small class="text-muted">Page ${page} of ${pages}</small>
-                  <nav aria-label="Dashboard pagination">
-                    <ul class="pagination pagination-sm mb-0">
-                      <li class="page-item ${page === 1 ? 'disabled' : ''}">
-                        <button class="page-link page-btn" data-page="${page - 1}">
-                          <i class="bi bi-chevron-left"></i>
-                        </button>
-                      </li>
-            `;
-
-        let startPage = Math.max(1, page - 2);
-        let endPage = Math.min(pages, page + 2);
-
-        if (startPage > 1) {
-          html += `<li class="page-item"><button class="page-link page-btn" data-page="1">1</button></li>`;
-          if (startPage > 2) {
-            html += `<li class="page-item disabled"><span class="page-link text-muted">...</span></li>`;
-          }
-        }
-
-        for (let i = startPage; i <= endPage; i++) {
-          html += `
-                    <li class="page-item ${i === page ? 'active' : ''}">
-                        <button class="page-link page-btn" data-page="${i}">
-                            ${i}
-                        </button>
-                    </li>
-                `;
-        }
-
-        if (endPage < pages) {
-          if (endPage < pages - 1) {
-            html += `<li class="page-item disabled"><span class="page-link text-muted">...</span></li>`;
-          }
-          html += `<li class="page-item"><button class="page-link page-btn" data-page="${pages}">${pages}</button></li>`;
-        }
-
-        html += `
-                        <li class="page-item ${page === pages ? 'disabled' : ''}">
-                            <button class="page-link page-btn" data-page="${page + 1}">
-                                <i class="bi bi-chevron-right"></i>
-                            </button>
-                        </li>
-                    </ul>
-                </nav>
-                <form id="dashboardPageJumpForm" class="d-flex align-items-center gap-2">
-                  <label class="text-muted small mb-0" for="dashboardPageJumpInput" style="white-space:nowrap;">Go to page</label>
-                  <input id="dashboardPageJumpInput" type="number" min="1" max="${pages}" value="${page}"
-                    class="form-control form-control-sm" style="width:70px;" aria-label="Jump to page">
-                  <button type="button" id="dashboardPageJumpBtn" class="btn btn-sm btn-outline-danger">Go</button>
-                </form>
-              </div>
-            `;
-
-        paginationControls.innerHTML = html;
-
-        // Attach listeners to page buttons
-        document.querySelectorAll(".page-btn").forEach(btn => {
-          btn.addEventListener("click", function () {
-            const targetPage = parseInt(this.getAttribute("data-page"));
-            fetchRecords(targetPage);
-          });
-        });
-
-        const dashboardPageJumpInput = document.getElementById("dashboardPageJumpInput");
-        const dashboardPageJumpBtn = document.getElementById("dashboardPageJumpBtn");
-        if (dashboardPageJumpInput && dashboardPageJumpBtn) {
-          dashboardPageJumpBtn.addEventListener("click", function () {
-            const targetPage = parseInt(dashboardPageJumpInput.value);
-            if (!targetPage || targetPage < 1 || targetPage > pages) {
-              dashboardPageJumpInput.classList.add("is-invalid");
-              return;
-            }
-            dashboardPageJumpInput.classList.remove("is-invalid");
-            fetchRecords(targetPage);
-          });
-          dashboardPageJumpInput.addEventListener("keydown", function (event) {
-            if (event.key === "Enter") {
-              event.preventDefault();
-              dashboardPageJumpBtn.click();
-            }
-          });
-        }
-      }
-
-      // 3. Search Form Submission
-      if (filterForm) {
-        filterForm.addEventListener("submit", function (e) {
-          e.preventDefault();
-          fetchRecords(1);
-        });
-      }
-
-      // 4. View Custom Details Modal Resolver
-      const detailsModalEl = document.getElementById('detailsModal');
-      const detailsModal = detailsModalEl ? new bootstrap.Modal(detailsModalEl) : null;
-      const detailsModalBody = document.getElementById("detailsModalBody");
-      const detailsModalTitle = document.getElementById("detailsModalTitle");
-
-      function showRecordDetails(id) {
-        if (!detailsModal || !detailsModalTitle || !detailsModalBody) return;
-        detailsModalTitle.innerText = `Record Details (ID: #${id})`;
-        detailsModalBody.innerHTML = `
-                <div class="text-center py-4">
-                    <div class="spinner-border text-danger" role="status">
-                        <span class="visually-hidden">Loading details...</span>
-                    </div>
-                </div>
-            `;
-        detailsModal.show();
-
-        fetch(`/api/records/${id}/custom`)
-          .then(res => {
-            if (!res.ok) throw new Error("Could not resolve details");
-            return res.json();
-          })
-          .then(data => {
-            if (!data || Object.keys(data).length === 0) {
-              detailsModalBody.innerHTML = `
-                            <div class="alert alert-secondary mb-0">
-                                <i class="bi bi-info-circle me-2"></i> No custom JSON attributes registered for this record.
-                            </div>
-                        `;
-              return;
-            }
-
-            let html = `<ul class="list-group list-group-flush bg-transparent">`;
-            for (const [key, val] of Object.entries(data)) {
-              html += `
-                            <li class="list-group-item bg-transparent border-light-subtle px-0 py-2 d-flex justify-content-between align-items-center">
-                                <div class="fw-semibold text-muted">${key}</div>
-                                <div class="text-danger text-end ms-2 font-monospace">${val}</div>
-                            </li>
-                        `;
-            }
-            html += `</ul>`;
-            detailsModalBody.innerHTML = html;
-          })
-          .catch(err => {
-            console.error(err);
-            detailsModalBody.innerHTML = `
-                        <div class="alert alert-danger mb-0">
-                            <i class="bi bi-exclamation-octagon me-2"></i> Failed to resolve custom JSON details.
-                        </div>
-                    `;
-          });
-      }
 
       // 5. Upload Sheet AJAX Form submission
       const uploadForm = document.getElementById("uploadForm");

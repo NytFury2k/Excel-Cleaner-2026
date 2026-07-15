@@ -138,6 +138,22 @@
       color: var(--muted);
     }
 
+    .pag-wrap {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 20px;
+      border-top: 1px solid var(--border);
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 0.75rem;
+    }
+
+    .pag-info {
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+
     .badge {
       font-weight: 500;
     }
@@ -159,19 +175,22 @@
     }
 
     .btn-danger,
-    .btn-danger:focus {
-      background: var(--accent);
-      border-color: var(--accent);
+    .btn-danger:focus,
+    #saveUserBtn {
+      background: var(--red-accent) !important;
+      border-color: var(--red-accent) !important;
+      color: #fff !important;
     }
 
-    .btn-danger:hover {
-      background: #991b1b;
-      border-color: #991b1b;
+    .btn-danger:hover,
+    #saveUserBtn:hover {
+      background: var(--red-hover) !important;
+      border-color: var(--red-hover) !important;
     }
 
     .btn-outline-danger {
-      color: var(--accent);
-      border-color: var(--accent);
+      color: var(--red-accent);
+      border-color: var(--red-accent);
     }
 
     .btn-outline-danger:hover {
@@ -311,9 +330,10 @@
       text-transform: uppercase; display: inline-flex; align-items: center; gap: 4px;
       box-shadow: 0 1px 3px rgba(0,0,0,0.04);
     }
-    .status-badge.active      { background: rgba(16,185,129,0.16); color: #16a34a; }
-    .status-badge.deactivated { background: rgba(107,114,128,0.18); color: #6b7280; }
-    .status-badge.deleted     { background: rgba(239,68,68,0.16); color: #dc2626; }
+    .status-badge.active   { background: rgba(16,185,129,0.16); color: #86efac; }
+    .status-badge.sleep    { background: rgba(245,158,11,0.18); color: #fbbf24; }
+    .status-badge.disabled { background: rgba(107,114,128,0.18); color: #e5e7eb; }
+    .status-badge.deleted  { background: rgba(239,68,68,0.16); color: #fda4af; }
 
     .action-btn {
       background: var(--surface); border: 1px solid var(--border); color: var(--muted);
@@ -331,6 +351,21 @@
       box-shadow: 0 4px 10px rgba(185,28,28,0.08);
     }
     .action-btn:active { transform: translateY(0); }
+
+    .action-btn-grid {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      gap: 0.75rem;
+      width: 100%;
+    }
+    .action-btn-slot {
+      display: flex;
+      align-items: center;
+    }
+    .action-btn-slot-left { justify-content: flex-start; }
+    .action-btn-slot-center { justify-content: center; }
+    .action-btn-slot-right { justify-content: flex-end; }
 
     /* Collapsible Team section styling */
     .team-sub-row { background: var(--surface-soft); border-top: 1.5px solid var(--accent-soft); }
@@ -414,7 +449,8 @@
         <select class="form-select form-select-sm" id="statusFilter" style="border-radius: 8px; width: 140px;" onchange="filterGrid()">
           <option value="all">All Statuses</option>
           <option value="active">Active</option>
-          <option value="deactivated">Deactivated</option>
+          <option value="sleep">Sleep</option>
+          <option value="disabled">Disabled</option>
           <option value="deleted">Deleted</option>
         </select>
       </div>
@@ -431,7 +467,7 @@
             <th>Export Limit</th>
             <th>Status</th>
             <th>Created</th>
-            <th class="text-end">Actions</th>
+            <th>Actions</th>
           </tr>
         </thead>
         <tbody id="directoryTableBody">
@@ -471,32 +507,35 @@
             <td>
               <span class="text-muted" style="font-size: 0.8rem;">{{ u.created_at.strftime('%d %b %Y') if u.created_at else '—' }}</span>
             </td>
-            <td class="text-end">
-              <div class="d-inline-flex gap-2">
-                <!-- Manage Button -->
-                <button class="action-btn" 
-                        data-id="{{ u.id }}" 
-                        data-username="{{ u.username }}" 
-                        data-email="{{ u.email or '' }}" 
-                        data-role="{{ u.role }}" 
-                        data-manager-id="{{ u.manager_id or '' }}" 
-                        data-export-limit="{{ u.export_limit or '' }}" 
-                        data-status="{{ u.status or 'active' }}" 
-                        onclick="openEditModal(this)">
-                  <i class="bi bi-pencil-square text-danger"></i> Manage
-                </button>
+            <td>
+              <div class="action-btn-grid">
+                <div class="action-btn-slot action-btn-slot-left">
+                  <button class="action-btn" 
+                          data-id="{{ u.id }}" 
+                          data-username="{{ u.username }}" 
+                          data-email="{{ u.email or '' }}" 
+                          data-role="{{ u.role }}" 
+                          data-manager-id="{{ u.manager_id or '' }}" 
+                          data-export-limit="{{ u.export_limit or '' }}" 
+                          data-status="{{ u.status or 'active' }}" 
+                          onclick="openEditModal(this)">
+                    <i class="bi bi-pencil-square text-danger"></i> Manage
+                  </button>
+                </div>
 
-                <!-- Pass Button -->
-                <button class="action-btn" onclick="triggerResetPwd({{ u.id }}, '{{ u.username }}')">
-                  <i class="bi bi-shield-lock"></i> Pass
-                </button>
+                <div class="action-btn-slot action-btn-slot-center">
+                  <button class="action-btn" onclick="triggerResetPwd({{ u.id }}, '{{ u.username }}')">
+                    <i class="bi bi-shield-lock"></i> Pass
+                  </button>
+                </div>
 
-                <!-- Expand Team (Managers & Team Leads only) -->
-                {% if u.role in ['manager', 'team_lead'] %}
-                <button class="action-btn" id="btnToggleTeam-{{ u.id }}" onclick="toggleTeamDrawer({{ u.id }})">
-                  <i class="bi bi-people"></i> Team (<span class="team-count" data-manager-id="{{ u.id }}">0</span>)
-                </button>
-                {% endif %}
+                <div class="action-btn-slot action-btn-slot-right">
+                  {% if u.role in ['manager', 'team_lead'] %}
+                  <button class="action-btn" id="btnToggleTeam-{{ u.id }}" onclick="toggleTeamDrawer({{ u.id }})">
+                    <i class="bi bi-people"></i> Team (<span class="team-count" data-manager-id="{{ u.id }}">0</span>)
+                  </button>
+                  {% endif %}
+                </div>
               </div>
             </td>
           </tr>
@@ -517,6 +556,47 @@
           {% endfor %}
         </tbody>
       </table>
+
+      {% if total_pages > 1 %}
+      <div class="pag-wrap">
+        <div class="pag-info">Showing {{ start }}–{{ end }} of {{ total_users }} users</div>
+
+        <nav aria-label="Manage users pagination">
+          <ul class="pagination pagination-sm mb-0">
+            <li class="page-item {% if page <= 1 %}disabled{% endif %}">
+              <a class="page-link" href="{{ pagination_url(page-1) if page > 1 else '#' }}" aria-label="Previous">
+                <i class="bi bi-chevron-left"></i>
+              </a>
+            </li>
+            {% if page > 3 %}
+            <li class="page-item"><a class="page-link" href="{{ pagination_url(1) }}">1</a></li>
+            <li class="page-item disabled"><span class="page-link">…</span></li>
+            {% endif %}
+            {% for p in range(page-2, page+3) %}
+              {% if 1 <= p <= total_pages %}
+              <li class="page-item {% if p == page %}active{% endif %}"><a class="page-link" href="{{ pagination_url(p) }}">{{ p }}</a></li>
+              {% endif %}
+            {% endfor %}
+            {% if page < total_pages-2 %}
+            <li class="page-item disabled"><span class="page-link">…</span></li>
+            <li class="page-item"><a class="page-link" href="{{ pagination_url(total_pages) }}">{{ total_pages }}</a></li>
+            {% endif %}
+            <li class="page-item {% if page >= total_pages %}disabled{% endif %}">
+              <a class="page-link" href="{{ pagination_url(page+1) if page < total_pages else '#' }}" aria-label="Next">
+                <i class="bi bi-chevron-right"></i>
+              </a>
+            </li>
+          </ul>
+        </nav>
+
+        <form method="get" action="{{ url_for('manage_users') }}" class="d-flex align-items-center gap-2">
+          <label for="usersPageJumpInput" class="mb-0 text-muted" style="font-size:0.85rem; white-space:nowrap;">Go to page</label>
+          <input id="usersPageJumpInput" type="number" name="page" min="1" max="{{ total_pages }}" value="{{ page }}"
+            class="form-control form-control-sm" style="width:90px; border-radius:7px;" aria-label="Jump to page">
+          <button type="submit" class="btn btn-sm btn-outline-danger" style="border-radius:7px; font-size:0.82rem;">Go</button>
+        </form>
+      </div>
+      {% endif %}
     </div>
 
   </div>
@@ -527,7 +607,7 @@
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title fw-bold"><i class="bi bi-gear-fill me-2 text-danger"></i>Manage User Account</h5>
+        <h5 class="modal-title fw-bold">Manage User Account</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <form id="editUserForm">
@@ -580,7 +660,8 @@
             <label for="editStatus" class="form-label">Account Status</label>
             <select class="form-select" id="editStatus">
               <option value="active">Active</option>
-              <option value="deactivated">Deactivated</option>
+              <option value="sleep">Sleep</option>
+              <option value="disabled">Disabled</option>
               <option value="deleted">Deleted</option>
             </select>
           </div>

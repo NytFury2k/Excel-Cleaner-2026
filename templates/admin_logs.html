@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -41,9 +42,9 @@
       --red-l: #fee2e2;
       --pink: #ec4899;
       --pink-l: #fce7f3;
-      --shadow-sm: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
-      --shadow: 0 4px 16px rgba(185,28,28,0.08), 0 1px 4px rgba(0,0,0,0.06);
-      --shadow-lg: 0 12px 40px rgba(185,28,28,0.12), 0 4px 12px rgba(0,0,0,0.08);
+      --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+      --shadow: 0 4px 16px rgba(185, 28, 28, 0.08), 0 1px 4px rgba(0, 0, 0, 0.06);
+      --shadow-lg: 0 12px 40px rgba(185, 28, 28, 0.12), 0 4px 12px rgba(0, 0, 0, 0.08);
       --radius: 14px;
     }
 
@@ -66,7 +67,52 @@
       color-scheme: dark;
     }
 
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+    [data-theme="dark"] .ab-export { background: rgba(16, 185, 129, 0.15) !important; color: #34d399 !important; }
+    [data-theme="dark"] .ab-import { background: rgba(59, 130, 246, 0.15) !important; color: #60a5fa !important; }
+    [data-theme="dark"] .ab-clean { background: rgba(6, 182, 212, 0.15) !important; color: #22d3ee !important; }
+    [data-theme="dark"] .ab-login { background: rgba(239, 68, 68, 0.15) !important; color: #f87171 !important; }
+    [data-theme="dark"] .ab-search { background: rgba(245, 158, 11, 0.15) !important; color: #fbbf24 !important; }
+    [data-theme="dark"] .ab-delete { background: rgba(239, 68, 68, 0.15) !important; color: #f87171 !important; }
+    [data-theme="dark"] .ab-other { background: rgba(107, 114, 128, 0.15) !important; color: #9ca3af !important; }
+
+    /* Stat icon dark mode — translucent backgrounds */
+    [data-theme="dark"] .stat-card.c1 .stat-icon { background: rgba(239, 68, 68, 0.15) !important; color: #f87171 !important; }
+    [data-theme="dark"] .stat-card.c2 .stat-icon { background: rgba(16, 185, 129, 0.15) !important; color: #34d399 !important; }
+    [data-theme="dark"] .stat-card.c3 .stat-icon { background: rgba(59, 130, 246, 0.15) !important; color: #60a5fa !important; }
+    [data-theme="dark"] .stat-card.c4 .stat-icon { background: rgba(245, 158, 11, 0.15) !important; color: #fbbf24 !important; }
+    [data-theme="dark"] .stat-card.c5 .stat-icon { background: rgba(20, 184, 166, 0.15) !important; color: #2dd4bf !important; }
+    [data-theme="dark"] .stat-card.c6 .stat-icon { background: rgba(239, 68, 68, 0.15) !important; color: #f87171 !important; }
+    [data-theme="dark"] .stat-card.c7 .stat-icon { background: rgba(236, 72, 153, 0.15) !important; color: #f472b6 !important; }
+    [data-theme="dark"] .stat-card.c8 .stat-icon { background: rgba(139, 92, 246, 0.15) !important; color: #a78bfa !important; }
+    [data-theme="dark"] .stat-card.c9 .stat-icon { background: rgba(6, 182, 212, 0.15) !important; color: #22d3ee !important; }
+
+    .btn-danger {
+      background-color: var(--red-accent) !important;
+      border-color: var(--red-accent) !important;
+      color: #fff !important;
+    }
+
+    .btn-danger:hover {
+      background-color: var(--red-hover) !important;
+      border-color: var(--red-hover) !important;
+    }
+
+    .btn-outline-secondary {
+      color: var(--text-muted) !important;
+      border-color: var(--border-color) !important;
+      background-color: transparent !important;
+    }
+
+    .btn-outline-secondary:hover {
+      background-color: var(--surface2) !important;
+      color: var(--text-main) !important;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
 
     body {
       background: var(--bg-primary);
@@ -82,1344 +128,1420 @@
     }
 
     /* ─── LAYOUT ────────────────────────────────────────── */
-    .app-layout { display: flex; min-height: 100vh; }
-    .content-area { flex: 1; margin-left: 260px; padding: 28px 32px 48px; }
+    .app-layout {
+      display: flex;
+      min-height: 100vh;
+    }
+
+    .content-area {
+      flex: 1;
+      margin-left: 260px;
+      padding: 28px 32px 48px;
+    }
+
     @media (max-width: 768px) {
-      .content-area { margin-left: 0; padding: 16px; }
+      .content-area {
+        margin-left: 0;
+        padding: 16px;
+      }
     }
 
     /* ─── PAGE HEADER ───────────────────────────────────── */
     .page-header {
-      display: flex; align-items: flex-start; justify-content: space-between;
-      flex-wrap: wrap; gap: 16px; margin-bottom: 28px;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 16px;
+      margin-bottom: 28px;
     }
-    .page-title { font-size: 1.35rem; font-weight: 700; color: var(--text-main); line-height: 1.2; }
-    .page-title span { color: var(--red-accent); }
-    .page-sub { color: var(--text-muted); font-size: 0.875rem; margin-top: 4px; }
+
+    .page-title {
+      font-size: 1.35rem;
+      font-weight: 700;
+      color: var(--text-main);
+      line-height: 1.2;
+    }
+
+    .page-title span {
+      color: var(--red-accent);
+    }
+
+    .page-sub {
+      color: var(--text-muted);
+      font-size: 0.875rem;
+      margin-top: 4px;
+    }
 
     /* ─── PERIOD BAR ────────────────────────────────────── */
     .period-bar {
-      display: flex; align-items: center; gap: 6px;
-      background: var(--bg-card); border: 1px solid var(--border-color);
-      border-radius: 12px; padding: 5px 6px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 5px 6px;
       box-shadow: var(--shadow-sm);
     }
+
     .period-btn {
-      padding: 7px 18px; border-radius: 8px; font-size: 0.82rem; font-weight: 600;
-      border: none; background: transparent; color: var(--text-muted); cursor: pointer;
-      transition: all 0.18s ease; white-space: nowrap;
+      padding: 7px 18px;
+      border-radius: 8px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.18s ease;
+      white-space: nowrap;
     }
-    .period-btn:hover { background: var(--red-light); color: var(--red-accent); }
+
+    .period-btn:hover {
+      background: var(--red-light);
+      color: var(--red-accent);
+    }
+
     .period-btn.active {
-      background: var(--red-accent); color: #fff;
-      box-shadow: 0 2px 8px rgba(185,28,28,0.35);
+      background: var(--red-accent);
+      color: #fff;
+      box-shadow: 0 2px 8px rgba(185, 28, 28, 0.35);
     }
-    .period-sep { width: 1px; height: 22px; background: var(--border); }
+
+    .period-sep {
+      width: 1px;
+      height: 22px;
+      background: var(--border);
+    }
 
     /* Custom range inputs */
     .custom-range-row {
-      display: none; align-items: center; gap: 8px; margin-top: 8px;
-      padding: 12px 16px; background: var(--bg-card);
-      border: 1px solid var(--border-color); border-radius: 12px;
+      display: none;
+      align-items: center;
+      gap: 8px;
+      margin-top: 8px;
+      padding: 12px 16px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
       box-shadow: var(--shadow-sm);
     }
-    .custom-range-row.show { display: flex; flex-wrap: wrap; }
+
+    .custom-range-row.show {
+      display: flex;
+      flex-wrap: wrap;
+    }
+
     .custom-range-row input[type=date] {
-      border: 1.5px solid var(--border-color); border-radius: 8px;
-      padding: 7px 11px; font-size: 0.82rem; color: var(--input-text);
-      background: var(--input-bg); font-family: inherit;
+      border: 1.5px solid var(--border-color);
+      border-radius: 8px;
+      padding: 7px 11px;
+      font-size: 0.82rem;
+      color: var(--input-text);
+      background: var(--input-bg);
+      font-family: inherit;
     }
-    .custom-range-row input[type=date]:focus { outline: none; border-color: var(--red-accent); }
-    .btn-apply {
-      padding: 7px 16px; border-radius: 8px; font-size: 0.82rem; font-weight: 600;
-      background: var(--primary); color: #fff; border: none; cursor: pointer;
+
+    .custom-range-row input[type=date]:focus {
+      outline: none;
+      border-color: var(--red-accent);
     }
-    .btn-apply:hover { background: var(--primary-d); }
+
+    /* btn-apply removed, using bootstrap */
 
     /* ─── USER SELECTOR ─────────────────────────────────── */
-    .user-select-wrap { position: relative; }
-    .user-select-wrap select {
-      appearance: none; background: var(--bg-card); border: 1.5px solid var(--border-color);
-      border-radius: 10px; padding: 8px 34px 8px 12px; font-size: 0.83rem;
-      color: var(--input-text); font-family: inherit; cursor: pointer; min-width: 180px;
+    .user-select-wrap {
+      position: relative;
     }
-    .user-select-wrap select:focus { outline: none; border-color: var(--red-accent); }
+
+    .user-select-wrap select {
+      appearance: none;
+      background: var(--bg-card);
+      border: 1.5px solid var(--border-color);
+      border-radius: 10px;
+      padding: 8px 34px 8px 12px;
+      font-size: 0.83rem;
+      color: var(--input-text);
+      font-family: inherit;
+      cursor: pointer;
+      min-width: 180px;
+    }
+
+    .user-select-wrap select:focus {
+      outline: none;
+      border-color: var(--red-accent);
+    }
+
     .user-select-wrap::after {
-      content: '\f282'; font-family: 'bootstrap-icons';
-      position: absolute; right: 11px; top: 50%; transform: translateY(-50%);
-      color: var(--muted); pointer-events: none; font-size: 0.8rem;
+      content: '\f282';
+      font-family: 'bootstrap-icons';
+      position: absolute;
+      right: 11px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--muted);
+      pointer-events: none;
+      font-size: 0.8rem;
     }
 
     /* ─── STAT CARDS ────────────────────────────────────── */
     .stat-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-      gap: 16px; margin-bottom: 28px;
+      gap: 16px;
+      margin-bottom: 16px;
     }
+
     .stat-card {
-      background: var(--surface); border: 1.5px solid var(--border);
-      border-radius: var(--radius); padding: 20px 20px 16px;
-      position: relative; overflow: hidden;
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px 20px;
+      padding-bottom: 5px;
+      position: relative;
+      overflow: hidden;
       box-shadow: var(--shadow-sm);
       transition: transform 0.2s ease, box-shadow 0.2s ease;
       cursor: default;
     }
-    .stat-card:hover { transform: translateY(-3px); box-shadow: var(--shadow); }
+
+    .stat-card:hover {
+      transform: translateY(-3px);
+      box-shadow: var(--shadow);
+    }
+
     .stat-card::before {
-      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
       border-radius: var(--radius) var(--radius) 0 0;
     }
-    .stat-card.c1::before { background: linear-gradient(90deg, #b91c1c, #fca5a5); }
-    .stat-card.c2::before { background: linear-gradient(90deg, #10b981, #34d399); }
-    .stat-card.c3::before { background: linear-gradient(90deg, #3b82f6, #60a5fa); }
-    .stat-card.c4::before { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
-    .stat-card.c5::before { background: linear-gradient(90deg, #14b8a6, #2dd4bf); }
-    .stat-card.c6::before { background: linear-gradient(90deg, #ef4444, #f87171); }
-    .stat-card.c7::before { background: linear-gradient(90deg, #ec4899, #f472b6); }
-    .stat-card.c8::before { background: linear-gradient(90deg, #8b5cf6, #a78bfa); }
-    .stat-card.c9::before { background: linear-gradient(90deg, #06b6d4, #22d3ee); }
+
+    .stat-card.c1::before {
+      background: linear-gradient(90deg, #b91c1c, #fca5a5);
+    }
+
+    .stat-card.c2::before {
+      background: linear-gradient(90deg, #10b981, #34d399);
+    }
+
+    .stat-card.c3::before {
+      background: linear-gradient(90deg, #3b82f6, #60a5fa);
+    }
+
+    .stat-card.c4::before {
+      background: linear-gradient(90deg, #f59e0b, #fbbf24);
+    }
+
+    .stat-card.c5::before {
+      background: linear-gradient(90deg, #14b8a6, #2dd4bf);
+    }
+
+    .stat-card.c6::before {
+      background: linear-gradient(90deg, #ef4444, #f87171);
+    }
+
+    .stat-card.c7::before {
+      background: linear-gradient(90deg, #ec4899, #f472b6);
+    }
+
+    .stat-card.c8::before {
+      background: linear-gradient(90deg, #8b5cf6, #a78bfa);
+    }
+
+    .stat-card.c9::before {
+      background: linear-gradient(90deg, #06b6d4, #22d3ee);
+    }
 
     .stat-icon {
-      width: 40px; height: 40px; border-radius: 10px;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 1.15rem; margin-bottom: 12px;
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.05rem;
+      position: absolute;
+      top: 16px;
+      right: 16px;
     }
+
     .stat-value {
-      font-size: 1.7rem;
+      font-size: 1.6rem;
       font-weight: 700;
-      line-height: 1;
-      margin-top: 6px;
-      margin-bottom: 3px;
-      padding-left: 5px;
+      line-height: 1.1;
+      margin-bottom: 2px;
       color: var(--text);
       transition: all 0.3s ease;
     }
+
     .stat-label {
       font-size: 0.72rem;
       color: var(--muted);
-      font-weight: 600;
-      letter-spacing: 0.08em;
-      padding-left: 2px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
       text-transform: uppercase;
+      margin-bottom: 6px;
+      padding-right: 40px;
     }
-    .stat-period { font-size: 0.7rem; color: var(--primary); font-weight: 500; margin-top: 4px; }
+
+    .stat-period {
+      font-size: 0.7rem;
+      color: #6b7280;
+      font-weight: 500;
+      margin-top: 2px;
+    }
 
     /* ─── MAIN GRID ─────────────────────────────────────── */
-    .main-grid { display: grid; grid-template-columns: 1fr 290px; gap: 22px; margin-bottom: 24px; }
-    @media (max-width: 1100px) { .main-grid { grid-template-columns: 1fr; } }
+    .main-grid {
+      display: grid;
+      grid-template-columns: 1fr 290px;
+      gap: 22px;
+      margin-bottom: 24px;
+    }
+
+    @media (max-width: 1100px) {
+      .main-grid {
+        grid-template-columns: 1fr;
+      }
+    }
 
     /* ─── CARD BASE ─────────────────────────────────────── */
     .card-white {
-      background: var(--bg-card); border: 1.5px solid var(--border-color);
-      border-radius: var(--radius); box-shadow: var(--shadow-sm);
+      background: var(--bg-card);
+      border: 1.5px solid var(--border-color);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-sm);
     }
+
     .card-header-row {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 18px 22px 14px; border-bottom: 1px solid var(--border);
-      flex-wrap: wrap; gap: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 18px 22px 14px;
+      border-bottom: 1px solid var(--border);
+      flex-wrap: wrap;
+      gap: 10px;
     }
-    .card-title { font-size: 0.95rem; font-weight: 700; color: var(--text); }
-    .card-sub   { font-size: 0.8rem; color: var(--muted); margin-top: 1px; }
-    .card-body-pad { padding: 20px 22px; }
+
+    .card-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .card-sub {
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-top: 1px;
+    }
+
+    .card-body-pad {
+      padding: 20px 22px;
+    }
 
     /* ─── ATTRIBUTE TOGGLES ─────────────────────────────── */
-    .attr-toggles { display: flex; gap: 8px; flex-wrap: wrap; }
+    .attr-toggles {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
     .attr-toggle {
-      display: flex; align-items: center; gap: 5px;
-      padding: 5px 12px; border-radius: 7px; font-size: 0.76rem; font-weight: 600;
-      border: 1.5px solid var(--border); cursor: pointer;
-      user-select: none; transition: all 0.18s;
-      background: var(--surface2); color: var(--muted);
-    }
-    .attr-toggle input[type=checkbox] { display: none; }
-    .attr-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
-    .attr-toggle.checked { background: white; border-color: currentColor; }
-    .attr-toggle[data-key="total"].checked    { color: #b91c1c; border-color: #b91c1c; background: #fee2e2; }
-    .attr-toggle[data-key="exports"].checked  { color: #10b981; border-color: #10b981; background: #d1fae5; }
-    .attr-toggle[data-key="imports"].checked  { color: #3b82f6; border-color: #3b82f6; background: #dbeafe; }
-    .attr-toggle[data-key="cleans"].checked   { color: #06b6d4; border-color: #06b6d4; background: #cffafe; }
-    .attr-toggle[data-key="searches"].checked { color: #f59e0b; border-color: #f59e0b; background: #fef3c7; }
-    .attr-toggle[data-key="logins"].checked   { color: #14b8a6; border-color: #14b8a6; background: #ccfbf1; }
-
-    /* ─── CHART ─────────────────────────────────────────── */
-    .chart-wrap { position: relative; height: 280px; padding: 4px 0; }
-    .chart-loader {
-      position: absolute; inset: 0; display: none;
-      align-items: center; justify-content: center;
-      background: rgba(255,255,255,0.75); border-radius: 12px;
-      z-index: 10;
-    }
-    .chart-loader.show { display: flex; }
-    .spinner {
-      width: 32px; height: 32px; border-radius: 50%;
-      border: 3px solid var(--primary-l); border-top-color: var(--primary);
-      animation: spin 0.7s linear infinite;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-
-    /* ─── TOP USERS ─────────────────────────────────────── */
-    .top-user-item {
-      display: flex; align-items: center; gap: 10px;
-      padding: 10px 0; border-bottom: 1px solid var(--border-color);
-    }
-    .top-user-item:last-child { border-bottom: none; }
-    .avatar {
-      width: 34px; height: 34px; border-radius: 9px;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 0.73rem; font-weight: 800; flex-shrink: 0;
-    }
-    .top-user-name { font-weight: 600; font-size: 0.83rem; flex: 1; }
-    .bar-wrap { flex: 1; height: 6px; background: var(--bg-primary); border-radius: 3px; overflow: hidden; }
-    .bar-fill { height: 100%; border-radius: 3px; transition: width 0.6s ease; }
-    .top-user-count { font-size: 0.8rem; font-weight: 700; color: var(--muted); white-space: nowrap; }
-
-    /* ─── FILTER CONTROLS ───────────────────────────────── */
-    .controls-card {
-      background: var(--bg-card); border: 1.5px solid var(--border-color);
-      border-radius: var(--radius); padding: 18px 22px; margin-bottom: 22px;
-      box-shadow: var(--shadow-sm);
-    }
-    .log-type-tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 14px; }
-    .log-tab {
-      padding: 6px 16px; border-radius: 8px; font-size: 0.79rem; font-weight: 600;
-      border: 1.5px solid var(--border); background: var(--surface2); color: var(--muted);
-      text-decoration: none; display: inline-flex; align-items: center; gap: 5px;
-      transition: all 0.18s;
-    }
-    .log-tab:hover { border-color: var(--primary); color: var(--primary); background: var(--primary-l); }
-    .log-tab.active { border-color: var(--primary); color: var(--primary); background: var(--primary-l); }
-
-    /* Search inputs */
-    .search-wrap { position: relative; flex: 1; min-width: 200px; }
-    .search-wrap input {
-      width: 100%; border: 1.5px solid var(--border); border-radius: 10px;
-      padding: 9px 14px 9px 36px; font-size: 0.84rem; background: var(--surface2);
-      color: var(--text); font-family: inherit;
-    }
-    .search-wrap input:focus { outline: none; border-color: var(--primary); background: #fff; }
-    .search-icon { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 0.9rem; }
-
-    input[type=date] {
-      border: 1.5px solid var(--border); border-radius: 10px;
-      padding: 8px 11px; font-size: 0.83rem; background: var(--surface2);
-      color: var(--text); font-family: inherit;
-    }
-    input[type=date]:focus { outline: none; border-color: var(--primary); }
-
-    .btn-filter {
-      background: var(--primary); color: #fff; border: none;
-      padding: 9px 20px; border-radius: 10px; font-size: 0.83rem; font-weight: 600;
-      cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
-    }
-    .btn-filter:hover { background: var(--primary-d); }
-    .btn-clear {
-      background: var(--surface2); color: var(--muted); border: 1.5px solid var(--border);
-      padding: 8px 14px; border-radius: 10px; font-size: 0.83rem; font-weight: 600;
-      cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 5px;
-    }
-    .btn-clear:hover { border-color: var(--red); color: var(--red); }
-    .btn-export {
-      background: var(--green); color: #fff; border: none;
-      padding: 8px 16px; border-radius: 10px; font-size: 0.83rem; font-weight: 600;
-      text-decoration: none; display: inline-flex; align-items: center; gap: 6px;
-    }
-    .btn-export:hover { background: #059669; color: #fff; }
-
-    /* ─── ACTIVITY TABLE ────────────────────────────────── */
-    .table-card {
-      background: var(--bg-card); border: 1.5px solid var(--border-color);
-      border-radius: var(--radius); overflow: hidden; margin-bottom: 24px;
-      box-shadow: var(--shadow-sm);
-    }
-    .table-head-row {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 16px 22px; border-bottom: 1px solid var(--border); gap: 10px;
-    }
-
-    table.act { width: 100%; border-collapse: collapse; }
-    .act thead th {
-      padding: 10px 16px; background: var(--bg-primary);
-      font-size: 0.78rem; font-weight: 700; text-transform: uppercase;
-      letter-spacing: 0.07em; color: var(--text-muted);
-      border-bottom: 1.5px solid var(--border-color); white-space: nowrap;
-    }
-    .act tbody tr { border-bottom: 1px solid var(--border-color); transition: background 0.12s; }
-    .act tbody tr:last-child { border-bottom: none; }
-    .act tbody tr:hover { background: var(--red-light); }
-    .act td { padding: 12px 16px; vertical-align: middle; font-size: 0.875rem; color: var(--text); }
-
-    /* Action badges */
-    .abadge {
-      display: inline-flex; align-items: center; gap: 4px;
-      padding: 3px 9px; border-radius: 6px; font-size: 0.71rem; font-weight: 700;
-      white-space: nowrap;
-    }
-    .ab-export  { background: var(--green-l);  color: #065f46; }
-    .ab-import  { background: var(--blue-l);   color: #1e3a8a; }
-    .ab-clean   { background: #cffafe;          color: #164e63; }
-    .ab-login   { background: var(--primary-l); color: #3730a3; }
-    .ab-search  { background: var(--orange-l); color: #92400e; }
-    .ab-delete  { background: var(--red-l);    color: #991b1b; }
-    .ab-other   { background: #f3f4f6;          color: #6b7280; }
-
-    .uavatar {
-      width: 30px; height: 30px; border-radius: 8px;
-      display: inline-flex; align-items: center; justify-content: center;
-      font-size: 0.71rem; font-weight: 700; margin-right: 6px;
-    }
-
-    /* Detail expand */
-    .detail-row td { padding: 0 !important; border: none !important; }
-    .detail-inner {
-      background: var(--bg-primary); border-top: 1px solid var(--border-color);
-      padding: 14px 22px; font-size: 0.875rem; color: var(--text-muted);
-    }
-    .detail-code {
-      background: var(--input-bg); border: 1px solid var(--border-color); border-radius: 8px;
-      padding: 10px 14px; font-family: 'Courier New', monospace; font-size: 0.79rem;
-      color: var(--input-text); word-break: break-all; margin-top: 6px;
-      border-left: 3px solid var(--red-accent);
-    }
-
-    /* btn detail */
-    .btn-detail {
-      padding: 4px 10px; border-radius: 7px; font-size: 0.74rem; font-weight: 600;
-      border: 1.5px solid var(--border); background: var(--surface2); color: var(--muted);
-      cursor: pointer; transition: all 0.15s; display: inline-flex; align-items: center; gap: 4px;
-    }
-    .btn-detail:hover { border-color: var(--primary); color: var(--primary); background: var(--primary-l); }
-    .btn-detail.open  { border-color: var(--primary); color: var(--primary); background: var(--primary-l); }
-
-    /* ─── PAGINATION ────────────────────────────────────── */
-    .pag-wrap {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 14px 22px; border-top: 1.5px solid var(--border); flex-wrap: wrap; gap: 10px;
-    }
-    .pag-info { font-size: 0.8rem; color: var(--muted); }
-    .pag-btns { display: flex; gap: 3px; }
-    .pag-btn {
-      width: 32px; height: 32px; border-radius: 8px;
-      border: 1.5px solid var(--border); background: var(--surface2); color: var(--muted);
-      font-size: 0.79rem; font-weight: 600; display: flex; align-items: center; justify-content: center;
-      text-decoration: none; transition: all 0.15s;
-    }
-    .pag-btn:hover { border-color: var(--primary); color: var(--primary); background: var(--primary-l); }
-    .pag-btn.active { background: var(--primary); border-color: var(--primary); color: #fff; }
-    .pag-btn.disabled { opacity: 0.4; pointer-events: none; }
-
-    /* ─── ANIMATED NUMBER ───────────────────────────────── */
-    .stat-value { transition: opacity 0.2s; }
-    .stat-value.refreshing { opacity: 0.35; }
-
-    /* ─── EMPTY STATE ───────────────────────────────────── */
-    .empty-state { text-align: center; padding: 56px 20px; color: var(--text-muted); }
-    .empty-state i { font-size: 2.5rem; display: block; margin-bottom: 12px; color: var(--text-muted); }
-    /* ─── CALENDAR STYLING ───────────────────────────────── */
-    .calendar-container {
       display: flex;
-      flex-direction: column;
-      gap: 12px;
-    }
-    .calendar-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 8px;
-    }
-    .calendar-title {
-      font-weight: 700;
-      color: #111827;
-      font-size: 0.95rem;
-    }
-    .calendar-grid {
-      display: grid;
-      grid-template-columns: repeat(7, 1fr);
-      gap: 6px;
-      text-align: center;
-    }
-    .calendar-weekday {
-      font-size: 0.72rem;
-      font-weight: 700;
-      color: #6b7280;
-      text-transform: uppercase;
-      padding-bottom: 4px;
-    }
-    .calendar-day {
-      aspect-ratio: 1;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 0.8rem;
-      font-weight: 600;
-      border-radius: 6px;
-      position: relative;
-      cursor: default;
-    }
-    /* Calendar Day States */
-    .calendar-day.not-created {
-      color: #d1d5db;
-      background: #f3f4f6;
-      opacity: 0.4;
-    }
-    .calendar-day.inactive {
-      color: #4b5563;
-      background: #f3f4f6;
-      border: 1px solid #e5e7eb;
-    }
-    .calendar-day.work {
-      color: #ffffff !important;
-      background: #22c55e !important;
-      box-shadow: 0 0 4px rgba(34, 197, 94, 0.4);
-    }
-    .calendar-day.deactivated {
-      color: #ffffff !important;
-      background: #ef4444 !important;
-      box-shadow: 0 0 4px rgba(239, 68, 68, 0.4);
-    }
-    .calendar-day.empty {
-      visibility: hidden;
-    }
-    .calendar-legend {
-      display: flex;
-      justify-content: center;
-      gap: 14px;
-      font-size: 0.75rem;
-      font-weight: 600;
-      margin-top: 14px;
-      padding-top: 12px;
-      border-top: 1px solid #f3f4f6;
-    }
-    .legend-item {
-      display: inline-flex;
       align-items: center;
       gap: 5px;
+      padding: 5px 12px;
+      border-radius: 7px;
+      font-size: 0.76rem;
+      font-weight: 600;
+      border: 1.5px solid var(--border);
+      cursor: pointer;
+      user-select: none;
+      transition: all 0.18s;
+      background: var(--surface2);
+      color: var(--muted);
     }
-    .legend-dot {
+
+    .attr-toggle input[type=checkbox] {
+      display: none;
+    }
+
+    .attr-dot {
       width: 9px;
       height: 9px;
       border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .attr-toggle.checked {
+      background: white;
+      border-color: currentColor;
+    }
+
+    .attr-toggle[data-key="total"].checked {
+      color: #b91c1c;
+      border-color: #b91c1c;
+      background: #fee2e2;
+    }
+
+    .attr-toggle[data-key="exports"].checked {
+      color: #10b981;
+      border-color: #10b981;
+      background: #d1fae5;
+    }
+
+    .attr-toggle[data-key="imports"].checked {
+      color: #3b82f6;
+      border-color: #3b82f6;
+      background: #dbeafe;
+    }
+
+    .attr-toggle[data-key="cleans"].checked {
+      color: #06b6d4;
+      border-color: #06b6d4;
+      background: #cffafe;
+    }
+
+    .attr-toggle[data-key="searches"].checked {
+      color: #f59e0b;
+      border-color: #f59e0b;
+      background: #fef3c7;
+    }
+
+    .attr-toggle[data-key="logins"].checked {
+      color: #14b8a6;
+      border-color: #14b8a6;
+      background: #ccfbf1;
+    }
+
+    /* ─── CHART ─────────────────────────────────────────── */
+    .chart-wrap {
+      position: relative;
+      height: 280px;
+      padding: 4px 0;
+    }
+
+    .chart-loader {
+      position: absolute;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255, 255, 255, 0.75);
+      border-radius: 12px;
+      z-index: 10;
+    }
+
+    .chart-loader.show {
+      display: flex;
+    }
+
+    .spinner {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      border: 3px solid var(--primary-l);
+      border-top-color: var(--primary);
+      animation: spin 0.7s linear infinite;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    /* ─── TOP USERS ─────────────────────────────────────── */
+    .top-user-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .top-user-item:last-child {
+      border-bottom: none;
+    }
+
+    .avatar {
+      width: 34px;
+      height: 34px;
+      border-radius: 9px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.73rem;
+      font-weight: 800;
+      flex-shrink: 0;
+    }
+
+    .top-user-name {
+      font-weight: 600;
+      font-size: 0.83rem;
+      flex: 1;
+    }
+
+    .bar-wrap {
+      flex: 1;
+      height: 6px;
+      background: var(--bg-primary);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .bar-fill {
+      height: 100%;
+      border-radius: 3px;
+      transition: width 0.6s ease;
+    }
+
+    .top-user-count {
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    /* ─── FILTER CONTROLS ───────────────────────────────── */
+    .controls-card {
+      background: var(--bg-card);
+      border: 1.5px solid var(--border-color);
+      border-radius: var(--radius);
+      padding: 18px 22px;
+      margin-bottom: 22px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .log-type-tabs {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-top: 14px;
+    }
+
+    .log-tab {
+      padding: 6px 16px;
+      border-radius: 8px;
+      font-size: 0.79rem;
+      font-weight: 600;
+      border: 1.5px solid var(--border);
+      background: var(--surface2);
+      color: var(--muted);
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      transition: all 0.18s;
+    }
+
+    .log-tab:hover {
+      border-color: var(--primary);
+      color: var(--primary);
+      background: var(--primary-l);
+    }
+
+    .log-tab.active {
+      border-color: var(--primary);
+      color: var(--primary);
+      background: var(--primary-l);
+    }
+
+    /* Search inputs */
+    .search-wrap {
+      position: relative;
+      flex: 1;
+      min-width: 200px;
+    }
+
+    .search-wrap input {
+      width: 100%;
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      padding: 9px 14px 9px 36px;
+      font-size: 0.84rem;
+      background: var(--surface2);
+      color: var(--text);
+      font-family: inherit;
+    }
+
+    .search-wrap input:focus {
+      outline: none;
+      border-color: var(--primary);
+      background: #fff;
+    }
+
+    .search-icon {
+      position: absolute;
+      left: 11px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    input[type=date] {
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      padding: 8px 11px;
+      font-size: 0.83rem;
+      background: var(--surface2);
+      color: var(--text);
+      font-family: inherit;
+    }
+
+    input[type=date]:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+
+    /* filter, clear, export buttons removed, using bootstrap */
+
+    /* ─── ACTIVITY TABLE ────────────────────────────────── */
+    .table-card {
+      background: var(--bg-card);
+      border: 1.5px solid var(--border-color);
+      border-radius: var(--radius);
+      overflow: hidden;
+      margin-bottom: 24px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .table-head-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 22px;
+      border-bottom: 1px solid var(--border);
+      gap: 10px;
+    }
+
+    table.act {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .act thead th {
+      padding: 10px 16px;
+      background: var(--bg-primary);
+      font-size: 0.78rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: var(--text-muted);
+      border-bottom: 1.5px solid var(--border-color);
+      white-space: nowrap;
+    }
+
+    .act tbody tr {
+      border-bottom: 1px solid var(--border-color);
+      transition: background 0.12s;
+    }
+
+    .act tbody tr:last-child {
+      border-bottom: none;
+    }
+
+    .act tbody tr:hover {
+      background: var(--red-light);
+    }
+
+    .act td {
+      padding: 12px 16px;
+      vertical-align: middle;
+      font-size: 0.875rem;
+      color: var(--text);
+    }
+
+    /* Action badges */
+    .abadge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 9px;
+      border-radius: 6px;
+      font-size: 0.71rem;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .ab-export {
+      background: var(--green-l);
+      color: #065f46;
+    }
+
+    .ab-import {
+      background: var(--blue-l);
+      color: #1e3a8a;
+    }
+
+    .ab-clean {
+      background: #cffafe;
+      color: #164e63;
+    }
+
+    .ab-login {
+      background: var(--primary-l);
+      color: #3730a3;
+    }
+
+    .ab-search {
+      background: var(--orange-l);
+      color: #92400e;
+    }
+
+    .ab-delete {
+      background: var(--red-l);
+      color: #991b1b;
+    }
+
+    .ab-other {
+      background: #f3f4f6;
+      color: #6b7280;
+    }
+
+    .uavatar {
+      width: 30px;
+      height: 30px;
+      border-radius: 8px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.71rem;
+      font-weight: 700;
+      margin-right: 6px;
+    }
+
+    /* Detail expand */
+    .detail-row td {
+      padding: 0 !important;
+      border: none !important;
+    }
+
+    .detail-inner {
+      background: var(--bg-primary);
+      border-top: 1px solid var(--border-color);
+      padding: 14px 22px;
+      font-size: 0.875rem;
+      color: var(--text-muted);
+    }
+
+    .detail-code {
+      background: var(--input-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-family: 'Courier New', monospace;
+      font-size: 0.79rem;
+      color: var(--input-text);
+      word-break: break-all;
+      margin-top: 6px;
+      border-left: 3px solid var(--red-accent);
+    }
+
+    /* ─── PAGINATION ────────────────────────────────────── */
+    .pag-wrap {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 22px;
+      border-top: 1.5px solid var(--border);
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .pag-info {
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+
+    .pagination .page-link {
+      color: var(--red-accent);
+      border: 1px solid var(--border-color);
+      background: var(--surface2);
+      border-radius: 6px !important;
+      margin: 0 2px;
+      font-size: 0.83rem;
+    }
+
+    .pagination .page-link:hover {
+      background: var(--red-light);
+      color: var(--red-hover);
+      border-color: var(--red-accent);
+    }
+
+    .pagination .page-item.active .page-link {
+      background: var(--red-accent);
+      border-color: var(--red-accent);
+      color: #fff;
+    }
+
+    .pagination .page-item.disabled .page-link {
+      background: var(--surface2);
+      color: var(--muted);
+      border-color: var(--border-color);
+      opacity: 0.5;
+    }
+
+    /* ─── ANIMATED NUMBER ───────────────────────────────── */
+    .stat-value {
+      transition: opacity 0.2s;
+    }
+
+    .stat-value.refreshing {
+      opacity: 0.35;
+    }
+
+    /* ─── EMPTY STATE ───────────────────────────────────── */
+    .empty-state {
+      text-align: center;
+      padding: 56px 20px;
+      color: var(--text-muted);
+    }
+
+    .empty-state i {
+      font-size: 2.5rem;
+      display: block;
+      margin-bottom: 12px;
+      color: var(--text-muted);
     }
   </style>
 </head>
 
 <body>
-<div class="app-layout">
-  {% include '_sidebar.html' %}
+  <div class="app-layout">
+    {% include '_sidebar.html' %}
 
-  <main class="content-area">
+    <main class="content-area">
 
-    <!-- ═══ PAGE HEADER ═══════════════════════════════════ -->
-    <div class="page-header">
-      <div>
-        <h1 class="page-title"><i class="bi bi-bar-chart-line-fill me-2" style="color:var(--primary);"></i>Activity <span>Analytics</span></h1>
-        <p class="page-sub">Enterprise activity monitoring, audit trail &amp; reporting dashboard</p>
-      </div>
-      <div class="d-flex align-items-center gap-2 flex-wrap">
-        {% if all_users %}
-        <div class="user-select-wrap">
-          <select id="globalUserFilter" onchange="applyUserFilter(this.value)">
-            <option value="">👥 All Users</option>
-            {% for u in all_users %}
-            <option value="{{ u.id }}" {% if selected_user_id == u.id|string %}selected{% endif %}>
-              {{ u.username }} ({{ u.role }})
-            </option>
-            {% endfor %}
-          </select>
+      <!-- ═══ PAGE HEADER ═══════════════════════════════════ -->
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">Activity Analytics</h1>
+          <p class="page-sub">Enterprise activity monitoring, audit trail &amp; reporting dashboard</p>
         </div>
-        {% endif %}
-        <a href="{{ export_url }}" class="btn-export">
-          <i class="bi bi-download"></i> Export Logs
-        </a>
-      </div>
-    </div>
-
-    {% if selected_user %}
-    <div class="card shadow-sm mb-4 border-0" style="background:#fff; border-radius:12px; box-shadow:0 2px 12px rgba(0,0,0,0.05); padding:16px 20px;">
-      <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
-        <div class="d-flex align-items-center gap-3">
-          <div class="d-flex align-items-center justify-content-center text-white rounded-circle" 
-               style="width:42px; height:42px; background: {% if selected_user.status == 'deactivated' %}#6b7280{% else %}#16a34a{% endif %}; font-size:1.2rem;">
-            <i class="bi {% if selected_user.status == 'deactivated' %}bi-person-x-fill{% else %}bi-person-check-fill{% endif %}"></i>
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+          {% if all_users %}
+          <div class="user-select-wrap">
+            <select id="globalUserFilter" onchange="applyUserFilter(this.value)">
+              <option value="">👥 All Users</option>
+              {% for u in all_users %}
+              <option value="{{ u.id }}" {% if selected_user_id==u.id|string %}selected{% endif %}>
+                {{ u.username }} ({{ u.role }})
+              </option>
+              {% endfor %}
+            </select>
           </div>
-          <div>
-            <h5 class="mb-0 fw-bold" style="font-size:1.05rem; color:#111827;">{{ selected_user.username }}</h5>
-            <p class="mb-0 text-muted small">Role: <span class="text-uppercase fw-semibold">{{ selected_user.role }}</span></p>
-          </div>
-        </div>
-        
-        <div class="d-flex align-items-center gap-2">
-          <span class="small fw-semibold text-muted">Account Status:</span>
-          {% if selected_user.status == 'deactivated' %}
-            <button class="btn btn-sm btn-light px-3 py-1 fw-bold d-inline-flex align-items-center gap-2" 
-                    style="border-radius:20px; font-size:0.82rem; border:1px solid #d1d5db; color:#374151;" 
-                    data-bs-toggle="modal" data-bs-target="#activeHistoryModal">
-              <span class="rounded-circle bg-secondary d-inline-block" style="width:8px; height:8px;"></span>
-              Deactivated ({{ deactivated_days }} days) — <span class="text-danger text-decoration-underline" style="cursor:pointer;">View Active History</span>
-            </button>
-          {% else %}
-            <span class="badge bg-success-subtle text-success px-3 py-2 fw-bold d-inline-flex align-items-center gap-1" 
-                  style="border-radius:20px; font-size:0.82rem;">
-              <span class="rounded-circle bg-success d-inline-block" style="width:8px; height:8px;"></span>
-              Active
-            </span>
-            <button class="btn btn-sm btn-link text-decoration-underline p-0 ms-2" 
-                    style="font-size:0.82rem; color:var(--red);"
-                    data-bs-toggle="modal" data-bs-target="#activeHistoryModal">
-              View Active History
-            </button>
           {% endif %}
+          <a href="{{ export_url }}" class="btn btn-success" style="padding: 7px 16px; font-size: 0.8rem;">
+            <i class="bi bi-download"></i> Export Logs
+          </a>
         </div>
       </div>
-    </div>
 
-    <!-- Modal for Active History Calendar -->
-    <div class="modal fade" id="activeHistoryModal" tabindex="-1" aria-labelledby="activeHistoryModalLabel" aria-hidden="true">
-      <div class="modal-dialog modal-dialog-centered" style="max-width: 440px;">
-        <div class="modal-content border-0 shadow-lg" style="border-radius: 14px;">
-          <div class="modal-header bg-danger-subtle text-danger d-flex align-items-center justify-content-between" style="border-radius: 14px 14px 0 0; padding:16px 20px;">
-            <h5 class="modal-title fw-bold" id="activeHistoryModalLabel" style="font-size:1.1rem; margin:0;">
-              <i class="bi bi-calendar3 me-2"></i>Active History Calendar
-            </h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      <!-- ═══ PERIOD SELECTOR ════════════════════════════════ -->
+      <div class="d-flex align-items-center gap-3 mb-4 flex-wrap">
+        <div class="period-bar" id="periodBar">
+          <button class="period-btn active" data-period="week">Last Week</button>
+          <div class="period-sep"></div>
+          <button class="period-btn" data-period="month">Last Month</button>
+          <div class="period-sep"></div>
+          <button class="period-btn" data-period="year">Last Year</button>
+          <div class="period-sep"></div>
+          <button class="period-btn" data-period="custom">Custom</button>
+        </div>
+        <div style="font-size:0.8rem;color:var(--muted);" id="periodLabel">Showing: Last 7 days</div>
+      </div>
+      <div class="custom-range-row" id="customRangeRow">
+        <i class="bi bi-calendar3" style="color:var(--muted);"></i>
+        <span style="color:var(--muted);font-size:0.82rem;">From</span>
+        <input type="date" id="chartFrom">
+        <span style="color:var(--muted);font-size:0.82rem;">to</span>
+        <input type="date" id="chartTo">
+        <button class="btn btn-danger" style="padding: 7px 16px; font-size: 0.82rem;" onclick="applyCustom()"><i
+            class="bi bi-check2"></i> Apply</button>
+      </div>
+
+      <!-- ═══ STAT CARDS ═════════════════════════════════════ -->
+      <div class="stat-grid">
+        <div class="stat-card c1">
+          <div class="stat-icon" style="background:var(--primary-l);color:var(--primary);"><i
+              class="bi bi-lightning-charge-fill"></i></div>
+          <div class="stat-label">Total Events</div>
+          <div class="stat-value" id="sv-total">{{ (stats.total_events or 0)|int }}</div>
+          <div class="stat-period" id="sp-total">All time</div>
+        </div>
+        <div class="stat-card c2">
+          <div class="stat-icon" style="background:var(--green-l);color:var(--green);"><i
+              class="bi bi-box-arrow-up"></i></div>
+          <div class="stat-label">Exports</div>
+          <div class="stat-value" id="sv-exports">{{ (stats.total_exports or 0)|int }}</div>
+          <div class="stat-period" id="sp-exports">All time</div>
+        </div>
+        <div class="stat-card c3">
+          <div class="stat-icon" style="background:var(--blue-l);color:var(--blue);"><i class="bi bi-upload"></i></div>
+          <div class="stat-label">Imports</div>
+          <div class="stat-value" id="sv-imports">{{ (stats.total_imports or 0)|int }}</div>
+          <div class="stat-period" id="sp-imports">All time</div>
+        </div>
+        <div class="stat-card c4">
+          <div class="stat-icon" style="background:var(--orange-l);color:var(--orange);"><i class="bi bi-search"></i>
           </div>
-          <div class="modal-body" style="padding:20px;">
-            <div class="calendar-container">
-              
-              <!-- Month selection controls -->
-              <div class="calendar-header">
-                <button type="button" class="btn btn-sm btn-outline-secondary py-1 px-2" id="prevMonthBtn" onclick="navigateMonth(-1)">
-                  <i class="bi bi-chevron-left"></i> Prev
-                </button>
-                <div class="calendar-title" id="calendarMonthTitle">-</div>
-                <button type="button" class="btn btn-sm btn-outline-secondary py-1 px-2" id="nextMonthBtn" onclick="navigateMonth(1)">
-                  Next <i class="bi bi-chevron-right"></i>
-                </button>
-              </div>
+          <div class="stat-label">Searches &amp; Filters</div>
+          <div class="stat-value" id="sv-searches">{{ (stats.total_searches or 0)|int }}</div>
+          <div class="stat-period" id="sp-searches">All time</div>
+        </div>
+        <div class="stat-card c5">
+          <div class="stat-icon" style="background:var(--teal-l);color:var(--teal);"><i
+              class="bi bi-box-arrow-in-right"></i></div>
+          <div class="stat-label">Logins</div>
+          <div class="stat-value" id="sv-logins">{{ (stats.total_logins or 0)|int }}</div>
+          <div class="stat-period" id="sp-logins">All time</div>
+        </div>
+        <div class="stat-card c6">
+          <div class="stat-icon" style="background:var(--red-l);color:var(--red);"><i class="bi bi-trash3-fill"></i>
+          </div>
+          <div class="stat-label">Deletes</div>
+          <div class="stat-value" id="sv-deletes">{{ (stats.total_deletes or 0)|int }}</div>
+          <div class="stat-period" id="sp-deletes">All time</div>
+        </div>
+        <div class="stat-card c7">
+          <div class="stat-icon" style="background:var(--pink-l);color:var(--pink);"><i class="bi bi-people-fill"></i>
+          </div>
+          <div class="stat-label">Active Users</div>
+          <div class="stat-value" id="sv-users">{{ (stats.unique_users or 0)|int }}</div>
+          <div class="stat-period" id="sp-users">All time</div>
+        </div>
+        <div class="stat-card c8">
+          <div class="stat-icon" style="background:#ede9fe;color:#8b5cf6;"><i class="bi bi-database-fill-up"></i></div>
+          <div class="stat-label">Rows Exported</div>
+          <div class="stat-value" id="sv-rows">{{ "{:,}".format(rows_exported_today) }}</div>
+          <div class="stat-period" id="sp-rows">All time</div>
+        </div>
+        <div class="stat-card c9">
+          <div class="stat-icon" style="background:#cffafe;color:#06b6d4;"><i class="bi bi-magic"></i></div>
+          <div class="stat-label">Data Cleans</div>
+          <div class="stat-value" id="sv-cleans">{{ (stats.total_cleans or 0)|int }}</div>
+          <div class="stat-period" id="sp-cleans">All time</div>
+        </div>
+      </div>
 
-              <!-- Weekdays header row -->
-              <div class="calendar-grid">
-                <div class="calendar-weekday">Su</div>
-                <div class="calendar-weekday">Mo</div>
-                <div class="calendar-weekday">Tu</div>
-                <div class="calendar-weekday">We</div>
-                <div class="calendar-weekday">Th</div>
-                <div class="calendar-weekday">Fr</div>
-                <div class="calendar-weekday">Sa</div>
-              </div>
+      <!-- ═══ CHART + TOP USERS ══════════════════════════════ -->
+      <div class="main-grid mb-4">
 
-              <!-- Days grid populated dynamically -->
-              <div class="calendar-grid" id="calendarDaysGrid"></div>
-
-              <!-- Legend -->
-              <div class="calendar-legend">
-                <div class="legend-item">
-                  <span class="legend-dot" style="background:#22c55e;"></span>
-                  <span>Work Done</span>
-                </div>
-                <div class="legend-item">
-                  <span class="legend-dot" style="background:#ef4444;"></span>
-                  <span>Deactivated</span>
-                </div>
-                <div class="legend-item">
-                  <span class="legend-dot" style="background:#f3f4f6; border:1px solid #d1d5db;"></span>
-                  <span>Idle / Active</span>
-                </div>
-              </div>
-
-              <!-- Day activity click details (hidden by default) -->
-              <div id="calendarDayDetails" class="mt-3 p-3 rounded-3" style="background:#f8fafc; border: 1px solid #e2e8f0; display: none;">
-                <h6 class="fw-bold mb-2 text-dark d-flex align-items-center gap-2" style="font-size:0.85rem; margin:0;">
-                  <i class="bi bi-info-circle text-danger"></i> <span id="detailsDateTitle">Details</span>
-                </h6>
-                <div id="detailsContent" style="font-size:0.8rem; color:#475569; max-height:100px; overflow-y:auto; margin-top:6px;"></div>
-              </div>
-
+        <!-- Chart Card -->
+        <div class="card-white">
+          <div class="card-header-row">
+            <div>
+              <div class="card-title">📈 Activity Trends</div>
+              <div class="card-sub">Select which metrics to display in the chart</div>
+            </div>
+            <!-- Attribute toggles -->
+            <div class="attr-toggles" id="attrToggles">
+              <label class="attr-toggle checked" data-key="total">
+                <input type="checkbox" value="total" checked>
+                <span class="attr-dot" style="background:#b91c1c;"></span> Total
+              </label>
+              <label class="attr-toggle checked" data-key="exports">
+                <input type="checkbox" value="exports" checked>
+                <span class="attr-dot" style="background:#10b981;"></span> Exports
+              </label>
+              <label class="attr-toggle checked" data-key="imports">
+                <input type="checkbox" value="imports" checked>
+                <span class="attr-dot" style="background:#3b82f6;"></span> Imports
+              </label>
+              <label class="attr-toggle checked" data-key="cleans">
+                <input type="checkbox" value="cleans" checked>
+                <span class="attr-dot" style="background:#06b6d4;"></span> Cleans
+              </label>
+              <label class="attr-toggle checked" data-key="searches">
+                <input type="checkbox" value="searches" checked>
+                <span class="attr-dot" style="background:#f59e0b;"></span> Searches
+              </label>
+              <label class="attr-toggle checked" data-key="logins">
+                <input type="checkbox" value="logins" checked>
+                <span class="attr-dot" style="background:#14b8a6;"></span> Logins
+              </label>
             </div>
           </div>
-          <div class="modal-footer flex-column border-top-0 pt-0" style="padding:16px 20px;">
-            
-            <!-- Summary Card (hidden by default) -->
-            <div id="rangeSummaryCard" class="w-100 mb-3 p-3 rounded-3" style="background:#fee2e2; border: 1px solid #fecaca; display: none;">
-              <h6 class="fw-bold mb-2 text-danger" style="font-size:0.85rem; margin:0 0 8px 0;"><i class="bi bi-activity me-1"></i>Range Summary Statistics</h6>
-              <div class="row text-center g-2" style="font-size:0.8rem; color:#7f1d1d;">
-                <div class="col-4" style="border-right: 1px solid #fca5a5;">
-                  <strong id="sumActiveDays" style="font-size:1.1rem; display:block; color:#b91c1c;">0</strong>
-                  Active Days
-                </div>
-                <div class="col-4" style="border-right: 1px solid #fca5a5;">
-                  <strong id="sumDeactDays" style="font-size:1.1rem; display:block; color:#b91c1c;">0</strong>
-                  Deactivated Days
-                </div>
-                <div class="col-4">
-                  <strong id="sumWorkDays" style="font-size:1.1rem; display:block; color:#b91c1c;">0</strong>
-                  Work Done Days
-                </div>
+          <div class="card-body-pad">
+            <div class="chart-wrap">
+              <canvas id="activityChart"></canvas>
+              <div class="chart-loader" id="chartLoader">
+                <div class="spinner"></div>
               </div>
             </div>
+          </div>
+        </div>
 
-            <!-- Date inputs for Range Export -->
-            <div class="w-100 mb-3 text-start">
-              <h6 class="fw-bold mb-2 text-dark" style="font-size:0.85rem; margin:0 0 6px 0;"><i class="bi bi-file-earmark-arrow-down-fill me-1"></i>Export &amp; Summary Date Range</h6>
-              <div class="d-flex align-items-center gap-2">
-                <div class="flex-grow-1">
-                  <label class="small text-muted mb-1" style="font-size:0.75rem;">From</label>
-                  <input type="date" id="exportFromDate" class="form-control form-control-sm" style="border-radius:6px;">
-                </div>
-                <div class="flex-grow-1">
-                  <label class="small text-muted mb-1" style="font-size:0.75rem;">To</label>
-                  <input type="date" id="exportToDate" class="form-control form-control-sm" style="border-radius:6px;">
-                </div>
-              </div>
-            </div>
-
-            <!-- Action buttons -->
-            <div class="d-flex gap-2 w-100">
-              <button type="button" onclick="generateRangeSummaryAndExport()" 
-                      class="btn btn-danger flex-grow-1 py-2 fw-semibold d-inline-flex align-items-center justify-content-center gap-2"
-                      style="border-radius:9px; font-size:0.9rem;">
-                <i class="bi bi-file-earmark-excel"></i> Export &amp; Show Summary
-              </button>
-              <button type="button" class="btn btn-outline-secondary px-4 py-2" data-bs-dismiss="modal" style="border-radius:9px; font-size:0.9rem;">Close</button>
+        <!-- Top Users -->
+        <div class="card-white">
+          <div class="card-header-row">
+            <div>
+              <div class="card-title">🏆 Top Active Users</div>
+              <div class="card-sub">Most activity all time</div>
             </div>
           </div>
-        </div>
-      </div>
-    </div>
-    {% endif %}
-
-    <!-- ═══ PERIOD SELECTOR ════════════════════════════════ -->
-    <div class="d-flex align-items-center gap-3 mb-4 flex-wrap">
-      <div class="period-bar" id="periodBar">
-        <button class="period-btn active" data-period="week">Last Week</button>
-        <div class="period-sep"></div>
-        <button class="period-btn" data-period="month">Last Month</button>
-        <div class="period-sep"></div>
-        <button class="period-btn" data-period="year">Last Year</button>
-        <div class="period-sep"></div>
-        <button class="period-btn" data-period="custom">Custom</button>
-      </div>
-      <div style="font-size:0.8rem;color:var(--muted);" id="periodLabel">Showing: Last 7 days</div>
-    </div>
-    <div class="custom-range-row" id="customRangeRow">
-      <i class="bi bi-calendar3" style="color:var(--muted);"></i>
-      <span style="color:var(--muted);font-size:0.82rem;">From</span>
-      <input type="date" id="chartFrom">
-      <span style="color:var(--muted);font-size:0.82rem;">to</span>
-      <input type="date" id="chartTo">
-      <button class="btn-apply" onclick="applyCustom()"><i class="bi bi-check2"></i> Apply</button>
-    </div>
-
-    <!-- ═══ STAT CARDS ═════════════════════════════════════ -->
-    <div class="stat-grid">
-      <div class="stat-card c1">
-        <div class="stat-icon" style="background:var(--primary-l);color:var(--primary);"><i class="bi bi-lightning-charge-fill"></i></div>
-        <div class="stat-value" id="sv-total">{{ (stats.total_events or 0)|int }}</div>
-        <div class="stat-label">Total Events</div>
-        <div class="stat-period" id="sp-total">All time</div>
-      </div>
-      <div class="stat-card c2">
-        <div class="stat-icon" style="background:var(--green-l);color:var(--green);"><i class="bi bi-box-arrow-up"></i></div>
-        <div class="stat-value" id="sv-exports">{{ (stats.total_exports or 0)|int }}</div>
-        <div class="stat-label">Exports</div>
-        <div class="stat-period" id="sp-exports">All time</div>
-      </div>
-      <div class="stat-card c3">
-        <div class="stat-icon" style="background:var(--blue-l);color:var(--blue);"><i class="bi bi-upload"></i></div>
-        <div class="stat-value" id="sv-imports">{{ (stats.total_imports or 0)|int }}</div>
-        <div class="stat-label">Imports</div>
-        <div class="stat-period" id="sp-imports">All time</div>
-      </div>
-      <div class="stat-card c4">
-        <div class="stat-icon" style="background:var(--orange-l);color:var(--orange);"><i class="bi bi-search"></i></div>
-        <div class="stat-value" id="sv-searches">{{ (stats.total_searches or 0)|int }}</div>
-        <div class="stat-label">Searches &amp; Filters</div>
-        <div class="stat-period" id="sp-searches">All time</div>
-      </div>
-      <div class="stat-card c5">
-        <div class="stat-icon" style="background:var(--teal-l);color:var(--teal);"><i class="bi bi-box-arrow-in-right"></i></div>
-        <div class="stat-value" id="sv-logins">{{ (stats.total_logins or 0)|int }}</div>
-        <div class="stat-label">Logins</div>
-        <div class="stat-period" id="sp-logins">All time</div>
-      </div>
-      <div class="stat-card c6">
-        <div class="stat-icon" style="background:var(--red-l);color:var(--red);"><i class="bi bi-trash3-fill"></i></div>
-        <div class="stat-value" id="sv-deletes">{{ (stats.total_deletes or 0)|int }}</div>
-        <div class="stat-label">Deletes</div>
-        <div class="stat-period" id="sp-deletes">All time</div>
-      </div>
-      <div class="stat-card c7">
-        <div class="stat-icon" style="background:var(--pink-l);color:var(--pink);"><i class="bi bi-people-fill"></i></div>
-        <div class="stat-value" id="sv-users">{{ (stats.unique_users or 0)|int }}</div>
-        <div class="stat-label">Active Users</div>
-        <div class="stat-period" id="sp-users">All time</div>
-      </div>
-      <div class="stat-card c8">
-        <div class="stat-icon" style="background:#ede9fe;color:#8b5cf6;"><i class="bi bi-database-fill-up"></i></div>
-        <div class="stat-value" id="sv-rows">{{ "{:,}".format(rows_exported_today) }}</div>
-        <div class="stat-label">Rows Exported</div>
-        <div class="stat-period" id="sp-rows">All time</div>
-      </div>
-      <div class="stat-card c9">
-        <div class="stat-icon" style="background:#cffafe;color:#06b6d4;"><i class="bi bi-magic"></i></div>
-        <div class="stat-value" id="sv-cleans">{{ (stats.total_cleans or 0)|int }}</div>
-        <div class="stat-label">Data Cleans</div>
-        <div class="stat-period" id="sp-cleans">All time</div>
-      </div>
-    </div>
-
-    <!-- ═══ CHART + TOP USERS ══════════════════════════════ -->
-    <div class="main-grid mb-4">
-
-      <!-- Chart Card -->
-      <div class="card-white">
-        <div class="card-header-row">
-          <div>
-            <div class="card-title">📈 Activity Trends</div>
-            <div class="card-sub">Select which metrics to display in the chart</div>
-          </div>
-          <!-- Attribute toggles -->
-          <div class="attr-toggles" id="attrToggles">
-            <label class="attr-toggle checked" data-key="total">
-              <input type="checkbox" value="total" checked>
-              <span class="attr-dot" style="background:#b91c1c;"></span> Total
-            </label>
-            <label class="attr-toggle checked" data-key="exports">
-              <input type="checkbox" value="exports" checked>
-              <span class="attr-dot" style="background:#10b981;"></span> Exports
-            </label>
-            <label class="attr-toggle checked" data-key="imports">
-              <input type="checkbox" value="imports" checked>
-              <span class="attr-dot" style="background:#3b82f6;"></span> Imports
-            </label>
-            <label class="attr-toggle checked" data-key="cleans">
-              <input type="checkbox" value="cleans" checked>
-              <span class="attr-dot" style="background:#06b6d4;"></span> Cleans
-            </label>
-            <label class="attr-toggle checked" data-key="searches">
-              <input type="checkbox" value="searches" checked>
-              <span class="attr-dot" style="background:#f59e0b;"></span> Searches
-            </label>
-            <label class="attr-toggle checked" data-key="logins">
-              <input type="checkbox" value="logins" checked>
-              <span class="attr-dot" style="background:#14b8a6;"></span> Logins
-            </label>
-          </div>
-        </div>
-        <div class="card-body-pad">
-          <div class="chart-wrap">
-            <canvas id="activityChart"></canvas>
-            <div class="chart-loader" id="chartLoader"><div class="spinner"></div></div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Top Users -->
-      <div class="card-white">
-        <div class="card-header-row">
-          <div>
-            <div class="card-title">🏆 Top Active Users</div>
-            <div class="card-sub">Most activity all time</div>
-          </div>
-        </div>
-        <div class="card-body-pad">
-          {% if top_users %}
+          <div class="card-body-pad">
+            {% if top_users %}
             {% set max_c = top_users[0].event_count %}
             {% for u in top_users %}
             <div class="top-user-item">
-              <span class="avatar" style="background:hsl({{ loop.index * 72 }},65%,90%);color:hsl({{ loop.index * 72 }},55%,35%);">
+              <span class="avatar"
+                style="background:hsl({{ loop.index * 72 }},65%,90%);color:hsl({{ loop.index * 72 }},55%,35%);">
                 {{ (u.username or 'U')[:2]|upper }}
               </span>
               <div style="flex:1;min-width:0;">
                 <div class="top-user-name">{{ u.username }}</div>
                 <div class="bar-wrap" style="margin-top:4px;">
-                  <div class="bar-fill" style="width:{{ ((u.event_count / max_c) * 100)|int }}%;background:hsl({{ 220 + loop.index * 30 }},80%,60%);"></div>
+                  <div class="bar-fill"
+                    style="width:{{ ((u.event_count / max_c) * 100)|int }}%;background:hsl({{ 220 + loop.index * 30 }},80%,60%);">
+                  </div>
                 </div>
               </div>
               <div class="top-user-count">{{ u.event_count }}</div>
             </div>
             {% endfor %}
-          {% else %}
-            <div class="empty-state"><i class="bi bi-people"></i>No activity data yet</div>
-          {% endif %}
-        </div>
-      </div>
-
-    </div>
-
-    <!-- ═══ FILTER CONTROLS ════════════════════════════════ -->
-    <div class="controls-card">
-      <form method="GET" action="{{ form_action }}" id="filterForm">
-        <input type="hidden" name="user_id" value="{{ selected_user_id }}">
-        <div class="d-flex align-items-center gap-2 flex-wrap">
-          <div class="search-wrap">
-            <i class="bi bi-search search-icon"></i>
-            <input name="search" type="text" value="{{ search }}" placeholder="Search actions or users…">
-          </div>
-          <input type="date" name="from_date" value="{{ from_date }}">
-          <span style="color:var(--muted);font-size:0.8rem;">to</span>
-          <input type="date" name="to_date" value="{{ to_date }}">
-          <button type="submit" class="btn-filter"><i class="bi bi-funnel-fill"></i> Filter</button>
-          {% if search or from_date or to_date or selected_user_id %}
-          <a href="{{ url_for('admin_logs') }}" class="btn-clear"><i class="bi bi-x"></i> Clear</a>
-          {% endif %}
-        </div>
-        <div class="log-type-tabs">
-          <a href="{{ url_for('admin_logs', log_type='all',     search=search, from_date=from_date, to_date=to_date, user_id=selected_user_id) }}" class="log-tab {% if log_type=='all'     %}active{% endif %}"><i class="bi bi-grid-3x3-gap-fill"></i> All</a>
-          <a href="{{ url_for('admin_logs', log_type='export',  search=search, from_date=from_date, to_date=to_date, user_id=selected_user_id) }}" class="log-tab {% if log_type=='export'  %}active{% endif %}"><i class="bi bi-box-arrow-up"></i> Exports</a>
-          <a href="{{ url_for('admin_logs', log_type='import',  search=search, from_date=from_date, to_date=to_date, user_id=selected_user_id) }}" class="log-tab {% if log_type=='import'  %}active{% endif %}"><i class="bi bi-upload"></i> Imports</a>
-          <a href="{{ url_for('admin_logs', log_type='clean',   search=search, from_date=from_date, to_date=to_date, user_id=selected_user_id) }}" class="log-tab {% if log_type=='clean'   %}active{% endif %}"><i class="bi bi-magic"></i> Cleans</a>
-          <a href="{{ url_for('admin_logs', log_type='search',  search=search, from_date=from_date, to_date=to_date, user_id=selected_user_id) }}" class="log-tab {% if log_type=='search'  %}active{% endif %}"><i class="bi bi-search"></i> Searches</a>
-          <a href="{{ url_for('admin_logs', log_type='login',   search=search, from_date=from_date, to_date=to_date, user_id=selected_user_id) }}" class="log-tab {% if log_type=='login'   %}active{% endif %}"><i class="bi bi-door-open-fill"></i> Logins</a>
-        </div>
-      </form>
-    </div>
-
-    <!-- ═══ ACTIVITY TABLE ════════════════════════════════ -->
-    <div class="table-card">
-      <div class="table-head-row">
-        <div>
-          <div class="card-title"><i class="bi bi-list-ul" style="color:var(--primary);"></i> Activity Log</div>
-        </div>
-        <span style="font-size:0.79rem;color:var(--muted);">Showing {{ start }}–{{ end }} of {{ total_logs }} records</span>
-      </div>
-      <div style="overflow-x:auto;">
-        <table class="act">
-          <thead>
-            <tr>
-              <th style="width:52px;">#</th>
-              <th style="min-width:130px;">User</th>
-              <th style="min-width:80px;">Type</th>
-              <th>Action</th>
-              <th style="width:160px;white-space:nowrap;">Date &amp; Time</th>
-              <th style="width:70px;"></th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for log in logs %}
-            {% set al = log.action|lower %}
-            {% if 'export' in al %}
-              {% set bc='ab-export' %}{% set bi='bi-box-arrow-up' %}{% set bl='Export' %}
-            {% elif 'cleaned file' in al %}
-              {% set bc='ab-clean' %}{% set bi='bi-magic' %}{% set bl='Clean' %}
-            {% elif 'upload' in al or 'ingest' in al %}
-              {% set bc='ab-import' %}{% set bi='bi-upload' %}{% set bl='Import' %}
-            {% elif 'login' in al or 'logout' in al or 'session' in al %}
-              {% set bc='ab-login' %}{% set bi='bi-door-open-fill' %}{% set bl='Login' %}
-            {% elif 'search' in al or 'filter' in al %}
-              {% set bc='ab-search' %}{% set bi='bi-search' %}{% set bl='Search' %}
-            {% elif 'delet' in al or 'remov' in al %}
-              {% set bc='ab-delete' %}{% set bi='bi-trash3' %}{% set bl='Delete' %}
             {% else %}
-              {% set bc='ab-other' %}{% set bi='bi-dot' %}{% set bl='Activity' %}
+            <div class="empty-state"><i class="bi bi-people"></i>No activity data yet</div>
             {% endif %}
-            <tr>
-              <td style="color:var(--muted);font-size:0.75rem;">{{ offset + loop.index }}</td>
-              <td>
-                <div style="display:flex;align-items:center;">
-                  <span class="uavatar" style="background:hsl({{ log.user_id * 47 % 360 }},50%,90%);color:hsl({{ log.user_id * 47 % 360 }},50%,35%);">
-                    {{ (log.username or 'U')[:2]|upper }}
-                  </span>
-                  <span style="font-weight:600;font-size:0.83rem;">{{ log.username }}</span>
-                </div>
-              </td>
-              <td><span class="abadge {{ bc }}"><i class="bi {{ bi }}"></i>{{ bl }}</span></td>
-              <td style="max-width:400px;word-break:break-word;color:var(--muted);font-size:0.82rem;">{{ log.action }}</td>
-              <td style="color:var(--muted);font-size:0.77rem;white-space:nowrap;">
-                <span class="ts-ist" data-utc="{{ log.created_at }}">{{ log.created_at }}</span>
-              </td>
-              <td>
-                <button class="btn-detail" onclick="toggleDetail('d{{ log.id }}',this)" id="btn_d{{ log.id }}">
-                  <i class="bi bi-chevron-down"></i>
-                </button>
-              </td>
-            </tr>
-            <tr class="detail-row" id="d{{ log.id }}" style="display:none;">
-              <td colspan="6">
-                <div class="detail-inner">
-                  <div class="row g-3" style="font-size:0.82rem;">
-                    <div class="col-auto"><strong style="color:var(--text);">Log ID</strong><br>{{ log.id }}</div>
-                    <div class="col-auto"><strong style="color:var(--text);">User</strong><br>{{ log.username }}</div>
-                    <div class="col-auto"><strong style="color:var(--text);">Timestamp</strong><br><span class="ts-ist" data-utc="{{ log.created_at }}">{{ log.created_at }}</span></div>
-                  </div>
-                  <div style="margin-top:10px;"><strong style="color:var(--text);">Full Action</strong><div class="detail-code">{{ log.action }}</div></div>
-                </div>
-              </td>
-            </tr>
-            {% endfor %}
-            {% if not logs %}
-            <tr><td colspan="6"><div class="empty-state"><i class="bi bi-inbox"></i>No activity records found for these filters.</div></td></tr>
-            {% endif %}
-          </tbody>
-        </table>
-      </div>
-
-      {% if total_pages > 1 %}
-      <div class="pag-wrap">
-        <div class="pag-info">Page {{ page }} of {{ total_pages }}</div>
-        <div class="pag-btns">
-          <a href="{{ pagination_url(1) }}" class="pag-btn {% if page<=1 %}disabled{% endif %}"><i class="bi bi-chevron-double-left"></i></a>
-          <a href="{{ pagination_url(page-1) }}" class="pag-btn {% if page<=1 %}disabled{% endif %}"><i class="bi bi-chevron-left"></i></a>
-          {% set ns = namespace(last=0) %}
-          {% for p in range(1, total_pages+1) %}
-            {% if p==1 or p==total_pages or (p>=page-2 and p<=page+2) %}
-              {% if ns.last>0 and p-ns.last>1 %}<span class="pag-btn disabled">…</span>{% endif %}
-              <a href="{{ pagination_url(p) }}" class="pag-btn {% if p==page %}active{% endif %}">{{ p }}</a>
-              {% set ns.last = p %}
-            {% endif %}
-          {% endfor %}
-          <a href="{{ pagination_url(page+1) }}" class="pag-btn {% if page>=total_pages %}disabled{% endif %}"><i class="bi bi-chevron-right"></i></a>
-          <a href="{{ pagination_url(total_pages) }}" class="pag-btn {% if page>=total_pages %}disabled{% endif %}"><i class="bi bi-chevron-double-right"></i></a>
+          </div>
         </div>
+
       </div>
-      {% endif %}
-    </div>
 
-  </main>
-</div>
+      <!-- ═══ FILTER CONTROLS ════════════════════════════════ -->
+      <div class="controls-card">
+        <form method="GET" action="{{ form_action }}" id="filterForm">
+          <input type="hidden" name="user_id" value="{{ selected_user_id }}">
+          <div class="d-flex align-items-center gap-2 flex-wrap">
+            <div class="search-wrap">
+              <i class="bi bi-search search-icon"></i>
+              <input name="search" type="text" value="{{ search }}" placeholder="Search actions or users…">
+            </div>
+            <input type="date" name="from_date" value="{{ from_date }}">
+            <span style="color:var(--muted);font-size:0.8rem;">to</span>
+            <input type="date" name="to_date" value="{{ to_date }}">
+            <button type="submit" class="btn btn-danger" style="padding: 7px 14px; font-size: 0.8rem;"><i
+                class="bi bi-funnel-fill"></i> Filter</button>
+            {% if search or from_date or to_date or selected_user_id %}
+            <a href="{{ url_for('admin_logs') }}" class="btn btn-outline-secondary"
+              style="padding: 7px 14px; font-size: 0.8rem;"><i class="bi bi-x"></i> Clear</a>
+            {% endif %}
+          </div>
+          <div class="log-type-tabs">
+            <a href="{{ url_for('admin_logs', log_type='all',     search=search, from_date=from_date, to_date=to_date, user_id=selected_user_id) }}"
+              class="log-tab {% if log_type=='all'     %}active{% endif %}"><i class="bi bi-grid-3x3-gap-fill"></i>
+              All</a>
+            <a href="{{ url_for('admin_logs', log_type='export',  search=search, from_date=from_date, to_date=to_date, user_id=selected_user_id) }}"
+              class="log-tab {% if log_type=='export'  %}active{% endif %}"><i class="bi bi-box-arrow-up"></i>
+              Exports</a>
+            <a href="{{ url_for('admin_logs', log_type='import',  search=search, from_date=from_date, to_date=to_date, user_id=selected_user_id) }}"
+              class="log-tab {% if log_type=='import'  %}active{% endif %}"><i class="bi bi-upload"></i> Imports</a>
+            <a href="{{ url_for('admin_logs', log_type='clean',   search=search, from_date=from_date, to_date=to_date, user_id=selected_user_id) }}"
+              class="log-tab {% if log_type=='clean'   %}active{% endif %}"><i class="bi bi-magic"></i> Cleans</a>
+            <a href="{{ url_for('admin_logs', log_type='search',  search=search, from_date=from_date, to_date=to_date, user_id=selected_user_id) }}"
+              class="log-tab {% if log_type=='search'  %}active{% endif %}"><i class="bi bi-search"></i> Searches</a>
+            <a href="{{ url_for('admin_logs', log_type='login',   search=search, from_date=from_date, to_date=to_date, user_id=selected_user_id) }}"
+              class="log-tab {% if log_type=='login'   %}active{% endif %}"><i class="bi bi-door-open-fill"></i>
+              Logins</a>
+          </div>
+        </form>
+      </div>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-<script>
-// ── Timestamps ──────────────────────────────────────────────────────────────
-document.querySelectorAll('.ts-ist').forEach(el => {
-  const raw = (el.getAttribute('data-utc') || '').trim();
-  if (!raw) return;
-  const s = /[Zz+\-]\d*$/.test(raw) ? raw : raw + 'Z';
-  const d = new Date(s);
-  if (isNaN(d)) return;
-  el.textContent = d.toLocaleString('en-IN', {
-    timeZone: 'Asia/Kolkata', year: 'numeric', month: 'short',
-    day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
-  });
-});
+      <!-- ═══ ACTIVITY TABLE ════════════════════════════════ -->
+      <div class="table-card">
+        <div class="table-head-row">
+          <div>
+            <div class="card-title"><i class="bi bi-list-ul" style="color:var(--primary);"></i> Activity Log</div>
+          </div>
+          <span style="font-size:0.79rem;color:var(--muted);">Showing {{ start }}–{{ end }} of {{ total_logs }}
+            records</span>
+        </div>
+        <div style="overflow-x:auto;">
+          <table class="act">
+            <thead>
+              <tr>
+                <th style="width:52px;">#</th>
+                <th style="min-width:130px;">User</th>
+                <th style="min-width:80px;">Type</th>
+                <th>Action</th>
+                <th style="width:160px;white-space:nowrap;">Date &amp; Time</th>
+                <th style="width:70px;"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for log in logs %}
+              {% set al = log.action|lower %}
+              {% if 'export' in al %}
+              {% set bc='ab-export' %}{% set bi='bi-box-arrow-up' %}{% set bl='Export' %}
+              {% elif 'cleaned file' in al %}
+              {% set bc='ab-clean' %}{% set bi='bi-magic' %}{% set bl='Clean' %}
+              {% elif 'upload' in al or 'ingest' in al %}
+              {% set bc='ab-import' %}{% set bi='bi-upload' %}{% set bl='Import' %}
+              {% elif 'login' in al or 'logout' in al or 'session' in al %}
+              {% set bc='ab-login' %}{% set bi='bi-door-open-fill' %}{% set bl='Login' %}
+              {% elif 'search' in al or 'filter' in al %}
+              {% set bc='ab-search' %}{% set bi='bi-search' %}{% set bl='Search' %}
+              {% elif 'delet' in al or 'remov' in al %}
+              {% set bc='ab-delete' %}{% set bi='bi-trash3' %}{% set bl='Delete' %}
+              {% else %}
+              {% set bc='ab-other' %}{% set bi='bi-dot' %}{% set bl='Activity' %}
+              {% endif %}
+              <tr>
+                <td style="color:var(--muted);font-size:0.75rem;">{{ offset + loop.index }}</td>
+                <td>
+                  <div style="display:flex;align-items:center;">
+                    <span class="uavatar"
+                      style="background:hsl({{ log.user_id * 47 % 360 }},50%,90%);color:hsl({{ log.user_id * 47 % 360 }},50%,35%);">
+                      {{ (log.username or 'U')[:2]|upper }}
+                    </span>
+                    <span style="font-weight:600;font-size:0.83rem;">{{ log.username }}</span>
+                  </div>
+                </td>
+                <td><span class="abadge {{ bc }}"><i class="bi {{ bi }}"></i>{{ bl }}</span></td>
+                <td style="max-width:400px;word-break:break-word;color:var(--muted);font-size:0.82rem;">{{ log.action }}
+                </td>
+                <td style="color:var(--muted);font-size:0.77rem;white-space:nowrap;">
+                  <span class="ts-ist" data-utc="{{ log.created_at }}">{{ log.created_at }}</span>
+                </td>
+                <td>
+                  <button class="btn btn-outline-secondary btn-sm" style="padding: 5px 12px; font-size: 0.75rem;"
+                    onclick="toggleDetail('d{{ log.id }}',this)" id="btn_d{{ log.id }}">
+                    <i class="bi bi-chevron-down"></i>
+                  </button>
+                </td>
+              </tr>
+              <tr class="detail-row" id="d{{ log.id }}" style="display:none;">
+                <td colspan="6">
+                  <div class="detail-inner">
+                    <div class="row g-3" style="font-size:0.82rem;">
+                      <div class="col-auto"><strong style="color:var(--text);">Log ID</strong><br>{{ log.id }}</div>
+                      <div class="col-auto"><strong style="color:var(--text);">User</strong><br>{{ log.username }}</div>
+                      <div class="col-auto"><strong style="color:var(--text);">Timestamp</strong><br><span
+                          class="ts-ist" data-utc="{{ log.created_at }}">{{ log.created_at }}</span></div>
+                    </div>
+                    <div style="margin-top:10px;"><strong style="color:var(--text);">Full Action</strong>
+                      <div class="detail-code">{{ log.action }}</div>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+              {% endfor %}
+              {% if not logs %}
+              <tr>
+                <td colspan="6">
+                  <div class="empty-state"><i class="bi bi-inbox"></i>No activity records found for these filters.</div>
+                </td>
+              </tr>
+              {% endif %}
+            </tbody>
+          </table>
+        </div>
 
-// ── Detail toggle ───────────────────────────────────────────────────────────
-function toggleDetail(id, btn) {
-  const row = document.getElementById(id);
-  const icon = btn.querySelector('i');
-  const isOpen = row.style.display !== 'none';
+        {% if total_pages > 1 %}
+        <div class="pag-wrap">
+          <div class="pag-info">Showing {{ start }}–{{ end }} of {{ total_logs }} records &nbsp;·&nbsp; Page {{ page }} of {{ total_pages }}</div>
+          <nav aria-label="Activity log pagination">
+            <ul class="pagination mb-0">
+              <li class="page-item {% if page<=1 %}disabled{% endif %}">
+                <a class="page-link" href="{{ pagination_url(1) }}"><i class="bi bi-chevron-double-left"></i></a>
+              </li>
+              <li class="page-item {% if page<=1 %}disabled{% endif %}">
+                <a class="page-link" href="{{ pagination_url(page-1) }}"><i class="bi bi-chevron-left"></i></a>
+              </li>
+              {% set ns = namespace(last=0) %}
+              {% for p in range(1, total_pages+1) %}
+                {% if p==1 or p==total_pages or (p>=page-2 and p<=page+2) %}
+                  {% if ns.last>0 and p-ns.last>1 %}
+                    <li class="page-item disabled"><span class="page-link">…</span></li>
+                  {% endif %}
+                  <li class="page-item {% if p==page %}active{% endif %}">
+                    <a class="page-link" href="{{ pagination_url(p) }}">{{ p }}</a>
+                  </li>
+                  {% set ns.last = p %}
+                {% endif %}
+              {% endfor %}
+              <li class="page-item {% if page>=total_pages %}disabled{% endif %}">
+                <a class="page-link" href="{{ pagination_url(page+1) }}"><i class="bi bi-chevron-right"></i></a>
+              </li>
+              <li class="page-item {% if page>=total_pages %}disabled{% endif %}">
+                <a class="page-link" href="{{ pagination_url(total_pages) }}"><i class="bi bi-chevron-double-right"></i></a>
+              </li>
+            </ul>
+          </nav>
 
-  if (isOpen) {
-    row.style.display = 'none';
-    icon.className = 'bi bi-chevron-down';
-    btn.classList.remove('open');
-  } else {
-    row.style.display = 'table-row';
-    icon.className = 'bi bi-chevron-up';
-    btn.classList.add('open');
-  }
-}
+          <form method="GET" action="{{ form_action }}" class="d-flex align-items-center gap-2">
+            <input type="hidden" name="user_id" value="{{ selected_user_id }}">
+            <input type="hidden" name="search" value="{{ search }}">
+            <input type="hidden" name="from_date" value="{{ from_date }}">
+            <input type="hidden" name="to_date" value="{{ to_date }}">
+            <input type="hidden" name="log_type" value="{{ log_type }}">
+            <label class="mb-0 text-muted" for="logsPageJumpInput" style="white-space:nowrap; font-size:0.85rem;">Go to page</label>
+            <input id="logsPageJumpInput" type="number" name="page" min="1" max="{{ total_pages }}" value="{{ page }}"
+              class="form-control form-control-sm" style="width:90px; border-radius:7px;" aria-label="Jump to page">
+            <button type="submit" class="btn btn-sm btn-outline-danger" style="border-radius:7px; font-size:0.82rem;">Go</button>
+          </form>
+        </div>
+        {% endif %}
+      </div>
 
-// ── User filter ─────────────────────────────────────────────────────────────
-function applyUserFilter(uid) {
-  const url = new URL(window.location);
-  uid ? url.searchParams.set('user_id', uid) : url.searchParams.delete('user_id');
-  url.searchParams.set('page', '1');
-  window.location = url.toString();
-}
+    </main>
+  </div>
 
-// ── State ───────────────────────────────────────────────────────────────────
-const userId = "{{ selected_user_id }}";
-let currentPeriod = 'week';
-let currentFrom = '';
-let currentTo = '';
-let chartData = null;
-let actChart = null;
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    // ── Timestamps ──────────────────────────────────────────────────────────────
+    document.querySelectorAll('.ts-ist').forEach(el => {
+      const raw = (el.getAttribute('data-utc') || '').trim();
+      if (!raw) return;
+      const s = /[Zz+\-]\d*$/.test(raw) ? raw : raw + 'Z';
+      const d = new Date(s);
+      if (isNaN(d)) return;
+      el.textContent = d.toLocaleString('en-IN', {
+        timeZone: 'Asia/Kolkata', year: 'numeric', month: 'short',
+        day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
+      });
+    });
 
-// Visible datasets (checkbox state)
-const datasetKeys = ['total', 'exports', 'imports', 'cleans', 'searches', 'logins'];
-let visibleKeys = new Set(datasetKeys);
+    // ── Detail toggle ───────────────────────────────────────────────────────────
+    function toggleDetail(id, btn) {
+      const row = document.getElementById(id);
+      const icon = btn.querySelector('i');
+      const isOpen = row.style.display !== 'none';
 
-// Colors
-const dsConfig = {
-  total:    { label: 'Total',    color: '#b91c1c', bg: 'rgba(185,28,28,0.08)' },
-  exports:  { label: 'Exports',  color: '#10b981', bg: 'rgba(16,185,129,0.08)' },
-  imports:  { label: 'Imports',  color: '#3b82f6', bg: 'rgba(59,130,246,0.08)' },
-  cleans:   { label: 'Cleans',   color: '#06b6d4', bg: 'rgba(6,182,212,0.08)' },
-  searches: { label: 'Searches', color: '#f59e0b', bg: 'rgba(245,158,11,0.08)' },
-  logins:   { label: 'Logins',   color: '#14b8a6', bg: 'rgba(20,184,166,0.08)' },
-};
-
-const periodLabels = {
-  week:  'Last 7 days',
-  month: 'Last 30 days (by week)',
-  year:  'Last 12 months',
-  custom: 'Custom range',
-};
-
-// ── Chart init ──────────────────────────────────────────────────────────────
-function buildDatasets(data) {
-  return datasetKeys
-    .filter(k => visibleKeys.has(k))
-    .map(k => ({
-      label: dsConfig[k].label,
-      data: data[k === 'total' ? 'totals' : k],
-      borderColor: dsConfig[k].color,
-      backgroundColor: dsConfig[k].bg,
-      fill: true,
-      tension: 0.45,
-      borderWidth: 2.5,
-      pointRadius: 4,
-      pointHoverRadius: 7,
-      pointBackgroundColor: dsConfig[k].color,
-      pointBorderWidth: 0,
-    }));
-}
-
-function initChart(data) {
-  const ctx = document.getElementById('activityChart').getContext('2d');
-  if (actChart) actChart.destroy();
-  actChart = new Chart(ctx, {
-    type: 'line',
-    data: { labels: data.labels, datasets: buildDatasets(data) },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      interaction: { mode: 'index', intersect: false },
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          backgroundColor: '#fff',
-          borderColor: '#e4e7f0',
-          borderWidth: 1,
-          titleColor: '#1a1d2e',
-          bodyColor: '#6b7280',
-          padding: 13,
-          cornerRadius: 10,
-          boxShadow: '0 4px 16px rgba(0,0,0,0.1)',
-          titleFont: { weight: '700', size: 12 },
-          callbacks: {
-            label: ctx => `  ${ctx.dataset.label}: ${ctx.parsed.y.toLocaleString()}`
-          }
-        }
-      },
-      scales: {
-        x: {
-          grid: { color: '#f0f2f8', lineWidth: 1 },
-          ticks: {
-            color: '#9ca3af', font: { size: 11 },
-            maxRotation: 40,
-            autoSkip: true,
-            maxTicksLimit: 14,
-          }
-        },
-        y: {
-          grid: { color: '#f0f2f8', lineWidth: 1 },
-          ticks: { color: '#9ca3af', font: { size: 11 }, callback: v => v.toLocaleString() },
-          beginAtZero: true,
-        }
+      if (isOpen) {
+        row.style.display = 'none';
+        icon.className = 'bi bi-chevron-down';
+        btn.classList.remove('open');
+      } else {
+        row.style.display = 'table-row';
+        icon.className = 'bi bi-chevron-up';
+        btn.classList.add('open');
       }
     }
-  });
-}
 
-function updateChartDatasets() {
-  if (!actChart || !chartData) return;
-  actChart.data.datasets = buildDatasets(chartData);
-  actChart.update('active');
-}
+    // ── User filter ─────────────────────────────────────────────────────────────
+    function applyUserFilter(uid) {
+      const url = new URL(window.location);
+      uid ? url.searchParams.set('user_id', uid) : url.searchParams.delete('user_id');
+      url.searchParams.set('page', '1');
+      window.location = url.toString();
+    }
 
-// ── Fetch chart + stats ─────────────────────────────────────────────────────
-async function loadDashboard(period, from='', to='') {
-  currentPeriod = period;
-  currentFrom = from;
-  currentTo = to;
+    // ── State ───────────────────────────────────────────────────────────────────
+    const userId = "{{ selected_user_id }}";
+    let currentPeriod = 'week';
+    let currentFrom = '';
+    let currentTo = '';
+    let chartData = null;
+    let actChart = null;
 
-  // Update period label
-  let lbl = periodLabels[period] || period;
-  if (period === 'custom' && from && to) lbl = `${from} → ${to}`;
-  document.getElementById('periodLabel').textContent = 'Showing: ' + lbl;
+    // Visible datasets (checkbox state)
+    const datasetKeys = ['total', 'exports', 'imports', 'cleans', 'searches', 'logins'];
+    let visibleKeys = new Set(datasetKeys);
 
-  // Fetch chart data
-  document.getElementById('chartLoader').classList.add('show');
-  let chartUrl = `/api/admin/logs/chart-data?period=${period}&user_id=${encodeURIComponent(userId)}`;
-  if (from) chartUrl += `&from_date=${from}`;
-  if (to) chartUrl += `&to_date=${to}`;
+    // Colors
+    const dsConfig = {
+      total: { label: 'Total', color: '#b91c1c', bg: 'rgba(185,28,28,0.08)' },
+      exports: { label: 'Exports', color: '#10b981', bg: 'rgba(16,185,129,0.08)' },
+      imports: { label: 'Imports', color: '#3b82f6', bg: 'rgba(59,130,246,0.08)' },
+      cleans: { label: 'Cleans', color: '#06b6d4', bg: 'rgba(6,182,212,0.08)' },
+      searches: { label: 'Searches', color: '#f59e0b', bg: 'rgba(245,158,11,0.08)' },
+      logins: { label: 'Logins', color: '#14b8a6', bg: 'rgba(20,184,166,0.08)' },
+    };
 
-  // Fetch stats
-  let statsUrl = `/api/admin/logs/period-stats?period=${period}&user_id=${encodeURIComponent(userId)}`;
-  if (from) statsUrl += `&from_date=${from}`;
-  if (to) statsUrl += `&to_date=${to}`;
+    const periodLabels = {
+      week: 'Last 7 days',
+      month: 'Last 30 days (by week)',
+      year: 'Last 12 months',
+      custom: 'Custom range',
+    };
 
-  // Animate stat cards
-  document.querySelectorAll('.stat-value').forEach(el => el.classList.add('refreshing'));
+    // ── Chart init ──────────────────────────────────────────────────────────────
+    function buildDatasets(data) {
+      return datasetKeys
+        .filter(k => visibleKeys.has(k))
+        .map(k => ({
+          label: dsConfig[k].label,
+          data: data[k === 'total' ? 'totals' : k],
+          borderColor: dsConfig[k].color,
+          backgroundColor: dsConfig[k].bg,
+          fill: true,
+          tension: 0.45,
+          borderWidth: 2.5,
+          pointRadius: 4,
+          pointHoverRadius: 7,
+          pointBackgroundColor: dsConfig[k].color,
+          pointBorderWidth: 0,
+        }));
+    }
 
-  try {
-    const [chartRes, statsRes] = await Promise.all([fetch(chartUrl), fetch(statsUrl)]);
-    chartData = await chartRes.json();
-    const stats = await statsRes.json();
-
-    if (chartData.error) { console.error('Chart:', chartData.error); }
-    else { initChart(chartData); }
-
-    if (!stats.error) {
-      const pLbl = period === 'week' ? 'Last 7 days' : period === 'month' ? 'Last 30 days' : period === 'year' ? 'This year' : 'Custom range';
-      const map = {
-        'sv-total':   stats.total_events,
-        'sv-exports': stats.total_exports,
-        'sv-imports': stats.total_imports,
-        'sv-cleans':  stats.total_cleans,
-        'sv-searches':stats.total_searches,
-        'sv-logins':  stats.total_logins,
-        'sv-deletes': stats.total_deletes,
-        'sv-users':   stats.unique_users,
-        'sv-rows':    stats.rows_exported,
-      };
-      for (const [id, val] of Object.entries(map)) {
-        const el = document.getElementById(id);
-        if (el) el.textContent = (val || 0).toLocaleString();
-      }
-      ['total','exports','imports','cleans','searches','logins','deletes','users','rows'].forEach(k => {
-        const sp = document.getElementById('sp-' + k);
-        if (sp) sp.textContent = pLbl;
+    function initChart(data) {
+      const ctx = document.getElementById('activityChart').getContext('2d');
+      if (actChart) actChart.destroy();
+      actChart = new Chart(ctx, {
+        type: 'line',
+        data: { labels: data.labels, datasets: buildDatasets(data) },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: '#fff',
+              borderColor: '#e4e7f0',
+              borderWidth: 1,
+              titleColor: '#1a1d2e',
+              bodyColor: '#6b7280',
+              padding: 13,
+              cornerRadius: 10,
+              boxShadow: '0 4px 16px rgba(0,0,0,0.1)',
+              titleFont: { weight: '700', size: 12 },
+              callbacks: {
+                label: ctx => `  ${ctx.dataset.label}: ${ctx.parsed.y.toLocaleString()}`
+              }
+            }
+          },
+          scales: {
+            x: {
+              grid: { color: '#f0f2f8', lineWidth: 1 },
+              ticks: {
+                color: '#9ca3af', font: { size: 11 },
+                maxRotation: 40,
+                autoSkip: true,
+                maxTicksLimit: 14,
+              }
+            },
+            y: {
+              grid: { color: '#f0f2f8', lineWidth: 1 },
+              ticks: { color: '#9ca3af', font: { size: 11 }, callback: v => v.toLocaleString() },
+              beginAtZero: true,
+            }
+          }
+        }
       });
     }
-  } finally {
-    document.getElementById('chartLoader').classList.remove('show');
-    document.querySelectorAll('.stat-value').forEach(el => el.classList.remove('refreshing'));
-  }
-}
 
-// ── Period buttons ──────────────────────────────────────────────────────────
-document.querySelectorAll('.period-btn[data-period]').forEach(btn => {
-  btn.addEventListener('click', function() {
-    document.querySelectorAll('.period-btn[data-period]').forEach(b => b.classList.remove('active'));
-    this.classList.add('active');
-    const p = this.dataset.period;
-    const cr = document.getElementById('customRangeRow');
-    if (p === 'custom') {
-      cr.classList.add('show');
-    } else {
-      cr.classList.remove('show');
-      loadDashboard(p);
+    function updateChartDatasets() {
+      if (!actChart || !chartData) return;
+      actChart.data.datasets = buildDatasets(chartData);
+      actChart.update('active');
     }
-  });
-});
 
-function applyCustom() {
-  const from = document.getElementById('chartFrom').value;
-  const to = document.getElementById('chartTo').value;
-  if (!from || !to) { alert('Please select both dates.'); return; }
-  loadDashboard('custom', from, to);
-}
+    // ── Fetch chart + stats ─────────────────────────────────────────────────────
+    async function loadDashboard(period, from = '', to = '') {
+      currentPeriod = period;
+      currentFrom = from;
+      currentTo = to;
 
-// ── Attribute toggles ───────────────────────────────────────────────────────
-document.querySelectorAll('.attr-toggle').forEach(label => {
-  label.addEventListener('click', function(e) {
-    e.preventDefault();
-    const key = this.dataset.key;
-    const cb = this.querySelector('input[type=checkbox]');
-    if (visibleKeys.has(key)) {
-      if (visibleKeys.size <= 1) return; // keep at least 1
-      visibleKeys.delete(key);
-      cb.checked = false;
-      this.classList.remove('checked');
-    } else {
-      visibleKeys.add(key);
-      cb.checked = true;
-      this.classList.add('checked');
-    }
-    updateChartDatasets();
-  });
-});
+      // Update period label
+      let lbl = periodLabels[period] || period;
+      if (period === 'custom' && from && to) lbl = `${from} → ${to}`;
+      document.getElementById('periodLabel').textContent = 'Showing: ' + lbl;
 
-// ── Calendar Rendering Code ───────────────────────────────────────────────
-let calendarYear = new Date().getFullYear();
-let calendarMonth = new Date().getMonth(); // 0-11
-let userCalendarData = {}; // YYYY-MM-DD -> status
-let userWorkDetails = {};  // YYYY-MM-DD -> list of actions
+      // Fetch chart data
+      document.getElementById('chartLoader').classList.add('show');
+      let chartUrl = `/api/admin/logs/chart-data?period=${period}&user_id=${encodeURIComponent(userId)}`;
+      if (from) chartUrl += `&from_date=${from}`;
+      if (to) chartUrl += `&to_date=${to}`;
 
-// Load calendar data when modal is opened
-const activeHistoryModalEl = document.getElementById('activeHistoryModal');
-if (activeHistoryModalEl) {
-  activeHistoryModalEl.addEventListener('show.bs.modal', async function () {
-    if (!userId) return;
-    
-    // Set to current date
-    const d = new Date();
-    calendarYear = d.getFullYear();
-    calendarMonth = d.getMonth();
-    
-    // Reset day details panel & summary card & inputs
-    document.getElementById('calendarDayDetails').style.display = 'none';
-    document.getElementById('rangeSummaryCard').style.display = 'none';
-    document.getElementById('exportFromDate').value = '';
-    document.getElementById('exportToDate').value = '';
-    
-    try {
-      const res = await fetch(`/api/admin/users/${userId}/calendar-data`);
-      const payload = await res.json();
-      if (!payload.error) {
-        userCalendarData = payload.daily_status || {};
-        userWorkDetails = payload.work_details || {};
-        renderCalendar();
-      }
-    } catch (err) {
-      console.error("Error loading calendar details:", err);
-    }
-  });
-}
+      // Fetch stats
+      let statsUrl = `/api/admin/logs/period-stats?period=${period}&user_id=${encodeURIComponent(userId)}`;
+      if (from) statsUrl += `&from_date=${from}`;
+      if (to) statsUrl += `&to_date=${to}`;
 
-function renderCalendar() {
-  const monthNames = [
-    "January", "February", "March", "April", "May", "June",
-    "July", "August", "September", "October", "November", "December"
-  ];
-  
-  // Update header text
-  const titleEl = document.getElementById('calendarMonthTitle');
-  if (titleEl) {
-    titleEl.textContent = `${monthNames[calendarMonth]} ${calendarYear}`;
-  }
-  
-  const grid = document.getElementById('calendarDaysGrid');
-  if (!grid) return;
-  grid.innerHTML = '';
-  
-  // Get first day of month (0 = Sun, 1 = Mon, etc.)
-  const firstDayIndex = new Date(calendarYear, calendarMonth, 1).getDay();
-  // Get number of days in month
-  const numDays = new Date(calendarYear, calendarMonth + 1, 0).getDate();
-  
-  // Render empty cells for days from previous month
-  for (let i = 0; i < firstDayIndex; i++) {
-    const emptyCell = document.createElement('div');
-    emptyCell.className = 'calendar-day empty';
-    grid.appendChild(emptyCell);
-  }
-  
-  // Render days of the current month
-  for (let day = 1; day <= numDays; day++) {
-    const dayCell = document.createElement('div');
-    dayCell.className = 'calendar-day';
-    dayCell.textContent = day;
-    dayCell.style.cursor = 'pointer';
-    
-    // Format date string YYYY-MM-DD
-    const y = calendarYear;
-    const m = String(calendarMonth + 1).padStart(2, '0');
-    const d = String(day).padStart(2, '0');
-    const dateStr = `${y}-${m}-${d}`;
-    
-    // Check status in userCalendarData
-    const status = userCalendarData[dateStr] || 'inactive';
-    
-    if (status === 'work') {
-      dayCell.classList.add('work');
-      dayCell.title = "Work Done (Click to view)";
-    } else if (status === 'deactivated') {
-      dayCell.classList.add('deactivated');
-      dayCell.title = "Account Deactivated (Click to view)";
-    } else if (status === 'not_created') {
-      dayCell.classList.add('not-created');
-      dayCell.style.cursor = 'default';
-      dayCell.title = "Account Not Created Yet";
-    } else {
-      dayCell.classList.add('inactive');
-      dayCell.title = "Idle / Active (Click to view)";
-    }
-    
-    // Click listener to show activity/status details for the clicked date
-    if (status !== 'not_created') {
-      dayCell.addEventListener('click', function() {
-        const detailsPanel = document.getElementById('calendarDayDetails');
-        const titleEl = document.getElementById('detailsDateTitle');
-        const contentEl = document.getElementById('detailsContent');
-        
-        // Format readable date label, e.g. "15 July 2026"
-        const formattedDate = `${day} ${monthNames[calendarMonth]} ${calendarYear}`;
-        titleEl.textContent = `Details for ${formattedDate}`;
-        
-        if (status === 'work') {
-          const actions = userWorkDetails[dateStr] || [];
-          let actionsHtml = '<ul class="mb-0 ps-3">';
-          actions.forEach(act => {
-            actionsHtml += `<li>${act}</li>`;
+      // Animate stat cards
+      document.querySelectorAll('.stat-value').forEach(el => el.classList.add('refreshing'));
+
+      try {
+        const [chartRes, statsRes] = await Promise.all([fetch(chartUrl), fetch(statsUrl)]);
+        chartData = await chartRes.json();
+        const stats = await statsRes.json();
+
+        if (chartData.error) { console.error('Chart:', chartData.error); }
+        else { initChart(chartData); }
+
+        if (!stats.error) {
+          const pLbl = period === 'week' ? 'Last 7 days' : period === 'month' ? 'Last 30 days' : period === 'year' ? 'This year' : 'Custom range';
+          const map = {
+            'sv-total': stats.total_events,
+            'sv-exports': stats.total_exports,
+            'sv-imports': stats.total_imports,
+            'sv-cleans': stats.total_cleans,
+            'sv-searches': stats.total_searches,
+            'sv-logins': stats.total_logins,
+            'sv-deletes': stats.total_deletes,
+            'sv-users': stats.unique_users,
+            'sv-rows': stats.rows_exported,
+          };
+          for (const [id, val] of Object.entries(map)) {
+            const el = document.getElementById(id);
+            if (el) el.textContent = (val || 0).toLocaleString();
+          }
+          ['total', 'exports', 'imports', 'cleans', 'searches', 'logins', 'deletes', 'users', 'rows'].forEach(k => {
+            const sp = document.getElementById('sp-' + k);
+            if (sp) sp.textContent = pLbl;
           });
-          actionsHtml += '</ul>';
-          contentEl.innerHTML = actionsHtml;
-        } else if (status === 'deactivated') {
-          contentEl.innerHTML = `<span class="text-danger fw-semibold"><i class="bi bi-x-circle me-1"></i>Account was deactivated on this date.</span>`;
-        } else {
-          contentEl.innerHTML = `<span class="text-muted"><i class="bi bi-info-circle me-1"></i>Account was active but no work operations were recorded.</span>`;
         }
-        
-        detailsPanel.style.display = 'block';
-      });
-    }
-    
-    grid.appendChild(dayCell);
-  }
-}
-
-function navigateMonth(direction) {
-  calendarMonth += direction;
-  if (calendarMonth < 0) {
-    calendarMonth = 11;
-    calendarYear -= 1;
-  } else if (calendarMonth > 11) {
-    calendarMonth = 0;
-    calendarYear += 1;
-  }
-  renderCalendar();
-}
-
-function generateRangeSummaryAndExport() {
-  const fromVal = document.getElementById('exportFromDate').value;
-  const toVal = document.getElementById('exportToDate').value;
-  
-  if (!fromVal || !toVal) {
-    alert("Please select both 'From' and 'To' dates for the export range.");
-    return;
-  }
-  
-  const fromDate = new Date(fromVal);
-  const toDate = new Date(toVal);
-  
-  if (fromDate > toDate) {
-    alert("'From' date cannot be after 'To' date.");
-    return;
-  }
-  
-  // Calculate summary counts inside selected date range
-  let activeDays = 0;
-  let deactDays = 0;
-  let workDays = 0;
-  
-  let current = new Date(fromDate);
-  while (current <= toDate) {
-    const y = current.getFullYear();
-    const m = String(current.getMonth() + 1).padStart(2, '0');
-    const d = String(current.getDate()).padStart(2, '0');
-    const dateStr = `${y}-${m}-${d}`;
-    
-    const status = userCalendarData[dateStr];
-    if (status) {
-      if (status === 'work') {
-        workDays++;
-        activeDays++; // working implies active
-      } else if (status === 'deactivated') {
-        deactDays++;
-      } else if (status === 'active' || status === 'inactive') {
-        activeDays++;
+      } finally {
+        document.getElementById('chartLoader').classList.remove('show');
+        document.querySelectorAll('.stat-value').forEach(el => el.classList.remove('refreshing'));
       }
     }
-    
-    current.setDate(current.getDate() + 1);
-  }
-  
-  // Update UI summary tags
-  document.getElementById('sumActiveDays').textContent = activeDays;
-  document.getElementById('sumDeactDays').textContent = deactDays;
-  document.getElementById('sumWorkDays').textContent = workDays;
-  document.getElementById('rangeSummaryCard').style.display = 'block';
-  
-  // Trigger Excel file download
-  const exportUrl = `/admin/users/${userId}/calendar-export?from_date=${fromVal}&to_date=${toVal}`;
-  window.location.href = exportUrl;
-}
 
-// ── Init ─────────────────────────────────────────────────────────────────────
-loadDashboard('week');
-</script>
+    // ── Period buttons ──────────────────────────────────────────────────────────
+    document.querySelectorAll('.period-btn[data-period]').forEach(btn => {
+      btn.addEventListener('click', function () {
+        document.querySelectorAll('.period-btn[data-period]').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        const p = this.dataset.period;
+        const cr = document.getElementById('customRangeRow');
+        if (p === 'custom') {
+          cr.classList.add('show');
+        } else {
+          cr.classList.remove('show');
+          loadDashboard(p);
+        }
+      });
+    });
+
+    function applyCustom() {
+      const from = document.getElementById('chartFrom').value;
+      const to = document.getElementById('chartTo').value;
+      if (!from || !to) { alert('Please select both dates.'); return; }
+      loadDashboard('custom', from, to);
+    }
+
+    // ── Attribute toggles ───────────────────────────────────────────────────────
+    document.querySelectorAll('.attr-toggle').forEach(label => {
+      label.addEventListener('click', function (e) {
+        e.preventDefault();
+        const key = this.dataset.key;
+        const cb = this.querySelector('input[type=checkbox]');
+        if (visibleKeys.has(key)) {
+          if (visibleKeys.size <= 1) return; // keep at least 1
+          visibleKeys.delete(key);
+          cb.checked = false;
+          this.classList.remove('checked');
+        } else {
+          visibleKeys.add(key);
+          cb.checked = true;
+          this.classList.add('checked');
+        }
+        updateChartDatasets();
+      });
+    });
+
+    // ── Init ─────────────────────────────────────────────────────────────────────
+    loadDashboard('week');
+  </script>
 </body>
+
 </html>
