@@ -65,8 +65,8 @@
           </div>
           <div class="col-md-2 d-flex flex-column gap-2">
             <div class="d-flex gap-2 apply-btn-wrap">
-              <button type="submit" class="btn btn-sm w-100"
-                style="background:#b91c1c;color:#fff;border:none;border-radius:7px;font-size:0.83rem;">Apply</button>
+              <button type="submit" class="btn btn-sm btn-danger w-100"
+                style="border-radius:7px;font-size:0.83rem;">Apply</button>
               {% if search or from_date or to_date %}
               <a href="{{ url_for('admin_logs') }}" class="btn btn-sm btn-outline-secondary"
                 style="border-radius:7px;font-size:0.83rem;" title="Clear filters"><i class="bi bi-x"></i></a>
@@ -177,9 +177,8 @@
       {% if total_logs > 0 %}Showing {{ start }}–{{ end }} of {{ total_logs }} result{{ 's' if total_logs != 1 else ''
       }}{% else %}No results{% endif %}
     </small>
-    <a href="{{ url_for('export_logs') }}" class="btn btn-sm btn-danger"
-      style="border-radius:7px;font-size:0.8rem;margin-right:16px;">
-      <i class="bi bi-file-earmark-excel me-1"></i>Export to Excel
+    <a href="{{ url_for('export_logs') }}" class="btn btn-sm btn-success"
+      style="border-radius:7px;font-size:0.8rem;margin-right:16px;font-weight:500;">Export to Excel
     </a>
   </div>
 
@@ -211,7 +210,7 @@
               log.total_rows if log.total_rows else "–" }}</span></td>
           <td class="text-center"><span class="badge" style="background:#dcfce7;color:#166534;font-size:0.78rem;">{{
               log.valid_rows if log.valid_rows else "–" }}</span></td>
-          <td class="text-center"><span class="badge" style="background:#fee2e2;color:#991b1b;font-size:0.78rem;">{{
+          <td class="text-center"><span class="badge" style="background:#fee2e2;color: var(--red-hover);font-size:0.78rem;">{{
               log.invalid_rows if log.invalid_rows else "–" }}</span></td>
         </tr>
         {% endfor %}
@@ -228,24 +227,48 @@
   </div>
 
   {% if total_pages > 1 %}
-  <nav class="mt-4 mb-3">
-    <ul class="pagination justify-content-center flex-wrap mb-0">
-      {% if page > 1 %}<li class="page-item"><a class="page-link" href="{{ pagination_url(page-1) }}"><i
-            class="bi bi-chevron-left" style="font-size:0.7rem;"></i></a></li>{% endif %}
-      {% if page > 3 %}
-      <li class="page-item"><a class="page-link" href="{{ pagination_url(1) }}">1</a></li>
-      <li class="page-item disabled"><span class="page-link">…</span></li>
-      {% endif %}
-      {% for p in range(page-2, page+3) %}{% if 1<=p<=total_pages %} <li
-        class="page-item {% if p==page %}active{% endif %}"><a class="page-link" href="{{ pagination_url(p) }}">{{ p
-          }}</a></li>
-        {% endif %}{% endfor %}
-        {% if page < total_pages-2 %} <li class="page-item disabled"><span class="page-link">…</span></li>
+  <nav class="mt-4 mb-3 w-100">
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 w-100 px-3">
+      <small class="text-muted">Page {{ page }} of {{ total_pages }}</small>
+
+      <nav aria-label="Logs pagination">
+        <ul class="pagination pagination-sm mb-0">
+          <li class="page-item {% if page <= 1 %}disabled{% endif %}">
+            <a class="page-link" href="{{ pagination_url(page-1) if page > 1 else '#' }}" aria-label="Previous">
+              <i class="bi bi-chevron-left"></i>
+            </a>
+          </li>
+          {% if page > 3 %}
+          <li class="page-item"><a class="page-link" href="{{ pagination_url(1) }}">1</a></li>
+          <li class="page-item disabled"><span class="page-link">…</span></li>
+          {% endif %}
+          {% for p in range(page-2, page+3) %}
+          {% if 1 <= p <= total_pages %}
+          <li class="page-item {% if p == page %}active{% endif %}"><a class="page-link" href="{{ pagination_url(p) }}">{{ p }}</a></li>
+          {% endif %}
+          {% endfor %}
+          {% if page < total_pages-2 %}
+          <li class="page-item disabled"><span class="page-link">…</span></li>
           <li class="page-item"><a class="page-link" href="{{ pagination_url(total_pages) }}">{{ total_pages }}</a></li>
           {% endif %}
-          {% if page < total_pages %}<li class="page-item"><a class="page-link" href="{{ pagination_url(page+1) }}"><i
-                class="bi bi-chevron-right" style="font-size:0.7rem;"></i></a></li>{% endif %}
-    </ul>
+          <li class="page-item {% if page >= total_pages %}disabled{% endif %}">
+            <a class="page-link" href="{{ pagination_url(page+1) if page < total_pages else '#' }}" aria-label="Next">
+              <i class="bi bi-chevron-right"></i>
+            </a>
+          </li>
+        </ul>
+      </nav>
+
+      <form method="get" action="{{ url_for('admin_logs') }}" class="d-flex align-items-center gap-2">
+        <input type="hidden" name="search" value="{{ search }}">
+        <input type="hidden" name="from_date" value="{{ from_date }}">
+        <input type="hidden" name="to_date" value="{{ to_date }}">
+        <label for="jumpPage" class="mb-0 text-muted" style="font-size:0.85rem;">Go to page</label>
+        <input type="number" id="jumpPage" name="page" min="1" max="{{ total_pages }}" value="{{ page }}"
+          class="form-control form-control-sm" style="width:90px; border-radius:7px;">
+        <button type="submit" class="btn btn-sm btn-outline-danger" style="border-radius:7px; font-size:0.82rem;">Go</button>
+      </form>
+    </div>
   </nav>
   {% endif %}
 </div>

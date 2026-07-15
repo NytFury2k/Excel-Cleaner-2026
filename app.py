@@ -2908,57 +2908,102 @@ def manage_users():
         flash("Access denied.", "warning")
         return redirect(url_for("dashboard"))
 
-    conn   = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
+    users = []
+    available_admins = []
+    available_managers = []
+    available_tls = []
+    role_limits_error = False
+    role_limits = {
+        "admin": 1000000,
+        "manager": 100000,
+        "team_lead": 50000,
+        "user": 50000,
+    }
 
-    base_select = """
-        SELECT
-            u.id, u.username, u.role, u.is_active, u.status, u.email,
-            u.manager_id, u.export_limit, u.created_at,
-            mgr.username   AS manager_username,
-            mgr.role       AS manager_role
-        FROM users u
-        LEFT JOIN users mgr ON u.manager_id = mgr.id
-    """
+    conn = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
 
-    if caller_role == "admin":
-        cursor.execute(f"{base_select} ORDER BY u.username ASC")
-        users = cursor.fetchall()
-    else: # manager
-        visible_ids = get_visible_user_ids(cursor, role="manager", user_id=caller_id)
-        if visible_ids:
-            placeholders = ",".join(["%s"] * len(visible_ids))
-            cursor.execute(f"{base_select} WHERE u.id IN ({placeholders}) ORDER BY u.username ASC", visible_ids)
+        base_select = """
+            SELECT
+                u.id, u.username, u.role, u.is_active, u.status, u.email,
+                u.manager_id, u.export_limit, u.created_at,
+                mgr.username   AS manager_username,
+                mgr.role       AS manager_role
+            FROM users u
+            LEFT JOIN users mgr ON u.manager_id = mgr.id
+        """
+
+        if caller_role == "admin":
+            cursor.execute(f"{base_select} ORDER BY u.username ASC")
             users = cursor.fetchall()
+        else:  # manager
+            visible_ids = get_visible_user_ids(cursor, role="manager", user_id=caller_id)
+            if visible_ids:
+                placeholders = ",".join(["%s"] * len(visible_ids))
+                cursor.execute(f"{base_select} WHERE u.id IN ({placeholders}) ORDER BY u.username ASC", visible_ids)
+                users = cursor.fetchall()
+            else:
+                users = []
+
+        # Dropdown lists for management form
+        if caller_role == "admin":
+            cursor.execute("SELECT id, username FROM users WHERE role='admin' AND is_active=1 ORDER BY username")
+            available_admins = cursor.fetchall()
+            cursor.execute("SELECT id, username FROM users WHERE role='manager' AND is_active=1 ORDER BY username")
+            available_managers = cursor.fetchall()
+            cursor.execute("SELECT id, username FROM users WHERE role='team_lead' AND is_active=1 ORDER BY username")
+            available_tls = cursor.fetchall()
         else:
-            users = []
+            available_admins = []
+            cursor.execute("SELECT id, username FROM users WHERE id=%s", (caller_id,))
+            available_managers = cursor.fetchall()
+            cursor.execute(
+                "SELECT id, username FROM users WHERE role='team_lead' AND manager_id=%s AND is_active=1 ORDER BY username",
+                (caller_id,)
+            )
+            available_tls = cursor.fetchall()
 
-    # Dropdown lists for management form
-    if caller_role == "admin":
-        cursor.execute("SELECT id, username FROM users WHERE role='admin' AND is_active=1 ORDER BY username")
-        available_admins = cursor.fetchall()
-        cursor.execute("SELECT id, username FROM users WHERE role='manager' AND is_active=1 ORDER BY username")
-        available_managers = cursor.fetchall()
-        cursor.execute("SELECT id, username FROM users WHERE role='team_lead' AND is_active=1 ORDER BY username")
-        available_tls = cursor.fetchall()
-    else:
+        # Fetch global role default limits
+        try:
+            cursor.execute("SELECT role_name, default_limit FROM role_export_limits")
+            fetched_limits = cursor.fetchall()
+            if fetched_limits:
+                role_limits = {r['role_name']: r['default_limit'] for r in fetched_limits}
+        except Exception:
+            role_limits_error = True
+            role_limits = {
+                "admin": 1000000,
+                "manager": 100000,
+                "team_lead": 50000,
+                "user": 50000,
+            }
+
+        for r in ['admin', 'manager', 'team_lead', 'user']:
+            if r not in role_limits:
+                role_limits[r] = 1000000 if r == 'admin' else (100000 if r == 'manager' else 50000)
+
+    except Exception as exc:
+        app.logger.exception("Failed to load manage users page")
+        flash("The manage users page could not be loaded right now.", "danger")
+        role_limits_error = True
+        users = []
         available_admins = []
-        cursor.execute("SELECT id, username FROM users WHERE id=%s", (caller_id,))
-        available_managers = cursor.fetchall()
-        cursor.execute(
-            "SELECT id, username FROM users WHERE role='team_lead' AND manager_id=%s AND is_active=1 ORDER BY username",
-            (caller_id,)
-        )
-        available_tls = cursor.fetchall()
-
-    # Fetch global role default limits
-    cursor.execute("SELECT role_name, default_limit FROM role_export_limits")
-    role_limits = {r['role_name']: r['default_limit'] for r in cursor.fetchall()}
-    for r in ['admin', 'manager', 'team_lead', 'user']:
-        if r not in role_limits:
-            role_limits[r] = 1000000 if r == 'admin' else (100000 if r == 'manager' else 50000)
-
-    conn.close()
+        available_managers = []
+        available_tls = []
+        role_limits = {
+            "admin": 1000000,
+            "manager": 100000,
+            "team_lead": 50000,
+            "user": 50000,
+        }
+    finally:
+        if conn is not None:
+            try:
+                conn.close()
+            except Exception:
+                pass
 
     return render_template(
         "admin_users.html",
@@ -2970,6 +3015,7 @@ def manage_users():
         caller_id=caller_id,
         caller_username=caller_username,
         role_limits=role_limits,
+        role_limits_error=role_limits_error,
     )
 
 
@@ -4751,17 +4797,43 @@ def history_view():
     if session.get("role") != "admin":
         flash("Access denied.", "warning")
         return redirect(url_for("upload"))
+
+    page = request.args.get("page", 1, type=int) or 1
+    per_page = 25
+    page = max(1, page)
+
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT id, user_id, filename, original_filename, uploaded_at, total_rows, rows_imported, rows_rejected, status FROM uploaded_files ORDER BY id DESC")
+
+    cursor.execute("SELECT COUNT(*) AS total FROM uploaded_files")
+    total_row = cursor.fetchone() or {}
+    total_uploads = int(total_row.get("total") or 0)
+
+    total_pages = max(1, (total_uploads + per_page - 1) // per_page)
+    page = min(page, total_pages)
+
+    offset = (page - 1) * per_page
+    cursor.execute("""
+        SELECT id, user_id, filename, original_filename, uploaded_at, total_rows,
+               rows_imported, rows_rejected, status
+        FROM uploaded_files
+        ORDER BY id DESC
+        LIMIT %s OFFSET %s
+    """, (per_page, offset))
     uploads = cursor.fetchall()
-    
+
     for u in uploads:
         if u['uploaded_at'] and isinstance(u['uploaded_at'], datetime):
             u['uploaded_at'] = u['uploaded_at'].strftime('%Y-%m-%d %H:%M:%S')
-            
+
     conn.close()
-    return render_template('history.html', uploads=uploads)
+    return render_template(
+        'history.html',
+        uploads=uploads,
+        page=page,
+        total_pages=total_pages,
+        pagination_url=lambda p: url_for('history_view', page=p)
+    )
 
 def suggest_column_mapping(columns, cursor):
     master_cols = [
@@ -5183,4 +5255,3 @@ def api_convert_to_master(field_id):
 
 if __name__ == "__main__":
     app.run(debug=True)
-

@@ -10,7 +10,10 @@
   <link rel="icon" href="https://paramantra.us/aldius/images/favicon.png" type="image/gif">
   <style>
     :root {
-      --red: #b91c1c;
+      --red-accent: #b91c1c;
+      --red-hover: #991b1b;
+      --red-light: #fee2e2;
+      --red: var(--red-accent);
       --border: #e5e7eb;
       --surface: #f9fafb;
     }
@@ -55,6 +58,42 @@
 
     .badge {
       font-weight: 500;
+    }
+
+    .pagination .page-link {
+      color: var(--red);
+      border: 1px solid var(--border);
+      background: #fff;
+      border-radius: 6px;
+      margin: 0 2px;
+      font-size: 0.83rem;
+    }
+
+    .pagination .page-link:hover {
+      background: var(--red-light);
+      color: var(--red-hover);
+    }
+
+    .pagination .page-item.active .page-link {
+      background: var(--red);
+      border-color: var(--red);
+      color: #fff;
+    }
+
+    .pagination .page-item.disabled .page-link {
+      background: #f3f4f6;
+      color: #9ca3af;
+      border-color: var(--border);
+    }
+
+    .btn-outline-danger {
+      color: var(--red);
+      border-color: var(--red);
+    }
+
+    .btn-outline-danger:hover {
+      background: var(--red);
+      color: #fff;
     }
 
     .page-hdr h2 {
@@ -185,7 +224,7 @@
                   {% endfor %}
                   {% else %}
                   <tr>
-                    <td colspan="6" class="text-center py-5 text-muted">
+                    <td colspan="8" class="text-center py-5 text-muted">
                       <i class="bi bi-clock-history fs-2 mb-3 d-block text-secondary"></i>
                       No spreadsheets have been uploaded yet. Go to the dashboard to import your first Excel file.
                     </td>
@@ -196,6 +235,48 @@
             </div>
           </div>
         </div>
+        {% if total_pages > 1 %}
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mt-3">
+          <small class="text-muted">Page {{ page }} of {{ total_pages }}</small>
+
+          <nav aria-label="Import history pagination">
+            <ul class="pagination pagination-sm mb-0">
+              <li class="page-item {% if page <= 1 %}disabled{% endif %}">
+                <a class="page-link" href="{{ pagination_url(page-1) if page > 1 else '#' }}" aria-label="Previous">
+                  <i class="bi bi-chevron-left"></i>
+                </a>
+              </li>
+              {% if page > 3 %}
+              <li class="page-item"><a class="page-link" href="{{ pagination_url(1) }}">1</a></li>
+              <li class="page-item disabled"><span class="page-link">…</span></li>
+              {% endif %}
+              {% for p in range(page-2, page+3) %}
+              {% if 1 <= p <= total_pages %}
+              <li class="page-item {% if p == page %}active{% endif %}">
+                <a class="page-link" href="{{ pagination_url(p) }}">{{ p }}</a>
+              </li>
+              {% endif %}
+              {% endfor %}
+              {% if page < total_pages-2 %}
+              <li class="page-item disabled"><span class="page-link">…</span></li>
+              <li class="page-item"><a class="page-link" href="{{ pagination_url(total_pages) }}">{{ total_pages }}</a></li>
+              {% endif %}
+              <li class="page-item {% if page >= total_pages %}disabled{% endif %}">
+                <a class="page-link" href="{{ pagination_url(page+1) if page < total_pages else '#' }}" aria-label="Next">
+                  <i class="bi bi-chevron-right"></i>
+                </a>
+              </li>
+            </ul>
+          </nav>
+
+          <form method="get" action="{{ url_for('history_view') }}" class="d-flex align-items-center gap-2">
+            <label class="text-muted small mb-0" for="historyPageJumpInput" style="white-space:nowrap;">Go to page</label>
+            <input id="historyPageJumpInput" type="number" name="page" min="1" max="{{ total_pages }}" value="{{ page }}"
+              class="form-control form-control-sm" style="width:70px;" aria-label="Jump to page">
+            <button type="submit" class="btn btn-sm btn-outline-danger">Go</button>
+          </form>
+        </div>
+        {% endif %}
       </div>
       <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 

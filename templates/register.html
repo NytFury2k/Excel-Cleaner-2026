@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,31 +9,146 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
   <link rel="icon" href="https://paramantra.us/aldius/images/favicon.png" type="image/gif">
   <style>
-    body { background:#f4f5f7; min-height:100vh; font-family:system-ui,-apple-system,sans-serif; margin:0; }
-    .app-layout { display:flex; min-height:100vh; }
-    .sidebar { width:260px; background:#fff; border-right:1px solid #e5e7eb; position:sticky; top:0; height:100vh; }
-    .content-area { flex:1; padding:24px; }
-    .reg-card { background:#fff; border:1px solid #e5e7eb; border-radius:16px; box-shadow:0 8px 32px rgba(185,28,28,0.09),0 1px 4px rgba(0,0,0,0.05); padding:36px 32px 32px; width:100%; max-width:420px; }
-    .logo-wrap { text-align:center; padding-bottom:22px; margin-bottom:22px; border-bottom:1px solid #f3f4f6; }
-    .logo-wrap img { height:36px; width:auto; }
-    .form-label { font-size:0.82rem; font-weight:600; color:#374151; margin-bottom:4px; }
-    .form-control, .form-select { border-radius:8px; border:1px solid #d1d5db; font-size:0.88rem; padding:9px 12px; }
-    .form-control:focus, .form-select:focus { border-color:#fca5a5; box-shadow:0 0 0 3px rgba(185,28,28,0.1); outline:none; }
-    .pw-hint { background:#f9fafb; border:1px solid #f3f4f6; border-radius:8px; padding:10px 14px; font-size:0.78rem; color:#6b7280; margin-top:6px; }
-    .pw-hint ul { margin:4px 0 0 0; padding-left:16px; }
-    .pw-hint li { margin-bottom:2px; }
-    .btn-register { background:#b91c1c; border:none; border-radius:8px; color:#fff; font-weight:600; font-size:0.9rem; padding:10px; width:100%; transition:background 0.15s,transform 0.1s; }
-    .btn-register:hover { background:#991b1b; transform:translateY(-1px); color:#fff; }
-    .login-link { text-align:center; margin-top:18px; font-size:0.85rem; color:#6b7280; }
-    .login-link a { color:#b91c1c; font-weight:500; text-decoration:none; }
-    .login-link a:hover { text-decoration:underline; }
-    .alert { border-radius:8px; font-size:0.85rem; }
+    body {
+      background: #f4f5f7;
+      min-height: 100vh;
+      font-family: system-ui, -apple-system, sans-serif;
+      margin: 0;
+    }
+
+    .app-layout {
+      display: flex;
+      min-height: 100vh;
+    }
+
+    .sidebar {
+      width: 260px;
+      background: #fff;
+      border-right: 1px solid #e5e7eb;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+    }
+
+    .content-area {
+      flex: 1;
+      padding: 24px;
+    }
+
+    .reg-card {
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: 16px;
+      box-shadow: 0 8px 32px rgba(185, 28, 28, 0.09), 0 1px 4px rgba(0, 0, 0, 0.05);
+      padding: 36px 32px 32px;
+      width: 100%;
+      max-width: 420px;
+    }
+
+    .logo-wrap {
+      text-align: center;
+      padding-bottom: 22px;
+      margin-bottom: 22px;
+      border-bottom: 1px solid #f3f4f6;
+    }
+
+    .logo-wrap img {
+      height: 36px;
+      width: auto;
+    }
+
+    .form-label {
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: #374151;
+      margin-bottom: 4px;
+    }
+
+    .form-control,
+    .form-select {
+      border-radius: 8px;
+      border: 1px solid #d1d5db;
+      font-size: 0.88rem;
+      padding: 9px 12px;
+    }
+
+    .form-control:focus,
+    .form-select:focus {
+      border-color: #fca5a5;
+      box-shadow: 0 0 0 3px rgba(185, 28, 28, 0.1);
+      outline: none;
+    }
+
+    .pw-hint {
+      background: #f9fafb;
+      border: 1px solid #f3f4f6;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 0.78rem;
+      color: #6b7280;
+      margin-top: 6px;
+    }
+
+    .pw-hint ul {
+      margin: 4px 0 0 0;
+      padding-left: 16px;
+    }
+
+    .pw-hint li {
+      margin-bottom: 2px;
+    }
+
+    .btn-register {
+      background: var(--red-accent);
+      border: none;
+      border-radius: 8px;
+      color: #fff;
+      font-weight: 600;
+      font-size: 0.9rem;
+      padding: 10px;
+      width: 100%;
+      transition: background 0.15s, transform 0.1s;
+    }
+
+    .btn-register:hover {
+      background: var(--red-hover);
+      transform: translateY(-1px);
+      color: #fff;
+    }
+
+    .login-link {
+      text-align: center;
+      margin-top: 18px;
+      font-size: 0.85rem;
+      color: #6b7280;
+    }
+
+    .login-link a {
+      color: var(--red-accent);
+      font-weight: 500;
+      text-decoration: none;
+    }
+
+    .login-link a:hover {
+      text-decoration: underline;
+    }
+
+    .alert {
+      border-radius: 8px;
+      font-size: 0.85rem;
+    }
+
     input[type="password"]::-ms-reveal,
     input[type="password"]::-ms-clear,
-    input[type="password"]::-webkit-credentials-auto-fill-button { display:none !important; }
+    input[type="password"]::-webkit-credentials-auto-fill-button {
+      display: none !important;
+    }
 
     @media (max-width: 400px) {
-      .reg-card { padding:28px 20px 24px; border-radius:12px; }
+      .reg-card {
+        padding: 28px 20px 24px;
+        border-radius: 12px;
+      }
     }
 
     .app-layout {
@@ -59,9 +175,9 @@
     }
 
     .sidebar-brand {
-      background: #b91c1c;
+      background: var(--red-accent);
       padding: 20px;
-      border-bottom: 1px solid #991b1b;
+      border-bottom: 1px solid var(--red-hover);
       display: flex;
       justify-content: center;
       align-items: center;
@@ -80,14 +196,146 @@
 
     .sidebar-link:hover {
       background: #fef2f2;
-      color: #b91c1c;
+      color: var(--red-accent);
     }
 
     .sidebar-link i {
       font-size: 1rem;
     }
+
+    /* Custom country code dropdown */
+    .country-dd {
+      position: relative;
+      width: 86px;
+      min-width: 86px;
+      flex-shrink: 0;
+    }
+
+    .country-dd-btn {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      width: 100%;
+      height: 100%;
+      padding: 9px 6px;
+      background-color: var(--input-bg, #fff) !important;
+      border: 1px solid var(--border-color, #d1d5db);
+      border-right: none;
+      border-radius: 8px 0 0 8px;
+      font-size: 0.82rem;
+      color: var(--input-text, #374151);
+      cursor: pointer;
+      white-space: nowrap;
+      transition: border-color 0.15s, background 0.15s, color 0.15s;
+    }
+
+    .country-dd-btn #selected-code {
+      min-width: 28px;
+      text-align: left;
+      display: inline-block;
+    }
+
+    [data-theme="dark"] .country-dd-btn,
+    [data-theme="dark"] .country-dd-menu,
+    [data-theme="dark"] .country-option {
+      background-color: var(--input-bg) !important;
+      color: var(--input-text) !important;
+    }
+
+    [data-theme="dark"] .country-dd-menu {
+      border-color: var(--border-color) !important;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.42);
+    }
+
+    [data-theme="dark"] .country-option:hover {
+      background-color: rgba(255, 255, 255, 0.08) !important;
+    }
+
+    .country-dd-btn:focus {
+      outline: none;
+      border-color: #fca5a5;
+      box-shadow: 0 0 0 3px rgba(185, 28, 28, 0.1);
+    }
+
+    .country-dd-btn img {
+      width: 20px;
+      height: 15px;
+      object-fit: cover;
+      border-radius: 2px;
+      flex-shrink: 0;
+    }
+
+    .country-dd-btn .dd-chevron {
+      margin-left: auto;
+      font-size: 0.65rem;
+      color: #9ca3af;
+      transition: transform 0.15s;
+    }
+
+    .country-dd-btn.open .dd-chevron {
+      transform: rotate(180deg);
+    }
+
+    .country-dd-menu {
+      display: none;
+      position: absolute;
+      top: calc(100% + 4px);
+      left: 0;
+      min-width: 220px;
+      max-height: 240px;
+      overflow-y: auto;
+      background-color: var(--input-bg, #fff);
+      border: 1px solid var(--border-color, #d1d5db);
+      color: var(--input-text, #374151);
+      border-radius: 10px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+      z-index: 9999;
+    }
+
+    .country-dd-menu.open {
+      display: block;
+    }
+
+    .country-option {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      cursor: pointer;
+      font-size: 0.84rem;
+      color: var(--input-text, #374151);
+      transition: background 0.1s, color 0.1s;
+      background-color: transparent;
+    }
+
+    .country-option:hover {
+      background-color: var(--hover-bg, #fef2f2);
+    }
+
+    .country-option.selected {
+      background-color: var(--red-light, #fee2e2);
+      font-weight: 600;
+    }
+
+    .country-option img {
+      width: 22px;
+      height: 16px;
+      object-fit: cover;
+      border-radius: 2px;
+      flex-shrink: 0;
+    }
+
+    .country-option .c-name {
+      flex: 1;
+    }
+
+    .country-option .c-code {
+      color: #9ca3af;
+      font-size: 0.8rem;
+    }
   </style>
 </head>
+
 <body>
   {% if admin_mode %}
   <div class="app-layout">
@@ -95,139 +343,1349 @@
     <main class="content-area">
       <div style="width:100%;max-width:420px; margin:0 auto;">
         <div class="reg-card">
-      <div class="logo-wrap">
-        <img src="https://paramantra.com/wp-content/uploads/2022/04/Paramantra-Logo-e1754657963220.webp" alt="Paramantra" decoding="async">
-      </div>
-
-      <h2 style="font-size:1.25rem;font-weight:700;color:var(--text-main);margin-bottom:4px;">Create account</h2>
-      <p style="font-size:0.85rem;color:#6b7280;margin-bottom:22px;">Fill in the details below to register</p>
-
-      {% with messages = get_flashed_messages(with_categories=true) %}
-      {% for category, message in messages %}
-      <div class="alert alert-{{ category }} alert-dismissible fade show">
-        {{ message|safe }}<button type="button" class="btn-close btn-close-sm" data-bs-dismiss="alert"></button>
-      </div>
-      {% endfor %}{% endwith %}
-
-      <form method="post">
-
-        <div class="mb-3">
-          <label class="form-label">Username</label>
-          <input type="text" class="form-control" name="username"
-                 placeholder="Choose a username"
-                 value="{{ username or '' }}" required autofocus autocomplete="username">
-        </div>
-
-        <div class="mb-3">
-          <label for="email" class="form-label">Email <span style="font-weight:400;color:#9ca3af;">(optional)</span></label>
-          <input type="email" class="form-control" name="email"
-                 placeholder="user@example.com"
-                 value="{{ email or '' }}" autocomplete="email">
-        </div>
-
-        <div class="mb-3">
-          <label class="form-label">Password</label>
-          <div class="input-group">
-            <input type="password" class="form-control pw-field" name="password"
-                   id="pw1" placeholder="Choose a password" required autocomplete="new-password">
-            <button type="button" class="btn btn-outline-secondary pw-eye" data-target="pw1" tabindex="-1"
-                    style="border-color:#d1d5db;border-radius:0 8px 8px 0;background:#fff;color:#6b7280;padding:0 12px;">
-              <i class="bi bi-eye"></i>
-            </button>
+          <div class="logo-wrap">
+            <img src="https://paramantra.com/wp-content/uploads/2022/04/Paramantra-Logo-e1754657963220.webp"
+              alt="Paramantra" decoding="async">
           </div>
-          <div class="pw-hint" id="pw-rules">
-  <div style="font-size:0.78rem;margin-bottom:4px;color:#6b7280;">Password must:</div>
-  <ul style="list-style:none;padding:0;margin:0;">
-    <li id="rule-length"  style="color:#9ca3af;font-size:0.78rem;padding:2px 0;"><i class="bi bi-circle me-1"></i>Be 8–64 characters long</li>
-    <li id="rule-upper"   style="color:#9ca3af;font-size:0.78rem;padding:2px 0;"><i class="bi bi-circle me-1"></i>Include an uppercase letter</li>
-    <li id="rule-lower"   style="color:#9ca3af;font-size:0.78rem;padding:2px 0;"><i class="bi bi-circle me-1"></i>Include a lowercase letter</li>
-    <li id="rule-number"  style="color:#9ca3af;font-size:0.78rem;padding:2px 0;"><i class="bi bi-circle me-1"></i>Include a number</li>
-    <li id="rule-special" style="color:#9ca3af;font-size:0.78rem;padding:2px 0;"><i class="bi bi-circle me-1"></i>Include a special character (!@#$ etc.)</li>
-    <li id="rule-spaces"  style="color:#9ca3af;font-size:0.78rem;padding:2px 0;"><i class="bi bi-circle me-1"></i>Contain no spaces</li>
-  </ul>
-</div>
-        </div>
 
-        <div class="mb-3">
-          <label class="form-label">Confirm Password</label>
-          <div class="input-group">
-            <input type="password" class="form-control pw-field" name="confirm_password"
-                   id="pw2" placeholder="Repeat your password" required autocomplete="new-password">
-            <button type="button" class="btn btn-outline-secondary pw-eye" data-target="pw2" tabindex="-1"
-                    style="border-color:#d1d5db;border-radius:0 8px 8px 0;background:#fff;color:#6b7280;padding:0 12px;">
-              <i class="bi bi-eye"></i>
-            </button>
+          <h2 style="font-size:1.25rem;font-weight:700;color:var(--text-main);margin-bottom:4px;">Create account</h2>
+          <p style="font-size:0.85rem;color:#6b7280;margin-bottom:22px;">Fill in the details below to register</p>
+
+          {% with messages = get_flashed_messages(with_categories=true) %}
+          {% for category, message in messages %}
+          <div class="alert alert-{{ category }} alert-dismissible fade show">
+            {{ message|safe }}<button type="button" class="btn-close btn-close-sm" data-bs-dismiss="alert"></button>
           </div>
-        </div>
+          {% endfor %}{% endwith %}
 
-        {% if admin_mode %}
-        <div class="mb-3">
-          <label class="form-label">Role</label>
-          <select name="role" id="role-select" class="form-select" required>
-            <option value="" disabled {{ 'selected' if not selected_role else '' }}>Select Role</option>
-            {% for r in roles %}
-            <option value="{{ r }}" {{ 'selected' if selected_role == r else '' }}>
-              {{ r.replace("_", " ").title() }}
-            </option>
-            {% endfor %}
-          </select>
-        </div>
+          <form method="post">
 
-        {% if session.get('role') == 'admin' %}
-        <!-- Shown when role=team_lead:pick a manager -->
-        <div class="mb-3" id="assign-manager-div" style="display:none;">
-          <label class="form-label">
-            Assign Manager
-          </label>
-          <select name="assign_manager_id" class="form-select">
-            <option value="">— None / Assign Later —</option>
-            {% for mgr in available_managers %}
-            <option value="{{ mgr.id }}">{{ mgr.username }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        {% endif %}
+            <div class="mb-3">
+              <label class="form-label">Username</label>
+              <input type="text" class="form-control" name="username" placeholder="Choose a username"
+                value="{{ username or '' }}" required autofocus autocomplete="username">
+            </div>
 
-        {% if session.get('role') in ('admin', 'manager') %}
+            <div class="mb-3">
+              <label class="form-label d-flex align-items-center gap-2">Phone Number
+                <span id="phone-error" class="phone-error d-none">
+                  <i class="bi bi-exclamation-circle me-1"></i>Invalid Phone Number
+                </span>
+              </label>
+              <div class="input-group" style="flex-wrap:nowrap;">
 
-        <!-- Shown when role = user: pick a team lead -->
-         <div class="mb-3" id="assign-tl-div" style="display:none;">
-          <label class="form-label">
-            Assign Team Lead
-          </label>
-          <select name="assign_tl_id" class="form-select">
-            <option value="">— None / Assign Later —</option>
-            {% for tl in available_tls %}
-            <option value="{{ tl.id }}">{{ tl.username }}</option>
-            {% endfor %}
-          </select>
-        </div>
+                <!-- Custom country code dropdown -->
+                <input type="hidden" name="country_code" id="country-code-input" value="+91">
+                <div class="country-dd" id="country-dd">
+                  <button type="button" class="country-dd-btn" id="country-dd-btn" aria-haspopup="listbox"
+                    aria-expanded="false">
+                    <img src="https://flagcdn.com/20x15/in.png" id="selected-flag" alt="India">
+                    <span id="selected-code">+91</span>
+                    <i class="bi bi-chevron-down dd-chevron"></i>
+                  </button>
+                  <div class="country-dd-menu" id="country-dd-menu" role="listbox">
+                    <div class="country-option" data-code="+93" data-iso="af" data-name="Afghanistan" role="option">
+                      <img src="https://flagcdn.com/20x15/af.png" alt="">
+                      <span class="c-name">Afghanistan</span>
+                      <span class="c-code">+93</span>
+                    </div>
+                    <div class="country-option" data-code="+355" data-iso="al" data-name="Albania" role="option">
+                      <img src="https://flagcdn.com/20x15/al.png" alt="">
+                      <span class="c-name">Albania</span>
+                      <span class="c-code">+355</span>
+                    </div>
+                    <div class="country-option" data-code="+213" data-iso="dz" data-name="Algeria" role="option">
+                      <img src="https://flagcdn.com/20x15/dz.png" alt="">
+                      <span class="c-name">Algeria</span>
+                      <span class="c-code">+213</span>
+                    </div>
+                    <div class="country-option" data-code="+1684" data-iso="as" data-name="American Samoa" role="option">
+                      <img src="https://flagcdn.com/20x15/as.png" alt="">
+                      <span class="c-name">American Samoa</span>
+                      <span class="c-code">+1684</span>
+                    </div>
+                    <div class="country-option" data-code="+376" data-iso="ad" data-name="Andorra" role="option">
+                      <img src="https://flagcdn.com/20x15/ad.png" alt="">
+                      <span class="c-name">Andorra</span>
+                      <span class="c-code">+376</span>
+                    </div>
+                    <div class="country-option" data-code="+244" data-iso="ao" data-name="Angola" role="option">
+                      <img src="https://flagcdn.com/20x15/ao.png" alt="">
+                      <span class="c-name">Angola</span>
+                      <span class="c-code">+244</span>
+                    </div>
+                    <div class="country-option" data-code="+1264" data-iso="ai" data-name="Anguilla" role="option">
+                      <img src="https://flagcdn.com/20x15/ai.png" alt="">
+                      <span class="c-name">Anguilla</span>
+                      <span class="c-code">+1264</span>
+                    </div>
+                    <div class="country-option" data-code="+672" data-iso="aq" data-name="Antarctica" role="option">
+                      <img src="https://flagcdn.com/20x15/aq.png" alt="">
+                      <span class="c-name">Antarctica</span>
+                      <span class="c-code">+672</span>
+                    </div>
+                    <div class="country-option" data-code="+1268" data-iso="ag" data-name="Antigua and Barbuda" role="option">
+                      <img src="https://flagcdn.com/20x15/ag.png" alt="">
+                      <span class="c-name">Antigua and Barbuda</span>
+                      <span class="c-code">+1268</span>
+                    </div>
+                    <div class="country-option" data-code="+54" data-iso="ar" data-name="Argentina" role="option">
+                      <img src="https://flagcdn.com/20x15/ar.png" alt="">
+                      <span class="c-name">Argentina</span>
+                      <span class="c-code">+54</span>
+                    </div>
+                    <div class="country-option" data-code="+374" data-iso="am" data-name="Armenia" role="option">
+                      <img src="https://flagcdn.com/20x15/am.png" alt="">
+                      <span class="c-name">Armenia</span>
+                      <span class="c-code">+374</span>
+                    </div>
+                    <div class="country-option" data-code="+297" data-iso="aw" data-name="Aruba" role="option">
+                      <img src="https://flagcdn.com/20x15/aw.png" alt="">
+                      <span class="c-name">Aruba</span>
+                      <span class="c-code">+297</span>
+                    </div>
+                    <div class="country-option" data-code="+61" data-iso="au" data-name="Australia" role="option">
+                      <img src="https://flagcdn.com/20x15/au.png" alt="">
+                      <span class="c-name">Australia</span>
+                      <span class="c-code">+61</span>
+                    </div>
+                    <div class="country-option" data-code="+43" data-iso="at" data-name="Austria" role="option">
+                      <img src="https://flagcdn.com/20x15/at.png" alt="">
+                      <span class="c-name">Austria</span>
+                      <span class="c-code">+43</span>
+                    </div>
+                    <div class="country-option" data-code="+994" data-iso="az" data-name="Azerbaijan" role="option">
+                      <img src="https://flagcdn.com/20x15/az.png" alt="">
+                      <span class="c-name">Azerbaijan</span>
+                      <span class="c-code">+994</span>
+                    </div>
+                    <div class="country-option" data-code="+1242" data-iso="bs" data-name="Bahamas" role="option">
+                      <img src="https://flagcdn.com/20x15/bs.png" alt="">
+                      <span class="c-name">Bahamas</span>
+                      <span class="c-code">+1242</span>
+                    </div>
+                    <div class="country-option" data-code="+973" data-iso="bh" data-name="Bahrain" role="option">
+                      <img src="https://flagcdn.com/20x15/bh.png" alt="">
+                      <span class="c-name">Bahrain</span>
+                      <span class="c-code">+973</span>
+                    </div>
+                    <div class="country-option" data-code="+880" data-iso="bd" data-name="Bangladesh" role="option">
+                      <img src="https://flagcdn.com/20x15/bd.png" alt="">
+                      <span class="c-name">Bangladesh</span>
+                      <span class="c-code">+880</span>
+                    </div>
+                    <div class="country-option" data-code="+1246" data-iso="bb" data-name="Barbados" role="option">
+                      <img src="https://flagcdn.com/20x15/bb.png" alt="">
+                      <span class="c-name">Barbados</span>
+                      <span class="c-code">+1246</span>
+                    </div>
+                    <div class="country-option" data-code="+375" data-iso="by" data-name="Belarus" role="option">
+                      <img src="https://flagcdn.com/20x15/by.png" alt="">
+                      <span class="c-name">Belarus</span>
+                      <span class="c-code">+375</span>
+                    </div>
+                    <div class="country-option" data-code="+32" data-iso="be" data-name="Belgium" role="option">
+                      <img src="https://flagcdn.com/20x15/be.png" alt="">
+                      <span class="c-name">Belgium</span>
+                      <span class="c-code">+32</span>
+                    </div>
+                    <div class="country-option" data-code="+501" data-iso="bz" data-name="Belize" role="option">
+                      <img src="https://flagcdn.com/20x15/bz.png" alt="">
+                      <span class="c-name">Belize</span>
+                      <span class="c-code">+501</span>
+                    </div>
+                    <div class="country-option" data-code="+229" data-iso="bj" data-name="Benin" role="option">
+                      <img src="https://flagcdn.com/20x15/bj.png" alt="">
+                      <span class="c-name">Benin</span>
+                      <span class="c-code">+229</span>
+                    </div>
+                    <div class="country-option" data-code="+1441" data-iso="bm" data-name="Bermuda" role="option">
+                      <img src="https://flagcdn.com/20x15/bm.png" alt="">
+                      <span class="c-name">Bermuda</span>
+                      <span class="c-code">+1441</span>
+                    </div>
+                    <div class="country-option" data-code="+975" data-iso="bt" data-name="Bhutan" role="option">
+                      <img src="https://flagcdn.com/20x15/bt.png" alt="">
+                      <span class="c-name">Bhutan</span>
+                      <span class="c-code">+975</span>
+                    </div>
+                    <div class="country-option" data-code="+591" data-iso="bo" data-name="Bolivia" role="option">
+                      <img src="https://flagcdn.com/20x15/bo.png" alt="">
+                      <span class="c-name">Bolivia</span>
+                      <span class="c-code">+591</span>
+                    </div>
+                    <div class="country-option" data-code="+387" data-iso="ba" data-name="Bosnia and Herzegovina" role="option">
+                      <img src="https://flagcdn.com/20x15/ba.png" alt="">
+                      <span class="c-name">Bosnia and Herzegovina</span>
+                      <span class="c-code">+387</span>
+                    </div>
+                    <div class="country-option" data-code="+267" data-iso="bw" data-name="Botswana" role="option">
+                      <img src="https://flagcdn.com/20x15/bw.png" alt="">
+                      <span class="c-name">Botswana</span>
+                      <span class="c-code">+267</span>
+                    </div>
+                    <div class="country-option" data-code="+55" data-iso="br" data-name="Brazil" role="option">
+                      <img src="https://flagcdn.com/20x15/br.png" alt="">
+                      <span class="c-name">Brazil</span>
+                      <span class="c-code">+55</span>
+                    </div>
+                    <div class="country-option" data-code="+246" data-iso="io" data-name="British Indian Ocean Territory" role="option">
+                      <img src="https://flagcdn.com/20x15/io.png" alt="">
+                      <span class="c-name">British Indian Ocean Territory</span>
+                      <span class="c-code">+246</span>
+                    </div>
+                    <div class="country-option" data-code="+1284" data-iso="vg" data-name="British Virgin Islands" role="option">
+                      <img src="https://flagcdn.com/20x15/vg.png" alt="">
+                      <span class="c-name">British Virgin Islands</span>
+                      <span class="c-code">+1284</span>
+                    </div>
+                    <div class="country-option" data-code="+673" data-iso="bn" data-name="Brunei" role="option">
+                      <img src="https://flagcdn.com/20x15/bn.png" alt="">
+                      <span class="c-name">Brunei</span>
+                      <span class="c-code">+673</span>
+                    </div>
+                    <div class="country-option" data-code="+359" data-iso="bg" data-name="Bulgaria" role="option">
+                      <img src="https://flagcdn.com/20x15/bg.png" alt="">
+                      <span class="c-name">Bulgaria</span>
+                      <span class="c-code">+359</span>
+                    </div>
+                    <div class="country-option" data-code="+226" data-iso="bf" data-name="Burkina Faso" role="option">
+                      <img src="https://flagcdn.com/20x15/bf.png" alt="">
+                      <span class="c-name">Burkina Faso</span>
+                      <span class="c-code">+226</span>
+                    </div>
+                    <div class="country-option" data-code="+257" data-iso="bi" data-name="Burundi" role="option">
+                      <img src="https://flagcdn.com/20x15/bi.png" alt="">
+                      <span class="c-name">Burundi</span>
+                      <span class="c-code">+257</span>
+                    </div>
+                    <div class="country-option" data-code="+855" data-iso="kh" data-name="Cambodia" role="option">
+                      <img src="https://flagcdn.com/20x15/kh.png" alt="">
+                      <span class="c-name">Cambodia</span>
+                      <span class="c-code">+855</span>
+                    </div>
+                    <div class="country-option" data-code="+237" data-iso="cm" data-name="Cameroon" role="option">
+                      <img src="https://flagcdn.com/20x15/cm.png" alt="">
+                      <span class="c-name">Cameroon</span>
+                      <span class="c-code">+237</span>
+                    </div>
+                    <div class="country-option" data-code="+1" data-iso="ca" data-name="Canada" role="option">
+                      <img src="https://flagcdn.com/20x15/ca.png" alt="">
+                      <span class="c-name">Canada</span>
+                      <span class="c-code">+1</span>
+                    </div>
+                    <div class="country-option" data-code="+238" data-iso="cv" data-name="Cape Verde" role="option">
+                      <img src="https://flagcdn.com/20x15/cv.png" alt="">
+                      <span class="c-name">Cape Verde</span>
+                      <span class="c-code">+238</span>
+                    </div>
+                    <div class="country-option" data-code="+1345" data-iso="ky" data-name="Cayman Islands" role="option">
+                      <img src="https://flagcdn.com/20x15/ky.png" alt="">
+                      <span class="c-name">Cayman Islands</span>
+                      <span class="c-code">+1345</span>
+                    </div>
+                    <div class="country-option" data-code="+236" data-iso="cf" data-name="Central African Republic" role="option">
+                      <img src="https://flagcdn.com/20x15/cf.png" alt="">
+                      <span class="c-name">Central African Republic</span>
+                      <span class="c-code">+236</span>
+                    </div>
+                    <div class="country-option" data-code="+235" data-iso="td" data-name="Chad" role="option">
+                      <img src="https://flagcdn.com/20x15/td.png" alt="">
+                      <span class="c-name">Chad</span>
+                      <span class="c-code">+235</span>
+                    </div>
+                    <div class="country-option" data-code="+56" data-iso="cl" data-name="Chile" role="option">
+                      <img src="https://flagcdn.com/20x15/cl.png" alt="">
+                      <span class="c-name">Chile</span>
+                      <span class="c-code">+56</span>
+                    </div>
+                    <div class="country-option" data-code="+86" data-iso="cn" data-name="China" role="option">
+                      <img src="https://flagcdn.com/20x15/cn.png" alt="">
+                      <span class="c-name">China</span>
+                      <span class="c-code">+86</span>
+                    </div>
+                    <div class="country-option" data-code="+61" data-iso="cx" data-name="Christmas Island" role="option">
+                      <img src="https://flagcdn.com/20x15/cx.png" alt="">
+                      <span class="c-name">Christmas Island</span>
+                      <span class="c-code">+61</span>
+                    </div>
+                    <div class="country-option" data-code="+61" data-iso="cc" data-name="Cocos (Keeling) Islands" role="option">
+                      <img src="https://flagcdn.com/20x15/cc.png" alt="">
+                      <span class="c-name">Cocos (Keeling) Islands</span>
+                      <span class="c-code">+61</span>
+                    </div>
+                    <div class="country-option" data-code="+57" data-iso="co" data-name="Colombia" role="option">
+                      <img src="https://flagcdn.com/20x15/co.png" alt="">
+                      <span class="c-name">Colombia</span>
+                      <span class="c-code">+57</span>
+                    </div>
+                    <div class="country-option" data-code="+269" data-iso="km" data-name="Comoros" role="option">
+                      <img src="https://flagcdn.com/20x15/km.png" alt="">
+                      <span class="c-name">Comoros</span>
+                      <span class="c-code">+269</span>
+                    </div>
+                    <div class="country-option" data-code="+242" data-iso="cg" data-name="Congo" role="option">
+                      <img src="https://flagcdn.com/20x15/cg.png" alt="">
+                      <span class="c-name">Congo</span>
+                      <span class="c-code">+242</span>
+                    </div>
+                    <div class="country-option" data-code="+243" data-iso="cd" data-name="Democratic Republic of the Congo" role="option">
+                      <img src="https://flagcdn.com/20x15/cd.png" alt="">
+                      <span class="c-name">Democratic Republic of the Congo</span>
+                      <span class="c-code">+243</span>
+                    </div>
+                    <div class="country-option" data-code="+682" data-iso="ck" data-name="Cook Islands" role="option">
+                      <img src="https://flagcdn.com/20x15/ck.png" alt="">
+                      <span class="c-name">Cook Islands</span>
+                      <span class="c-code">+682</span>
+                    </div>
+                    <div class="country-option" data-code="+506" data-iso="cr" data-name="Costa Rica" role="option">
+                      <img src="https://flagcdn.com/20x15/cr.png" alt="">
+                      <span class="c-name">Costa Rica</span>
+                      <span class="c-code">+506</span>
+                    </div>
+                    <div class="country-option" data-code="+385" data-iso="hr" data-name="Croatia" role="option">
+                      <img src="https://flagcdn.com/20x15/hr.png" alt="">
+                      <span class="c-name">Croatia</span>
+                      <span class="c-code">+385</span>
+                    </div>
+                    <div class="country-option" data-code="+53" data-iso="cu" data-name="Cuba" role="option">
+                      <img src="https://flagcdn.com/20x15/cu.png" alt="">
+                      <span class="c-name">Cuba</span>
+                      <span class="c-code">+53</span>
+                    </div>
+                    <div class="country-option" data-code="+357" data-iso="cy" data-name="Cyprus" role="option">
+                      <img src="https://flagcdn.com/20x15/cy.png" alt="">
+                      <span class="c-name">Cyprus</span>
+                      <span class="c-code">+357</span>
+                    </div>
+                    <div class="country-option" data-code="+420" data-iso="cz" data-name="Czech Republic" role="option">
+                      <img src="https://flagcdn.com/20x15/cz.png" alt="">
+                      <span class="c-name">Czech Republic</span>
+                      <span class="c-code">+420</span>
+                    </div>
+                    <div class="country-option" data-code="+45" data-iso="dk" data-name="Denmark" role="option">
+                      <img src="https://flagcdn.com/20x15/dk.png" alt="">
+                      <span class="c-name">Denmark</span>
+                      <span class="c-code">+45</span>
+                    </div>
+                    <div class="country-option" data-code="+253" data-iso="dj" data-name="Djibouti" role="option">
+                      <img src="https://flagcdn.com/20x15/dj.png" alt="">
+                      <span class="c-name">Djibouti</span>
+                      <span class="c-code">+253</span>
+                    </div>
+                    <div class="country-option" data-code="+1767" data-iso="dm" data-name="Dominica" role="option">
+                      <img src="https://flagcdn.com/20x15/dm.png" alt="">
+                      <span class="c-name">Dominica</span>
+                      <span class="c-code">+1767</span>
+                    </div>
+                    <div class="country-option" data-code="+1 809" data-iso="do" data-name="Dominican Republic" role="option">
+                      <img src="https://flagcdn.com/20x15/do.png" alt="">
+                      <span class="c-name">Dominican Republic</span>
+                      <span class="c-code">+1 809</span>
+                    </div>
+                    <div class="country-option" data-code="+593" data-iso="ec" data-name="Ecuador" role="option">
+                      <img src="https://flagcdn.com/20x15/ec.png" alt="">
+                      <span class="c-name">Ecuador</span>
+                      <span class="c-code">+593</span>
+                    </div>
+                    <div class="country-option" data-code="+20" data-iso="eg" data-name="Egypt" role="option">
+                      <img src="https://flagcdn.com/20x15/eg.png" alt="">
+                      <span class="c-name">Egypt</span>
+                      <span class="c-code">+20</span>
+                    </div>
+                    <div class="country-option" data-code="+503" data-iso="sv" data-name="El Salvador" role="option">
+                      <img src="https://flagcdn.com/20x15/sv.png" alt="">
+                      <span class="c-name">El Salvador</span>
+                      <span class="c-code">+503</span>
+                    </div>
+                    <div class="country-option" data-code="+240" data-iso="gq" data-name="Equatorial Guinea" role="option">
+                      <img src="https://flagcdn.com/20x15/gq.png" alt="">
+                      <span class="c-name">Equatorial Guinea</span>
+                      <span class="c-code">+240</span>
+                    </div>
+                    <div class="country-option" data-code="+291" data-iso="er" data-name="Eritrea" role="option">
+                      <img src="https://flagcdn.com/20x15/er.png" alt="">
+                      <span class="c-name">Eritrea</span>
+                      <span class="c-code">+291</span>
+                    </div>
+                    <div class="country-option" data-code="+372" data-iso="ee" data-name="Estonia" role="option">
+                      <img src="https://flagcdn.com/20x15/ee.png" alt="">
+                      <span class="c-name">Estonia</span>
+                      <span class="c-code">+372</span>
+                    </div>
+                    <div class="country-option" data-code="+268" data-iso="sz" data-name="Eswatini" role="option">
+                      <img src="https://flagcdn.com/20x15/sz.png" alt="">
+                      <span class="c-name">Eswatini</span>
+                      <span class="c-code">+268</span>
+                    </div>
+                    <div class="country-option" data-code="+251" data-iso="et" data-name="Ethiopia" role="option">
+                      <img src="https://flagcdn.com/20x15/et.png" alt="">
+                      <span class="c-name">Ethiopia</span>
+                      <span class="c-code">+251</span>
+                    </div>
+                    <div class="country-option" data-code="+500" data-iso="fk" data-name="Falkland Islands" role="option">
+                      <img src="https://flagcdn.com/20x15/fk.png" alt="">
+                      <span class="c-name">Falkland Islands</span>
+                      <span class="c-code">+500</span>
+                    </div>
+                    <div class="country-option" data-code="+298" data-iso="fo" data-name="Faroe Islands" role="option">
+                      <img src="https://flagcdn.com/20x15/fo.png" alt="">
+                      <span class="c-name">Faroe Islands</span>
+                      <span class="c-code">+298</span>
+                    </div>
+                    <div class="country-option" data-code="+679" data-iso="fj" data-name="Fiji" role="option">
+                      <img src="https://flagcdn.com/20x15/fj.png" alt="">
+                      <span class="c-name">Fiji</span>
+                      <span class="c-code">+679</span>
+                    </div>
+                    <div class="country-option" data-code="+358" data-iso="fi" data-name="Finland" role="option">
+                      <img src="https://flagcdn.com/20x15/fi.png" alt="">
+                      <span class="c-name">Finland</span>
+                      <span class="c-code">+358</span>
+                    </div>
+                    <div class="country-option" data-code="+33" data-iso="fr" data-name="France" role="option">
+                      <img src="https://flagcdn.com/20x15/fr.png" alt="">
+                      <span class="c-name">France</span>
+                      <span class="c-code">+33</span>
+                    </div>
+                    <div class="country-option" data-code="+594" data-iso="gf" data-name="French Guiana" role="option">
+                      <img src="https://flagcdn.com/20x15/gf.png" alt="">
+                      <span class="c-name">French Guiana</span>
+                      <span class="c-code">+594</span>
+                    </div>
+                    <div class="country-option" data-code="+689" data-iso="pf" data-name="French Polynesia" role="option">
+                      <img src="https://flagcdn.com/20x15/pf.png" alt="">
+                      <span class="c-name">French Polynesia</span>
+                      <span class="c-code">+689</span>
+                    </div>
+                    <div class="country-option" data-code="+241" data-iso="ga" data-name="Gabon" role="option">
+                      <img src="https://flagcdn.com/20x15/ga.png" alt="">
+                      <span class="c-name">Gabon</span>
+                      <span class="c-code">+241</span>
+                    </div>
+                    <div class="country-option" data-code="+220" data-iso="gm" data-name="Gambia" role="option">
+                      <img src="https://flagcdn.com/20x15/gm.png" alt="">
+                      <span class="c-name">Gambia</span>
+                      <span class="c-code">+220</span>
+                    </div>
+                    <div class="country-option" data-code="+995" data-iso="ge" data-name="Georgia" role="option">
+                      <img src="https://flagcdn.com/20x15/ge.png" alt="">
+                      <span class="c-name">Georgia</span>
+                      <span class="c-code">+995</span>
+                    </div>
+                    <div class="country-option" data-code="+49" data-iso="de" data-name="Germany" role="option">
+                      <img src="https://flagcdn.com/20x15/de.png" alt="">
+                      <span class="c-name">Germany</span>
+                      <span class="c-code">+49</span>
+                    </div>
+                    <div class="country-option" data-code="+233" data-iso="gh" data-name="Ghana" role="option">
+                      <img src="https://flagcdn.com/20x15/gh.png" alt="">
+                      <span class="c-name">Ghana</span>
+                      <span class="c-code">+233</span>
+                    </div>
+                    <div class="country-option" data-code="+350" data-iso="gi" data-name="Gibraltar" role="option">
+                      <img src="https://flagcdn.com/20x15/gi.png" alt="">
+                      <span class="c-name">Gibraltar</span>
+                      <span class="c-code">+350</span>
+                    </div>
+                    <div class="country-option" data-code="+30" data-iso="gr" data-name="Greece" role="option">
+                      <img src="https://flagcdn.com/20x15/gr.png" alt="">
+                      <span class="c-name">Greece</span>
+                      <span class="c-code">+30</span>
+                    </div>
+                    <div class="country-option" data-code="+299" data-iso="gl" data-name="Greenland" role="option">
+                      <img src="https://flagcdn.com/20x15/gl.png" alt="">
+                      <span class="c-name">Greenland</span>
+                      <span class="c-code">+299</span>
+                    </div>
+                    <div class="country-option" data-code="+1473" data-iso="gd" data-name="Grenada" role="option">
+                      <img src="https://flagcdn.com/20x15/gd.png" alt="">
+                      <span class="c-name">Grenada</span>
+                      <span class="c-code">+1473</span>
+                    </div>
+                    <div class="country-option" data-code="+590" data-iso="gp" data-name="Guadeloupe" role="option">
+                      <img src="https://flagcdn.com/20x15/gp.png" alt="">
+                      <span class="c-name">Guadeloupe</span>
+                      <span class="c-code">+590</span>
+                    </div>
+                    <div class="country-option" data-code="+1671" data-iso="gu" data-name="Guam" role="option">
+                      <img src="https://flagcdn.com/20x15/gu.png" alt="">
+                      <span class="c-name">Guam</span>
+                      <span class="c-code">+1671</span>
+                    </div>
+                    <div class="country-option" data-code="+502" data-iso="gt" data-name="Guatemala" role="option">
+                      <img src="https://flagcdn.com/20x15/gt.png" alt="">
+                      <span class="c-name">Guatemala</span>
+                      <span class="c-code">+502</span>
+                    </div>
+                    <div class="country-option" data-code="+44" data-iso="gg" data-name="Guernsey" role="option">
+                      <img src="https://flagcdn.com/20x15/gg.png" alt="">
+                      <span class="c-name">Guernsey</span>
+                      <span class="c-code">+44</span>
+                    </div>
+                    <div class="country-option" data-code="+224" data-iso="gn" data-name="Guinea" role="option">
+                      <img src="https://flagcdn.com/20x15/gn.png" alt="">
+                      <span class="c-name">Guinea</span>
+                      <span class="c-code">+224</span>
+                    </div>
+                    <div class="country-option" data-code="+245" data-iso="gw" data-name="Guinea-Bissau" role="option">
+                      <img src="https://flagcdn.com/20x15/gw.png" alt="">
+                      <span class="c-name">Guinea-Bissau</span>
+                      <span class="c-code">+245</span>
+                    </div>
+                    <div class="country-option" data-code="+592" data-iso="gy" data-name="Guyana" role="option">
+                      <img src="https://flagcdn.com/20x15/gy.png" alt="">
+                      <span class="c-name">Guyana</span>
+                      <span class="c-code">+592</span>
+                    </div>
+                    <div class="country-option" data-code="+509" data-iso="ht" data-name="Haiti" role="option">
+                      <img src="https://flagcdn.com/20x15/ht.png" alt="">
+                      <span class="c-name">Haiti</span>
+                      <span class="c-code">+509</span>
+                    </div>
+                    <div class="country-option" data-code="+504" data-iso="hn" data-name="Honduras" role="option">
+                      <img src="https://flagcdn.com/20x15/hn.png" alt="">
+                      <span class="c-name">Honduras</span>
+                      <span class="c-code">+504</span>
+                    </div>
+                    <div class="country-option" data-code="+852" data-iso="hk" data-name="Hong Kong" role="option">
+                      <img src="https://flagcdn.com/20x15/hk.png" alt="">
+                      <span class="c-name">Hong Kong</span>
+                      <span class="c-code">+852</span>
+                    </div>
+                    <div class="country-option" data-code="+36" data-iso="hu" data-name="Hungary" role="option">
+                      <img src="https://flagcdn.com/20x15/hu.png" alt="">
+                      <span class="c-name">Hungary</span>
+                      <span class="c-code">+36</span>
+                    </div>
+                    <div class="country-option" data-code="+354" data-iso="is" data-name="Iceland" role="option">
+                      <img src="https://flagcdn.com/20x15/is.png" alt="">
+                      <span class="c-name">Iceland</span>
+                      <span class="c-code">+354</span>
+                    </div>
+                    <div class="country-option" data-code="+91" data-iso="in" data-name="India" role="option">
+                      <img src="https://flagcdn.com/20x15/in.png" alt="">
+                      <span class="c-name">India</span>
+                      <span class="c-code">+91</span>
+                    </div>
+                    <div class="country-option" data-code="+62" data-iso="id" data-name="Indonesia" role="option">
+                      <img src="https://flagcdn.com/20x15/id.png" alt="">
+                      <span class="c-name">Indonesia</span>
+                      <span class="c-code">+62</span>
+                    </div>
+                    <div class="country-option" data-code="+98" data-iso="ir" data-name="Iran" role="option">
+                      <img src="https://flagcdn.com/20x15/ir.png" alt="">
+                      <span class="c-name">Iran</span>
+                      <span class="c-code">+98</span>
+                    </div>
+                    <div class="country-option" data-code="+964" data-iso="iq" data-name="Iraq" role="option">
+                      <img src="https://flagcdn.com/20x15/iq.png" alt="">
+                      <span class="c-name">Iraq</span>
+                      <span class="c-code">+964</span>
+                    </div>
+                    <div class="country-option" data-code="+353" data-iso="ie" data-name="Ireland" role="option">
+                      <img src="https://flagcdn.com/20x15/ie.png" alt="">
+                      <span class="c-name">Ireland</span>
+                      <span class="c-code">+353</span>
+                    </div>
+                    <div class="country-option" data-code="+44" data-iso="im" data-name="Isle of Man" role="option">
+                      <img src="https://flagcdn.com/20x15/im.png" alt="">
+                      <span class="c-name">Isle of Man</span>
+                      <span class="c-code">+44</span>
+                    </div>
+                    <div class="country-option" data-code="+972" data-iso="il" data-name="Israel" role="option">
+                      <img src="https://flagcdn.com/20x15/il.png" alt="">
+                      <span class="c-name">Israel</span>
+                      <span class="c-code">+972</span>
+                    </div>
+                    <div class="country-option" data-code="+39" data-iso="it" data-name="Italy" role="option">
+                      <img src="https://flagcdn.com/20x15/it.png" alt="">
+                      <span class="c-name">Italy</span>
+                      <span class="c-code">+39</span>
+                    </div>
+                    <div class="country-option" data-code="+1876" data-iso="jm" data-name="Jamaica" role="option">
+                      <img src="https://flagcdn.com/20x15/jm.png" alt="">
+                      <span class="c-name">Jamaica</span>
+                      <span class="c-code">+1876</span>
+                    </div>
+                    <div class="country-option" data-code="+81" data-iso="jp" data-name="Japan" role="option">
+                      <img src="https://flagcdn.com/20x15/jp.png" alt="">
+                      <span class="c-name">Japan</span>
+                      <span class="c-code">+81</span>
+                    </div>
+                    <div class="country-option" data-code="+44" data-iso="je" data-name="Jersey" role="option">
+                      <img src="https://flagcdn.com/20x15/je.png" alt="">
+                      <span class="c-name">Jersey</span>
+                      <span class="c-code">+44</span>
+                    </div>
+                    <div class="country-option" data-code="+962" data-iso="jo" data-name="Jordan" role="option">
+                      <img src="https://flagcdn.com/20x15/jo.png" alt="">
+                      <span class="c-name">Jordan</span>
+                      <span class="c-code">+962</span>
+                    </div>
+                    <div class="country-option" data-code="+7" data-iso="kz" data-name="Kazakhstan" role="option">
+                      <img src="https://flagcdn.com/20x15/kz.png" alt="">
+                      <span class="c-name">Kazakhstan</span>
+                      <span class="c-code">+7</span>
+                    </div>
+                    <div class="country-option" data-code="+254" data-iso="ke" data-name="Kenya" role="option">
+                      <img src="https://flagcdn.com/20x15/ke.png" alt="">
+                      <span class="c-name">Kenya</span>
+                      <span class="c-code">+254</span>
+                    </div>
+                    <div class="country-option" data-code="+686" data-iso="ki" data-name="Kiribati" role="option">
+                      <img src="https://flagcdn.com/20x15/ki.png" alt="">
+                      <span class="c-name">Kiribati</span>
+                      <span class="c-code">+686</span>
+                    </div>
+                    <div class="country-option" data-code="+383" data-iso="xk" data-name="Kosovo" role="option">
+                      <img src="https://flagcdn.com/20x15/xk.png" alt="">
+                      <span class="c-name">Kosovo</span>
+                      <span class="c-code">+383</span>
+                    </div>
+                    <div class="country-option" data-code="+965" data-iso="kw" data-name="Kuwait" role="option">
+                      <img src="https://flagcdn.com/20x15/kw.png" alt="">
+                      <span class="c-name">Kuwait</span>
+                      <span class="c-code">+965</span>
+                    </div>
+                    <div class="country-option" data-code="+996" data-iso="kg" data-name="Kyrgyzstan" role="option">
+                      <img src="https://flagcdn.com/20x15/kg.png" alt="">
+                      <span class="c-name">Kyrgyzstan</span>
+                      <span class="c-code">+996</span>
+                    </div>
+                    <div class="country-option" data-code="+856" data-iso="la" data-name="Laos" role="option">
+                      <img src="https://flagcdn.com/20x15/la.png" alt="">
+                      <span class="c-name">Laos</span>
+                      <span class="c-code">+856</span>
+                    </div>
+                    <div class="country-option" data-code="+371" data-iso="lv" data-name="Latvia" role="option">
+                      <img src="https://flagcdn.com/20x15/lv.png" alt="">
+                      <span class="c-name">Latvia</span>
+                      <span class="c-code">+371</span>
+                    </div>
+                    <div class="country-option" data-code="+961" data-iso="lb" data-name="Lebanon" role="option">
+                      <img src="https://flagcdn.com/20x15/lb.png" alt="">
+                      <span class="c-name">Lebanon</span>
+                      <span class="c-code">+961</span>
+                    </div>
+                    <div class="country-option" data-code="+266" data-iso="ls" data-name="Lesotho" role="option">
+                      <img src="https://flagcdn.com/20x15/ls.png" alt="">
+                      <span class="c-name">Lesotho</span>
+                      <span class="c-code">+266</span>
+                    </div>
+                    <div class="country-option" data-code="+231" data-iso="lr" data-name="Liberia" role="option">
+                      <img src="https://flagcdn.com/20x15/lr.png" alt="">
+                      <span class="c-name">Liberia</span>
+                      <span class="c-code">+231</span>
+                    </div>
+                    <div class="country-option" data-code="+218" data-iso="ly" data-name="Libya" role="option">
+                      <img src="https://flagcdn.com/20x15/ly.png" alt="">
+                      <span class="c-name">Libya</span>
+                      <span class="c-code">+218</span>
+                    </div>
+                    <div class="country-option" data-code="+423" data-iso="li" data-name="Liechtenstein" role="option">
+                      <img src="https://flagcdn.com/20x15/li.png" alt="">
+                      <span class="c-name">Liechtenstein</span>
+                      <span class="c-code">+423</span>
+                    </div>
+                    <div class="country-option" data-code="+370" data-iso="lt" data-name="Lithuania" role="option">
+                      <img src="https://flagcdn.com/20x15/lt.png" alt="">
+                      <span class="c-name">Lithuania</span>
+                      <span class="c-code">+370</span>
+                    </div>
+                    <div class="country-option" data-code="+352" data-iso="lu" data-name="Luxembourg" role="option">
+                      <img src="https://flagcdn.com/20x15/lu.png" alt="">
+                      <span class="c-name">Luxembourg</span>
+                      <span class="c-code">+352</span>
+                    </div>
+                    <div class="country-option" data-code="+853" data-iso="mo" data-name="Macau" role="option">
+                      <img src="https://flagcdn.com/20x15/mo.png" alt="">
+                      <span class="c-name">Macau</span>
+                      <span class="c-code">+853</span>
+                    </div>
+                    <div class="country-option" data-code="+389" data-iso="mk" data-name="North Macedonia" role="option">
+                      <img src="https://flagcdn.com/20x15/mk.png" alt="">
+                      <span class="c-name">North Macedonia</span>
+                      <span class="c-code">+389</span>
+                    </div>
+                    <div class="country-option" data-code="+261" data-iso="mg" data-name="Madagascar" role="option">
+                      <img src="https://flagcdn.com/20x15/mg.png" alt="">
+                      <span class="c-name">Madagascar</span>
+                      <span class="c-code">+261</span>
+                    </div>
+                    <div class="country-option" data-code="+265" data-iso="mw" data-name="Malawi" role="option">
+                      <img src="https://flagcdn.com/20x15/mw.png" alt="">
+                      <span class="c-name">Malawi</span>
+                      <span class="c-code">+265</span>
+                    </div>
+                    <div class="country-option" data-code="+60" data-iso="my" data-name="Malaysia" role="option">
+                      <img src="https://flagcdn.com/20x15/my.png" alt="">
+                      <span class="c-name">Malaysia</span>
+                      <span class="c-code">+60</span>
+                    </div>
+                    <div class="country-option" data-code="+960" data-iso="mv" data-name="Maldives" role="option">
+                      <img src="https://flagcdn.com/20x15/mv.png" alt="">
+                      <span class="c-name">Maldives</span>
+                      <span class="c-code">+960</span>
+                    </div>
+                    <div class="country-option" data-code="+223" data-iso="ml" data-name="Mali" role="option">
+                      <img src="https://flagcdn.com/20x15/ml.png" alt="">
+                      <span class="c-name">Mali</span>
+                      <span class="c-code">+223</span>
+                    </div>
+                    <div class="country-option" data-code="+356" data-iso="mt" data-name="Malta" role="option">
+                      <img src="https://flagcdn.com/20x15/mt.png" alt="">
+                      <span class="c-name">Malta</span>
+                      <span class="c-code">+356</span>
+                    </div>
+                    <div class="country-option" data-code="+692" data-iso="mh" data-name="Marshall Islands" role="option">
+                      <img src="https://flagcdn.com/20x15/mh.png" alt="">
+                      <span class="c-name">Marshall Islands</span>
+                      <span class="c-code">+692</span>
+                    </div>
+                    <div class="country-option" data-code="+596" data-iso="mq" data-name="Martinique" role="option">
+                      <img src="https://flagcdn.com/20x15/mq.png" alt="">
+                      <span class="c-name">Martinique</span>
+                      <span class="c-code">+596</span>
+                    </div>
+                    <div class="country-option" data-code="+222" data-iso="mr" data-name="Mauritania" role="option">
+                      <img src="https://flagcdn.com/20x15/mr.png" alt="">
+                      <span class="c-name">Mauritania</span>
+                      <span class="c-code">+222</span>
+                    </div>
+                    <div class="country-option" data-code="+230" data-iso="mu" data-name="Mauritius" role="option">
+                      <img src="https://flagcdn.com/20x15/mu.png" alt="">
+                      <span class="c-name">Mauritius</span>
+                      <span class="c-code">+230</span>
+                    </div>
+                    <div class="country-option" data-code="+262" data-iso="yt" data-name="Mayotte" role="option">
+                      <img src="https://flagcdn.com/20x15/yt.png" alt="">
+                      <span class="c-name">Mayotte</span>
+                      <span class="c-code">+262</span>
+                    </div>
+                    <div class="country-option" data-code="+52" data-iso="mx" data-name="Mexico" role="option">
+                      <img src="https://flagcdn.com/20x15/mx.png" alt="">
+                      <span class="c-name">Mexico</span>
+                      <span class="c-code">+52</span>
+                    </div>
+                    <div class="country-option" data-code="+691" data-iso="fm" data-name="Micronesia" role="option">
+                      <img src="https://flagcdn.com/20x15/fm.png" alt="">
+                      <span class="c-name">Micronesia</span>
+                      <span class="c-code">+691</span>
+                    </div>
+                    <div class="country-option" data-code="+373" data-iso="md" data-name="Moldova" role="option">
+                      <img src="https://flagcdn.com/20x15/md.png" alt="">
+                      <span class="c-name">Moldova</span>
+                      <span class="c-code">+373</span>
+                    </div>
+                    <div class="country-option" data-code="+377" data-iso="mc" data-name="Monaco" role="option">
+                      <img src="https://flagcdn.com/20x15/mc.png" alt="">
+                      <span class="c-name">Monaco</span>
+                      <span class="c-code">+377</span>
+                    </div>
+                    <div class="country-option" data-code="+976" data-iso="mn" data-name="Mongolia" role="option">
+                      <img src="https://flagcdn.com/20x15/mn.png" alt="">
+                      <span class="c-name">Mongolia</span>
+                      <span class="c-code">+976</span>
+                    </div>
+                    <div class="country-option" data-code="+382" data-iso="me" data-name="Montenegro" role="option">
+                      <img src="https://flagcdn.com/20x15/me.png" alt="">
+                      <span class="c-name">Montenegro</span>
+                      <span class="c-code">+382</span>
+                    </div>
+                    <div class="country-option" data-code="+1664" data-iso="ms" data-name="Montserrat" role="option">
+                      <img src="https://flagcdn.com/20x15/ms.png" alt="">
+                      <span class="c-name">Montserrat</span>
+                      <span class="c-code">+1664</span>
+                    </div>
+                    <div class="country-option" data-code="+212" data-iso="ma" data-name="Morocco" role="option">
+                      <img src="https://flagcdn.com/20x15/ma.png" alt="">
+                      <span class="c-name">Morocco</span>
+                      <span class="c-code">+212</span>
+                    </div>
+                    <div class="country-option" data-code="+258" data-iso="mz" data-name="Mozambique" role="option">
+                      <img src="https://flagcdn.com/20x15/mz.png" alt="">
+                      <span class="c-name">Mozambique</span>
+                      <span class="c-code">+258</span>
+                    </div>
+                    <div class="country-option" data-code="+95" data-iso="mm" data-name="Myanmar" role="option">
+                      <img src="https://flagcdn.com/20x15/mm.png" alt="">
+                      <span class="c-name">Myanmar</span>
+                      <span class="c-code">+95</span>
+                    </div>
+                    <div class="country-option" data-code="+264" data-iso="na" data-name="Namibia" role="option">
+                      <img src="https://flagcdn.com/20x15/na.png" alt="">
+                      <span class="c-name">Namibia</span>
+                      <span class="c-code">+264</span>
+                    </div>
+                    <div class="country-option" data-code="+674" data-iso="nr" data-name="Nauru" role="option">
+                      <img src="https://flagcdn.com/20x15/nr.png" alt="">
+                      <span class="c-name">Nauru</span>
+                      <span class="c-code">+674</span>
+                    </div>
+                    <div class="country-option" data-code="+977" data-iso="np" data-name="Nepal" role="option">
+                      <img src="https://flagcdn.com/20x15/np.png" alt="">
+                      <span class="c-name">Nepal</span>
+                      <span class="c-code">+977</span>
+                    </div>
+                    <div class="country-option" data-code="+31" data-iso="nl" data-name="Netherlands" role="option">
+                      <img src="https://flagcdn.com/20x15/nl.png" alt="">
+                      <span class="c-name">Netherlands</span>
+                      <span class="c-code">+31</span>
+                    </div>
+                    <div class="country-option" data-code="+687" data-iso="nc" data-name="New Caledonia" role="option">
+                      <img src="https://flagcdn.com/20x15/nc.png" alt="">
+                      <span class="c-name">New Caledonia</span>
+                      <span class="c-code">+687</span>
+                    </div>
+                    <div class="country-option" data-code="+64" data-iso="nz" data-name="New Zealand" role="option">
+                      <img src="https://flagcdn.com/20x15/nz.png" alt="">
+                      <span class="c-name">New Zealand</span>
+                      <span class="c-code">+64</span>
+                    </div>
+                    <div class="country-option" data-code="+505" data-iso="ni" data-name="Nicaragua" role="option">
+                      <img src="https://flagcdn.com/20x15/ni.png" alt="">
+                      <span class="c-name">Nicaragua</span>
+                      <span class="c-code">+505</span>
+                    </div>
+                    <div class="country-option" data-code="+227" data-iso="ne" data-name="Niger" role="option">
+                      <img src="https://flagcdn.com/20x15/ne.png" alt="">
+                      <span class="c-name">Niger</span>
+                      <span class="c-code">+227</span>
+                    </div>
+                    <div class="country-option" data-code="+234" data-iso="ng" data-name="Nigeria" role="option">
+                      <img src="https://flagcdn.com/20x15/ng.png" alt="">
+                      <span class="c-name">Nigeria</span>
+                      <span class="c-code">+234</span>
+                    </div>
+                    <div class="country-option" data-code="+683" data-iso="nu" data-name="Niue" role="option">
+                      <img src="https://flagcdn.com/20x15/nu.png" alt="">
+                      <span class="c-name">Niue</span>
+                      <span class="c-code">+683</span>
+                    </div>
+                    <div class="country-option" data-code="+672" data-iso="nf" data-name="Norfolk Island" role="option">
+                      <img src="https://flagcdn.com/20x15/nf.png" alt="">
+                      <span class="c-name">Norfolk Island</span>
+                      <span class="c-code">+672</span>
+                    </div>
+                    <div class="country-option" data-code="+1670" data-iso="mp" data-name="Northern Mariana Islands" role="option">
+                      <img src="https://flagcdn.com/20x15/mp.png" alt="">
+                      <span class="c-name">Northern Mariana Islands</span>
+                      <span class="c-code">+1670</span>
+                    </div>
+                    <div class="country-option" data-code="+47" data-iso="no" data-name="Norway" role="option">
+                      <img src="https://flagcdn.com/20x15/no.png" alt="">
+                      <span class="c-name">Norway</span>
+                      <span class="c-code">+47</span>
+                    </div>
+                    <div class="country-option" data-code="+968" data-iso="om" data-name="Oman" role="option">
+                      <img src="https://flagcdn.com/20x15/om.png" alt="">
+                      <span class="c-name">Oman</span>
+                      <span class="c-code">+968</span>
+                    </div>
+                    <div class="country-option" data-code="+92" data-iso="pk" data-name="Pakistan" role="option">
+                      <img src="https://flagcdn.com/20x15/pk.png" alt="">
+                      <span class="c-name">Pakistan</span>
+                      <span class="c-code">+92</span>
+                    </div>
+                    <div class="country-option" data-code="+680" data-iso="pw" data-name="Palau" role="option">
+                      <img src="https://flagcdn.com/20x15/pw.png" alt="">
+                      <span class="c-name">Palau</span>
+                      <span class="c-code">+680</span>
+                    </div>
+                    <div class="country-option" data-code="+970" data-iso="ps" data-name="Palestine" role="option">
+                      <img src="https://flagcdn.com/20x15/ps.png" alt="">
+                      <span class="c-name">Palestine</span>
+                      <span class="c-code">+970</span>
+                    </div>
+                    <div class="country-option" data-code="+507" data-iso="pa" data-name="Panama" role="option">
+                      <img src="https://flagcdn.com/20x15/pa.png" alt="">
+                      <span class="c-name">Panama</span>
+                      <span class="c-code">+507</span>
+                    </div>
+                    <div class="country-option" data-code="+675" data-iso="pg" data-name="Papua New Guinea" role="option">
+                      <img src="https://flagcdn.com/20x15/pg.png" alt="">
+                      <span class="c-name">Papua New Guinea</span>
+                      <span class="c-code">+675</span>
+                    </div>
+                    <div class="country-option" data-code="+595" data-iso="py" data-name="Paraguay" role="option">
+                      <img src="https://flagcdn.com/20x15/py.png" alt="">
+                      <span class="c-name">Paraguay</span>
+                      <span class="c-code">+595</span>
+                    </div>
+                    <div class="country-option" data-code="+51" data-iso="pe" data-name="Peru" role="option">
+                      <img src="https://flagcdn.com/20x15/pe.png" alt="">
+                      <span class="c-name">Peru</span>
+                      <span class="c-code">+51</span>
+                    </div>
+                    <div class="country-option" data-code="+63" data-iso="ph" data-name="Philippines" role="option">
+                      <img src="https://flagcdn.com/20x15/ph.png" alt="">
+                      <span class="c-name">Philippines</span>
+                      <span class="c-code">+63</span>
+                    </div>
+                    <div class="country-option" data-code="+48" data-iso="pl" data-name="Poland" role="option">
+                      <img src="https://flagcdn.com/20x15/pl.png" alt="">
+                      <span class="c-name">Poland</span>
+                      <span class="c-code">+48</span>
+                    </div>
+                    <div class="country-option" data-code="+351" data-iso="pt" data-name="Portugal" role="option">
+                      <img src="https://flagcdn.com/20x15/pt.png" alt="">
+                      <span class="c-name">Portugal</span>
+                      <span class="c-code">+351</span>
+                    </div>
+                    <div class="country-option" data-code="+1 787" data-iso="pr" data-name="Puerto Rico" role="option">
+                      <img src="https://flagcdn.com/20x15/pr.png" alt="">
+                      <span class="c-name">Puerto Rico</span>
+                      <span class="c-code">+1 787</span>
+                    </div>
+                    <div class="country-option" data-code="+974" data-iso="qa" data-name="Qatar" role="option">
+                      <img src="https://flagcdn.com/20x15/qa.png" alt="">
+                      <span class="c-name">Qatar</span>
+                      <span class="c-code">+974</span>
+                    </div>
+                    <div class="country-option" data-code="+262" data-iso="re" data-name="Réunion" role="option">
+                      <img src="https://flagcdn.com/20x15/re.png" alt="">
+                      <span class="c-name">Réunion</span>
+                      <span class="c-code">+262</span>
+                    </div>
+                    <div class="country-option" data-code="+40" data-iso="ro" data-name="Romania" role="option">
+                      <img src="https://flagcdn.com/20x15/ro.png" alt="">
+                      <span class="c-name">Romania</span>
+                      <span class="c-code">+40</span>
+                    </div>
+                    <div class="country-option" data-code="+7" data-iso="ru" data-name="Russia" role="option">
+                      <img src="https://flagcdn.com/20x15/ru.png" alt="">
+                      <span class="c-name">Russia</span>
+                      <span class="c-code">+7</span>
+                    </div>
+                    <div class="country-option" data-code="+250" data-iso="rw" data-name="Rwanda" role="option">
+                      <img src="https://flagcdn.com/20x15/rw.png" alt="">
+                      <span class="c-name">Rwanda</span>
+                      <span class="c-code">+250</span>
+                    </div>
+                    <div class="country-option" data-code="+590" data-iso="bl" data-name="Saint Barthélemy" role="option">
+                      <img src="https://flagcdn.com/20x15/bl.png" alt="">
+                      <span class="c-name">Saint Barthélemy</span>
+                      <span class="c-code">+590</span>
+                    </div>
+                    <div class="country-option" data-code="+290" data-iso="sh" data-name="Saint Helena" role="option">
+                      <img src="https://flagcdn.com/20x15/sh.png" alt="">
+                      <span class="c-name">Saint Helena</span>
+                      <span class="c-code">+290</span>
+                    </div>
+                    <div class="country-option" data-code="+1869" data-iso="kn" data-name="Saint Kitts and Nevis" role="option">
+                      <img src="https://flagcdn.com/20x15/kn.png" alt="">
+                      <span class="c-name">Saint Kitts and Nevis</span>
+                      <span class="c-code">+1869</span>
+                    </div>
+                    <div class="country-option" data-code="+1758" data-iso="lc" data-name="Saint Lucia" role="option">
+                      <img src="https://flagcdn.com/20x15/lc.png" alt="">
+                      <span class="c-name">Saint Lucia</span>
+                      <span class="c-code">+1758</span>
+                    </div>
+                    <div class="country-option" data-code="+590" data-iso="mf" data-name="Saint Martin" role="option">
+                      <img src="https://flagcdn.com/20x15/mf.png" alt="">
+                      <span class="c-name">Saint Martin</span>
+                      <span class="c-code">+590</span>
+                    </div>
+                    <div class="country-option" data-code="+508" data-iso="pm" data-name="Saint Pierre and Miquelon" role="option">
+                      <img src="https://flagcdn.com/20x15/pm.png" alt="">
+                      <span class="c-name">Saint Pierre and Miquelon</span>
+                      <span class="c-code">+508</span>
+                    </div>
+                    <div class="country-option" data-code="+1784" data-iso="vc" data-name="Saint Vincent and the Grenadines" role="option">
+                      <img src="https://flagcdn.com/20x15/vc.png" alt="">
+                      <span class="c-name">Saint Vincent and the Grenadines</span>
+                      <span class="c-code">+1784</span>
+                    </div>
+                    <div class="country-option" data-code="+685" data-iso="ws" data-name="Samoa" role="option">
+                      <img src="https://flagcdn.com/20x15/ws.png" alt="">
+                      <span class="c-name">Samoa</span>
+                      <span class="c-code">+685</span>
+                    </div>
+                    <div class="country-option" data-code="+378" data-iso="sm" data-name="San Marino" role="option">
+                      <img src="https://flagcdn.com/20x15/sm.png" alt="">
+                      <span class="c-name">San Marino</span>
+                      <span class="c-code">+378</span>
+                    </div>
+                    <div class="country-option" data-code="+239" data-iso="st" data-name="Sao Tome and Principe" role="option">
+                      <img src="https://flagcdn.com/20x15/st.png" alt="">
+                      <span class="c-name">Sao Tome and Principe</span>
+                      <span class="c-code">+239</span>
+                    </div>
+                    <div class="country-option" data-code="+966" data-iso="sa" data-name="Saudi Arabia" role="option">
+                      <img src="https://flagcdn.com/20x15/sa.png" alt="">
+                      <span class="c-name">Saudi Arabia</span>
+                      <span class="c-code">+966</span>
+                    </div>
+                    <div class="country-option" data-code="+221" data-iso="sn" data-name="Senegal" role="option">
+                      <img src="https://flagcdn.com/20x15/sn.png" alt="">
+                      <span class="c-name">Senegal</span>
+                      <span class="c-code">+221</span>
+                    </div>
+                    <div class="country-option" data-code="+381" data-iso="rs" data-name="Serbia" role="option">
+                      <img src="https://flagcdn.com/20x15/rs.png" alt="">
+                      <span class="c-name">Serbia</span>
+                      <span class="c-code">+381</span>
+                    </div>
+                    <div class="country-option" data-code="+248" data-iso="sc" data-name="Seychelles" role="option">
+                      <img src="https://flagcdn.com/20x15/sc.png" alt="">
+                      <span class="c-name">Seychelles</span>
+                      <span class="c-code">+248</span>
+                    </div>
+                    <div class="country-option" data-code="+232" data-iso="sl" data-name="Sierra Leone" role="option">
+                      <img src="https://flagcdn.com/20x15/sl.png" alt="">
+                      <span class="c-name">Sierra Leone</span>
+                      <span class="c-code">+232</span>
+                    </div>
+                    <div class="country-option" data-code="+65" data-iso="sg" data-name="Singapore" role="option">
+                      <img src="https://flagcdn.com/20x15/sg.png" alt="">
+                      <span class="c-name">Singapore</span>
+                      <span class="c-code">+65</span>
+                    </div>
+                    <div class="country-option" data-code="+421" data-iso="sk" data-name="Slovakia" role="option">
+                      <img src="https://flagcdn.com/20x15/sk.png" alt="">
+                      <span class="c-name">Slovakia</span>
+                      <span class="c-code">+421</span>
+                    </div>
+                    <div class="country-option" data-code="+386" data-iso="si" data-name="Slovenia" role="option">
+                      <img src="https://flagcdn.com/20x15/si.png" alt="">
+                      <span class="c-name">Slovenia</span>
+                      <span class="c-code">+386</span>
+                    </div>
+                    <div class="country-option" data-code="+677" data-iso="sb" data-name="Solomon Islands" role="option">
+                      <img src="https://flagcdn.com/20x15/sb.png" alt="">
+                      <span class="c-name">Solomon Islands</span>
+                      <span class="c-code">+677</span>
+                    </div>
+                    <div class="country-option" data-code="+252" data-iso="so" data-name="Somalia" role="option">
+                      <img src="https://flagcdn.com/20x15/so.png" alt="">
+                      <span class="c-name">Somalia</span>
+                      <span class="c-code">+252</span>
+                    </div>
+                    <div class="country-option" data-code="+27" data-iso="za" data-name="South Africa" role="option">
+                      <img src="https://flagcdn.com/20x15/za.png" alt="">
+                      <span class="c-name">South Africa</span>
+                      <span class="c-code">+27</span>
+                    </div>
+                    <div class="country-option" data-code="+82" data-iso="kr" data-name="South Korea" role="option">
+                      <img src="https://flagcdn.com/20x15/kr.png" alt="">
+                      <span class="c-name">South Korea</span>
+                      <span class="c-code">+82</span>
+                    </div>
+                    <div class="country-option" data-code="+211" data-iso="ss" data-name="South Sudan" role="option">
+                      <img src="https://flagcdn.com/20x15/ss.png" alt="">
+                      <span class="c-name">South Sudan</span>
+                      <span class="c-code">+211</span>
+                    </div>
+                    <div class="country-option" data-code="+34" data-iso="es" data-name="Spain" role="option">
+                      <img src="https://flagcdn.com/20x15/es.png" alt="">
+                      <span class="c-name">Spain</span>
+                      <span class="c-code">+34</span>
+                    </div>
+                    <div class="country-option" data-code="+94" data-iso="lk" data-name="Sri Lanka" role="option">
+                      <img src="https://flagcdn.com/20x15/lk.png" alt="">
+                      <span class="c-name">Sri Lanka</span>
+                      <span class="c-code">+94</span>
+                    </div>
+                    <div class="country-option" data-code="+249" data-iso="sd" data-name="Sudan" role="option">
+                      <img src="https://flagcdn.com/20x15/sd.png" alt="">
+                      <span class="c-name">Sudan</span>
+                      <span class="c-code">+249</span>
+                    </div>
+                    <div class="country-option" data-code="+597" data-iso="sr" data-name="Suriname" role="option">
+                      <img src="https://flagcdn.com/20x15/sr.png" alt="">
+                      <span class="c-name">Suriname</span>
+                      <span class="c-code">+597</span>
+                    </div>
+                    <div class="country-option" data-code="+47" data-iso="sj" data-name="Svalbard and Jan Mayen" role="option">
+                      <img src="https://flagcdn.com/20x15/sj.png" alt="">
+                      <span class="c-name">Svalbard and Jan Mayen</span>
+                      <span class="c-code">+47</span>
+                    </div>
+                    <div class="country-option" data-code="+46" data-iso="se" data-name="Sweden" role="option">
+                      <img src="https://flagcdn.com/20x15/se.png" alt="">
+                      <span class="c-name">Sweden</span>
+                      <span class="c-code">+46</span>
+                    </div>
+                    <div class="country-option" data-code="+41" data-iso="ch" data-name="Switzerland" role="option">
+                      <img src="https://flagcdn.com/20x15/ch.png" alt="">
+                      <span class="c-name">Switzerland</span>
+                      <span class="c-code">+41</span>
+                    </div>
+                    <div class="country-option" data-code="+963" data-iso="sy" data-name="Syria" role="option">
+                      <img src="https://flagcdn.com/20x15/sy.png" alt="">
+                      <span class="c-name">Syria</span>
+                      <span class="c-code">+963</span>
+                    </div>
+                    <div class="country-option" data-code="+886" data-iso="tw" data-name="Taiwan" role="option">
+                      <img src="https://flagcdn.com/20x15/tw.png" alt="">
+                      <span class="c-name">Taiwan</span>
+                      <span class="c-code">+886</span>
+                    </div>
+                    <div class="country-option" data-code="+992" data-iso="tj" data-name="Tajikistan" role="option">
+                      <img src="https://flagcdn.com/20x15/tj.png" alt="">
+                      <span class="c-name">Tajikistan</span>
+                      <span class="c-code">+992</span>
+                    </div>
+                    <div class="country-option" data-code="+255" data-iso="tz" data-name="Tanzania" role="option">
+                      <img src="https://flagcdn.com/20x15/tz.png" alt="">
+                      <span class="c-name">Tanzania</span>
+                      <span class="c-code">+255</span>
+                    </div>
+                    <div class="country-option" data-code="+66" data-iso="th" data-name="Thailand" role="option">
+                      <img src="https://flagcdn.com/20x15/th.png" alt="">
+                      <span class="c-name">Thailand</span>
+                      <span class="c-code">+66</span>
+                    </div>
+                    <div class="country-option" data-code="+228" data-iso="tg" data-name="Togo" role="option">
+                      <img src="https://flagcdn.com/20x15/tg.png" alt="">
+                      <span class="c-name">Togo</span>
+                      <span class="c-code">+228</span>
+                    </div>
+                    <div class="country-option" data-code="+690" data-iso="tk" data-name="Tokelau" role="option">
+                      <img src="https://flagcdn.com/20x15/tk.png" alt="">
+                      <span class="c-name">Tokelau</span>
+                      <span class="c-code">+690</span>
+                    </div>
+                    <div class="country-option" data-code="+676" data-iso="to" data-name="Tonga" role="option">
+                      <img src="https://flagcdn.com/20x15/to.png" alt="">
+                      <span class="c-name">Tonga</span>
+                      <span class="c-code">+676</span>
+                    </div>
+                    <div class="country-option" data-code="+1868" data-iso="tt" data-name="Trinidad and Tobago" role="option">
+                      <img src="https://flagcdn.com/20x15/tt.png" alt="">
+                      <span class="c-name">Trinidad and Tobago</span>
+                      <span class="c-code">+1868</span>
+                    </div>
+                    <div class="country-option" data-code="+216" data-iso="tn" data-name="Tunisia" role="option">
+                      <img src="https://flagcdn.com/20x15/tn.png" alt="">
+                      <span class="c-name">Tunisia</span>
+                      <span class="c-code">+216</span>
+                    </div>
+                    <div class="country-option" data-code="+90" data-iso="tr" data-name="Turkey" role="option">
+                      <img src="https://flagcdn.com/20x15/tr.png" alt="">
+                      <span class="c-name">Turkey</span>
+                      <span class="c-code">+90</span>
+                    </div>
+                    <div class="country-option" data-code="+993" data-iso="tm" data-name="Turkmenistan" role="option">
+                      <img src="https://flagcdn.com/20x15/tm.png" alt="">
+                      <span class="c-name">Turkmenistan</span>
+                      <span class="c-code">+993</span>
+                    </div>
+                    <div class="country-option" data-code="+1649" data-iso="tc" data-name="Turks and Caicos Islands" role="option">
+                      <img src="https://flagcdn.com/20x15/tc.png" alt="">
+                      <span class="c-name">Turks and Caicos Islands</span>
+                      <span class="c-code">+1649</span>
+                    </div>
+                    <div class="country-option" data-code="+688" data-iso="tv" data-name="Tuvalu" role="option">
+                      <img src="https://flagcdn.com/20x15/tv.png" alt="">
+                      <span class="c-name">Tuvalu</span>
+                      <span class="c-code">+688</span>
+                    </div>
+                    <div class="country-option" data-code="+256" data-iso="ug" data-name="Uganda" role="option">
+                      <img src="https://flagcdn.com/20x15/ug.png" alt="">
+                      <span class="c-name">Uganda</span>
+                      <span class="c-code">+256</span>
+                    </div>
+                    <div class="country-option" data-code="+380" data-iso="ua" data-name="Ukraine" role="option">
+                      <img src="https://flagcdn.com/20x15/ua.png" alt="">
+                      <span class="c-name">Ukraine</span>
+                      <span class="c-code">+380</span>
+                    </div>
+                    <div class="country-option" data-code="+971" data-iso="ae" data-name="United Arab Emirates" role="option">
+                      <img src="https://flagcdn.com/20x15/ae.png" alt="">
+                      <span class="c-name">United Arab Emirates</span>
+                      <span class="c-code">+971</span>
+                    </div>
+                    <div class="country-option" data-code="+44" data-iso="gb" data-name="United Kingdom" role="option">
+                      <img src="https://flagcdn.com/20x15/gb.png" alt="">
+                      <span class="c-name">United Kingdom</span>
+                      <span class="c-code">+44</span>
+                    </div>
+                    <div class="country-option" data-code="+1" data-iso="us" data-name="United States" role="option">
+                      <img src="https://flagcdn.com/20x15/us.png" alt="">
+                      <span class="c-name">United States</span>
+                      <span class="c-code">+1</span>
+                    </div>
+                    <div class="country-option" data-code="+598" data-iso="uy" data-name="Uruguay" role="option">
+                      <img src="https://flagcdn.com/20x15/uy.png" alt="">
+                      <span class="c-name">Uruguay</span>
+                      <span class="c-code">+598</span>
+                    </div>
+                    <div class="country-option" data-code="+998" data-iso="uz" data-name="Uzbekistan" role="option">
+                      <img src="https://flagcdn.com/20x15/uz.png" alt="">
+                      <span class="c-name">Uzbekistan</span>
+                      <span class="c-code">+998</span>
+                    </div>
+                    <div class="country-option" data-code="+678" data-iso="vu" data-name="Vanuatu" role="option">
+                      <img src="https://flagcdn.com/20x15/vu.png" alt="">
+                      <span class="c-name">Vanuatu</span>
+                      <span class="c-code">+678</span>
+                    </div>
+                    <div class="country-option" data-code="+379" data-iso="va" data-name="Vatican City" role="option">
+                      <img src="https://flagcdn.com/20x15/va.png" alt="">
+                      <span class="c-name">Vatican City</span>
+                      <span class="c-code">+379</span>
+                    </div>
+                    <div class="country-option" data-code="+58" data-iso="ve" data-name="Venezuela" role="option">
+                      <img src="https://flagcdn.com/20x15/ve.png" alt="">
+                      <span class="c-name">Venezuela</span>
+                      <span class="c-code">+58</span>
+                    </div>
+                    <div class="country-option" data-code="+84" data-iso="vn" data-name="Vietnam" role="option">
+                      <img src="https://flagcdn.com/20x15/vn.png" alt="">
+                      <span class="c-name">Vietnam</span>
+                      <span class="c-code">+84</span>
+                    </div>
+                    <div class="country-option" data-code="+681" data-iso="wf" data-name="Wallis and Futuna" role="option">
+                      <img src="https://flagcdn.com/20x15/wf.png" alt="">
+                      <span class="c-name">Wallis and Futuna</span>
+                      <span class="c-code">+681</span>
+                    </div>
+                    <div class="country-option" data-code="+212" data-iso="eh" data-name="Western Sahara" role="option">
+                      <img src="https://flagcdn.com/20x15/eh.png" alt="">
+                      <span class="c-name">Western Sahara</span>
+                      <span class="c-code">+212</span>
+                    </div>
+                    <div class="country-option" data-code="+967" data-iso="ye" data-name="Yemen" role="option">
+                      <img src="https://flagcdn.com/20x15/ye.png" alt="">
+                      <span class="c-name">Yemen</span>
+                      <span class="c-code">+967</span>
+                    </div>
+                    <div class="country-option" data-code="+260" data-iso="zm" data-name="Zambia" role="option">
+                      <img src="https://flagcdn.com/20x15/zm.png" alt="">
+                      <span class="c-name">Zambia</span>
+                      <span class="c-code">+260</span>
+                    </div>
+                    <div class="country-option" data-code="+263" data-iso="zw" data-name="Zimbabwe" role="option">
+                      <img src="https://flagcdn.com/20x15/zw.png" alt="">
+                      <span class="c-name">Zimbabwe</span>
+                      <span class="c-code">+263</span>
+                    </div>                  </div>
+                </div>
 
-        {% endif %}
-        {% endif %}
+                <input type="text" class="form-control" name="phone_number" id="phone-number-input"
+                  placeholder="10-digit number" value="{{ phone_number or '' }}" maxlength="10" inputmode="numeric"
+                  autocomplete="tel-national" style="border-radius:0 8px 8px 0;">
+              </div>
+            </div>
 
-        <button type="submit" class="btn-register mt-1">
-          <i class="bi bi-person-check me-2"></i>Register
-        </button>
+            <div class="mb-3">
+              <label for="email" class="form-label">Email<span style="font-weight:400;color:#9ca3af;"></span></label>
+              <input type="email" class="form-control" name="email" placeholder="user@example.com"
+                value="{{ email or '' }}" required autofocus autocomplete="email">
+            </div>
 
-      </form>
+            <div class="mb-3">
+              <label class="form-label">Password</label>
+              <div class="input-group">
+                <input type="password" class="form-control pw-field" name="password" id="pw1"
+                  placeholder="Choose a password" required autocomplete="new-password">
+                <button type="button" class="btn btn-outline-secondary pw-eye" data-target="pw1" tabindex="-1"
+                  style="border-color:#d1d5db;border-radius:0 8px 8px 0;background:#fff;color:#6b7280;padding:0 12px;">
+                  <i class="bi bi-eye"></i>
+                </button>
+              </div>
+              <div class="pw-hint" id="pw-rules">
+                <div style="font-size:0.78rem;margin-bottom:4px;color:#6b7280;">Password must:</div>
+                <ul style="list-style:none;padding:0;margin:0;">
+                  <li id="rule-length" style="color:#9ca3af;font-size:0.78rem;padding:2px 0;"><i
+                      class="bi bi-circle me-1"></i>Be 8–64 characters long</li>
+                  <li id="rule-upper" style="color:#9ca3af;font-size:0.78rem;padding:2px 0;"><i
+                      class="bi bi-circle me-1"></i>Include an uppercase letter</li>
+                  <li id="rule-lower" style="color:#9ca3af;font-size:0.78rem;padding:2px 0;"><i
+                      class="bi bi-circle me-1"></i>Include a lowercase letter</li>
+                  <li id="rule-number" style="color:#9ca3af;font-size:0.78rem;padding:2px 0;"><i
+                      class="bi bi-circle me-1"></i>Include a number</li>
+                  <li id="rule-special" style="color:#9ca3af;font-size:0.78rem;padding:2px 0;"><i
+                      class="bi bi-circle me-1"></i>Include a special character (!@#$ etc.)</li>
+                  <li id="rule-spaces" style="color:#9ca3af;font-size:0.78rem;padding:2px 0;"><i
+                      class="bi bi-circle me-1"></i>Contain no spaces</li>
+                </ul>
+              </div>
+            </div>
 
-      {% if not admin_mode %}
-      <p class="login-link">Already have an account? <a href="{{ url_for('login') }}">Sign in</a></p>
-      {% endif %}
+            <div class="mb-3">
+              <label class="form-label">Confirm Password</label>
+              <div class="input-group">
+                <input type="password" class="form-control pw-field" name="confirm_password" id="pw2"
+                  placeholder="Repeat your password" required autocomplete="new-password">
+                <button type="button" class="btn btn-outline-secondary pw-eye" data-target="pw2" tabindex="-1"
+                  style="border-color:#d1d5db;border-radius:0 8px 8px 0;background:#fff;color:#6b7280;padding:0 12px;">
+                  <i class="bi bi-eye"></i>
+                </button>
+              </div>
+            </div>
+
+            {% if admin_mode %}
+            <div class="mb-3">
+              <label class="form-label">Role</label>
+              <select name="role" id="role-select" class="form-select" required>
+                <option value="" disabled {{ 'selected' if not selected_role else '' }}>Select Role</option>
+                {% for r in roles %}
+                <option value="{{ r }}" {{ 'selected' if selected_role==r else '' }}>
+                  {{ r.replace("_", " ").title() }}
+                </option>
+                {% endfor %}
+              </select>
+            </div>
+
+            {% if session.get('role') == 'admin' %}
+            <!-- Shown when role=team_lead:pick a manager -->
+            <div class="mb-3" id="assign-manager-div" style="display:none;">
+              <label class="form-label">
+                Assign Manager
+              </label>
+              <select name="assign_manager_id" class="form-select">
+                <option value="">— None / Assign Later —</option>
+                {% for mgr in available_managers %}
+                <option value="{{ mgr.id }}">{{ mgr.username }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            {% endif %}
+
+            {% if session.get('role') in ('admin', 'manager') %}
+
+            <!-- Shown when role = user: pick a team lead -->
+            <div class="mb-3" id="assign-tl-div" style="display:none;">
+              <label class="form-label">
+                Assign Team Lead
+              </label>
+              <select name="assign_tl_id" class="form-select">
+                <option value="">— None / Assign Later —</option>
+                {% for tl in available_tls %}
+                <option value="{{ tl.id }}">{{ tl.username }}</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            {% endif %}
+            {% endif %}
+
+            <button type="submit" class="btn-register mt-1">Register</button>
+
+          </form>
+
+          {% if not admin_mode %}
+          <p class="login-link">Already have an account? <a href="{{ url_for('login') }}">Sign in</a></p>
+          {% endif %}
 
         </div>
       </div>
     </main>
   </div>
   {% else %}
-  <div style="width:100%;max-width:420px; margin:0 auto;">
-    <div class="reg-card">
+  <div style="display:none;" id="non-admin-placeholder"></div>
+  {% endif %}
+
   <script>
-    document.querySelectorAll(".pw-eye").forEach(function(btn) {
-      btn.addEventListener("click", function() {
+    document.querySelectorAll(".pw-eye").forEach(function (btn) {
+      btn.addEventListener("click", function () {
         var input = document.getElementById(this.dataset.target);
-        var icon  = this.querySelector("i");
+        var icon = this.querySelector("i");
         if (input.type === "password") {
           input.type = "text";
           icon.classList.replace("bi-eye", "bi-eye-slash");
@@ -238,77 +1696,122 @@
       });
     });
 
-    var roleSelect   = document.getElementById("role-select");
+    var roleSelect = document.getElementById("role-select");
     if (roleSelect) {
       function toggleManagerDiv() {
         var val = roleSelect.value;
         var mgrDiv = document.getElementById("assign-manager-div");
-        if (mgrDiv) mgrDiv.style.display = (val === "team_lead")? "" : "none";
+        if (mgrDiv) mgrDiv.style.display = (val === "team_lead") ? "" : "none";
         var tlDiv = document.getElementById("assign-tl-div");
-        if (tlDiv) tlDiv.style.display = (val === "user")? "" : "none";
+        if (tlDiv) tlDiv.style.display = (val === "user") ? "" : "none";
       }
       roleSelect.addEventListener("change", toggleManagerDiv);
       toggleManagerDiv();
     }
 
-    document.querySelector("form").addEventListener("submit", function(e) {
-      var pwd     = document.querySelector("input[name='password']").value;
-      var confirm = document.querySelector("input[name='confirm_password']").value;
-      if (pwd !== confirm) {
-        e.preventDefault();
-        alert("Passwords do not match.");
+    // Phone number live validation
+    var phoneInput = document.getElementById("phone-number-input");
+    var phoneError = document.getElementById("phone-error");
+
+    function showPhoneError(show) {
+      if (!phoneError) return;
+      phoneError.classList.toggle('d-none', !show);
+      phoneError.style.display = show ? "inline-flex" : "none";
+    }
+
+    if (phoneInput) {
+      phoneInput.addEventListener("input", function () {
+        this.value = this.value.replace(/\D/g, "").slice(0, 10);
+        showPhoneError(this.value.length > 0 && this.value.length !== 10);
+      });
+      // Do not show error on page load unless input already has a value and is invalid
+      showPhoneError(phoneInput.value.length > 0 && phoneInput.value.length !== 10);
+    }
+
+    var regForm = document.querySelector("form");
+    if (regForm) {
+      regForm.addEventListener("submit", function (e) {
+        var pwdEl = document.querySelector("input[name='password']");
+        var confEl = document.querySelector("input[name='confirm_password']");
+        if (pwdEl && confEl && pwdEl.value !== confEl.value) {
+          e.preventDefault();
+          alert("Passwords do not match.");
+        }
+        var phoneVal = phoneInput ? phoneInput.value : "";
+        if (!/^\d{10}$/.test(phoneVal)) {
+          e.preventDefault();
+          showPhoneError(true);
+        }
+      });
+    }
+
+    // Custom country code dropdown
+    (function () {
+      var btn = document.getElementById('country-dd-btn');
+      var menu = document.getElementById('country-dd-menu');
+      var hidden = document.getElementById('country-code-input');
+      var selFlag = document.getElementById('selected-flag');
+      var selCode = document.getElementById('selected-code');
+      if (!btn) return;
+      function closeMenu() {
+        menu.classList.remove('open');
+        btn.classList.remove('open');
+        btn.setAttribute('aria-expanded', 'false');
       }
-    });
+      btn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        if (menu.classList.contains('open')) { closeMenu(); }
+        else { menu.classList.add('open'); btn.classList.add('open'); btn.setAttribute('aria-expanded', 'true'); }
+      });
+      document.querySelectorAll('.country-option').forEach(function (opt) {
+        opt.addEventListener('click', function () {
+          hidden.value = this.dataset.code;
+          selFlag.src = 'https://flagcdn.com/20x15/' + this.dataset.iso + '.png';
+          selFlag.alt = this.dataset.name;
+          selCode.textContent = this.dataset.code;
+          document.querySelectorAll('.country-option').forEach(function (o) { o.classList.remove('selected'); });
+          this.classList.add('selected');
+          closeMenu();
+        });
+      });
+      document.addEventListener('click', function () { closeMenu(); });
+      menu.addEventListener('click', function (e) { e.stopPropagation(); });
+    })();
 
     // Live password rule checker
-(function() {
-  var pwInput  = document.getElementById("pw1");
-  var submitBtn = document.querySelector(".btn-register");
-
-  var rules = [
-    { id: "rule-length",  test: function(v){ return v.length >= 8 && v.length <= 64; } },
-    { id: "rule-upper",   test: function(v){ return /[A-Z]/.test(v); } },
-    { id: "rule-lower",   test: function(v){ return /[a-z]/.test(v); } },
-    { id: "rule-number",  test: function(v){ return /[0-9]/.test(v); } },
-    { id: "rule-special", test: function(v){ return /[^A-Za-z0-9]/.test(v); } },
-    { id: "rule-spaces",  test: function(v){ return !/ /.test(v); } },
-  ];
-
-  function updateRules(val, markFailed) {
-    rules.forEach(function(r) {
-      var el   = document.getElementById(r.id);
-      var icon = el.querySelector("i");
-      var pass = r.test(val);
-      if (pass) {
-        el.style.color = "#16a34a";  // green
-        icon.className = "bi bi-check-circle-fill me-1";
-      } else if (markFailed) {
-        el.style.color = "#b91c1c";  // red
-        icon.className = "bi bi-x-circle-fill me-1";
-      } else {
-        el.style.color = "#9ca3af";  // grey
-        icon.className = "bi bi-circle me-1";
+    (function () {
+      var pwInput = document.getElementById("pw1");
+      var submitBtn = document.querySelector(".btn-register");
+      var rules = [
+        { id: "rule-length", test: function (v) { return v.length >= 8 && v.length <= 64; } },
+        { id: "rule-upper", test: function (v) { return /[A-Z]/.test(v); } },
+        { id: "rule-lower", test: function (v) { return /[a-z]/.test(v); } },
+        { id: "rule-number", test: function (v) { return /[0-9]/.test(v); } },
+        { id: "rule-special", test: function (v) { return /[^A-Za-z0-9]/.test(v); } },
+        { id: "rule-spaces", test: function (v) { return !/ /.test(v); } },
+      ];
+      function updateRules(val, markFailed) {
+        rules.forEach(function (r) {
+          var el = document.getElementById(r.id);
+          if (!el) return;
+          var icon = el.querySelector("i");
+          var pass = r.test(val);
+          if (pass) {
+            el.style.color = "#16a34a";
+            icon.className = "bi bi-check-circle-fill me-1";
+          } else if (markFailed) {
+            el.style.color = "var(--red-accent)";
+            icon.className = "bi bi-x-circle-fill me-1";
+          } else {
+            el.style.color = "#9ca3af";
+            icon.className = "bi bi-circle me-1";
+          }
+        });
       }
-    });
-  }
-
-  if (pwInput) {
-    pwInput.addEventListener("input", function() {
-      updateRules(this.value, false);
-    });
-  }
-
-  if (submitBtn) {
-    submitBtn.addEventListener("click", function() {
-      var val = pwInput ? pwInput.value : "";
-      updateRules(val, true);  // turn unmet rules red on submit attempt
-    });
-  }
-})();
-
+      if (pwInput) pwInput.addEventListener("input", function () { updateRules(this.value, false); });
+      if (submitBtn) submitBtn.addEventListener("click", function () { updateRules(pwInput ? pwInput.value : "", true); });
+    })();
   </script>
-    </div>
-  </div>
-  {% endif %}
 </body>
-</html> 
+
+</html>

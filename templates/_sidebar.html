@@ -62,10 +62,25 @@
     top: 0 !important;
     left: 0 !important;
     bottom: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
     overflow: visible !important;
     /* Allow the mini toggle to overhang */
     z-index: 1000 !important;
     transition: width 180ms cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .sidebar-nav {
+    flex: 1 1 auto !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    padding: 4px 0 16px !important;
+    scrollbar-width: none !important;
+    -ms-overflow-style: none !important;
+  }
+
+  .sidebar-nav::-webkit-scrollbar {
+    display: none !important;
   }
 
   .content-area {
@@ -141,6 +156,10 @@
     align-items: center;
     gap: 10px;
     padding: 8px 12px;
+    min-height: 42px;
+    font-size: 0.95rem;
+    line-height: 1;
+    font-weight: 500;
     text-decoration: none;
     border-radius: 8px;
     margin: 4px 10px;
@@ -183,8 +202,11 @@
     transition: opacity 160ms ease, width 160ms ease, visibility 160ms ease;
     white-space: nowrap;
     overflow: hidden;
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
     vertical-align: middle;
+    font-size: 0.95rem;
+    line-height: 1;
   }
 
   .sidebar.collapsed .sidebar-text {
@@ -201,7 +223,16 @@
 
   /* Make all sidebar icons a consistent size whether collapsed or not */
   .sidebar-link i {
-    font-size: 1.25rem !important;
+    font-size: 1.15rem !important;
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    width: 1.15rem;
+    height: 1.15rem;
+    position: relative;
+    top: 0;
   }
 
   /* Smoothly fade between full and collapsed logos to avoid layout jitter */
@@ -648,7 +679,7 @@
 
   <div id="sidebarData" data-role='{{ session.role|default("") }}' style="display:none;"></div>
 
-  <div class="py-2">
+  <div class="sidebar-nav">
     <a href="{{ url_for('dashboard') }}" class="sidebar-link{% if request.endpoint == 'dashboard' %} active{% endif %}">
       <i class="bi bi-grid"></i>
       <span class="sidebar-text">Dashboard</span>
@@ -892,11 +923,11 @@
               
               // 1. Render pending change requests
               if (data.requests && data.requests.length > 0) {
-                html += '<div style="padding:4px 16px; font-size:0.72rem; font-weight:700; color:#b91c1c; text-transform:uppercase; letter-spacing:0.5px; border-bottom:1px solid var(--border-color); background:var(--bg-primary);">Pending Approvals</div>';
+                html += '<div style="padding:4px 16px; font-size:0.72rem; font-weight:700; color:var(--red-accent); text-transform:uppercase; letter-spacing:0.5px; border-bottom:1px solid var(--border-color); background:var(--bg-primary);">Pending Approvals</div>';
                 data.requests.forEach(req => {
                   html += `
-                    <a href="/inbox" style="display:flex; gap:10px; padding:10px 16px; border-bottom:1px solid var(--border-color); color:var(--text-main); text-decoration:none; align-items:flex-start; font-size:0.8rem; background:#fff8f8;">
-                      <div style="width:28px; height:28px; border-radius:50%; background:#fee2e2; color:#b91c1c; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-weight:700; font-size:0.8rem;">
+                    <a href="/inbox" style="display:flex; gap:10px; padding:10px 16px; border-bottom:1px solid var(--border-color); color:var(--text-main); text-decoration:none; align-items:flex-start; font-size:0.8rem; background:var(--red-light);">
+                      <div style="width:28px; height:28px; border-radius:50%; background:var(--red-light); color:var(--red-accent); display:flex; align-items:center; justify-content:center; flex-shrink:0; font-weight:700; font-size:0.8rem;">
                         ${(req.current_username || 'U')[0].toUpperCase()}
                       </div>
                       <div style="flex:1;">
@@ -910,7 +941,7 @@
 
               // 2. Render notifications
               if (data.notifications && data.notifications.length > 0) {
-                html += '<div style="padding:4px 16px; font-size:0.72rem; font-weight:700; color:#374151; text-transform:uppercase; letter-spacing:0.5px; border-bottom:1px solid var(--border-color); background:var(--bg-primary);">Activity Alerts</div>';
+                html += '<div style="padding:4px 16px; font-size:0.72rem; font-weight:700; color:var(--text-main); text-transform:uppercase; letter-spacing:0.5px; border-bottom:1px solid var(--border-color); background:var(--bg-primary);">Activity Alerts</div>';
                 data.notifications.forEach(n => {
                   let ic = 'bi-bell-fill';
                   let bg = '#f3f4f6';
@@ -923,7 +954,7 @@
                     ic = 'bi-magic'; bg = '#cffafe'; cl = '#0891b2';
                   }
                   
-                  const unreadStyle = !n.is_read ? 'background:#f9fafb; font-weight:600;' : '';
+                  const unreadStyle = !n.is_read ? 'background:var(--bg-primary); font-weight:600;' : 'background:var(--bg-card);';
 
                   html += `
                     <div style="display:flex; gap:10px; padding:10px 16px; border-bottom:1px solid var(--border-color); font-size:0.8rem; align-items:flex-start; ${unreadStyle}">

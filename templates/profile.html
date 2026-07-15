@@ -1,6 +1,7 @@
 {% include '_sidebar.html' %}
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -11,8 +12,17 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
-    *, *::before, *::after { box-sizing: border-box; }
-    body { font-family: 'Inter', sans-serif; background: #f0f2f8; }
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-main);
+    }
 
     .profile-hero {
       background: linear-gradient(135deg, #b91c1c 0%, #7f1d1d 100%);
@@ -23,132 +33,280 @@
       overflow: hidden;
       margin-bottom: 28px;
     }
+
     .profile-hero::after {
       content: '';
       position: absolute;
-      right: -60px; top: -60px;
-      width: 260px; height: 260px;
-      background: rgba(255,255,255,0.07);
+      right: -60px;
+      top: -60px;
+      width: 260px;
+      height: 260px;
+      background: rgba(255, 255, 255, 0.07);
       border-radius: 50%;
     }
+
     .profile-avatar {
-      width: 80px; height: 80px;
+      width: 80px;
+      height: 80px;
       border-radius: 50%;
-      background: rgba(255,255,255,0.18);
-      display: flex; align-items: center; justify-content: center;
-      font-size: 2.2rem; font-weight: 800;
+      background: rgba(255, 255, 255, 0.18);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2.2rem;
+      font-weight: 800;
       color: #fff;
-      border: 3px solid rgba(255,255,255,0.35);
+      border: 3px solid rgba(255, 255, 255, 0.35);
       flex-shrink: 0;
     }
-    .profile-hero h1 { font-size: 1.65rem; font-weight: 800; margin: 0; }
+
+    .profile-hero h1 {
+      font-size: 1.65rem;
+      font-weight: 800;
+      margin: 0;
+    }
+
     .profile-hero .role-badge {
-      display: inline-block; padding: 3px 14px;
-      background: rgba(255,255,255,0.2); border-radius: 999px;
-      font-size: 0.78rem; font-weight: 600; letter-spacing: 0.5px;
+      display: inline-block;
+      padding: 3px 14px;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 999px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      letter-spacing: 0.5px;
       text-transform: uppercase;
     }
 
     .stat-pill {
-      background: rgba(255,255,255,0.15);
-      border-radius: 12px; padding: 14px 20px;
-      text-align: center; flex: 1;
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 12px;
+      padding: 14px 20px;
+      text-align: center;
+      flex: 1;
     }
-    .stat-pill .sp-num { font-size: 1.7rem; font-weight: 800; line-height: 1; }
-    .stat-pill .sp-lbl { font-size: 0.75rem; opacity: 0.85; margin-top: 4px; }
+
+    .stat-pill .sp-num {
+      font-size: 1.7rem;
+      font-weight: 700;
+      line-height: 1;
+      font-family: system-ui, -apple-system, sans-serif;
+    }
+
+    .stat-pill .sp-lbl {
+      font-size: 0.75rem;
+      opacity: 0.85;
+      margin-top: 4px;
+    }
 
     /* Modern Tabs / Card */
     .profile-card {
-      background: #fff;
+      background: var(--bg-card);
       border-radius: 18px;
-      box-shadow: 0 2px 16px rgba(0,0,0,0.07);
+      box-shadow: 0 2px 16px rgba(0, 0, 0, 0.07);
       overflow: hidden;
+      border: 1px solid var(--border-color);
     }
+
     .profile-card-header {
       padding: 20px 28px;
-      border-bottom: 1px solid #f1f3f6;
-      display: flex; align-items: center; justify-content: space-between;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
     }
+
     .profile-card-title {
-      display: flex; align-items: center; gap: 12px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
     }
+
     .profile-card-icon {
-      width: 42px; height: 42px;
+      width: 42px;
+      height: 42px;
       border-radius: 12px;
-      display: flex; align-items: center; justify-content: center;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       font-size: 1.2rem;
     }
-    .profile-card-title h2 { font-size: 1rem; font-weight: 700; margin: 0; color: #111827; }
-    .profile-card-title p  { font-size: 0.8rem; color: #6b7280; margin: 0; }
-    
+
+    .profile-card-title h2 {
+      font-size: 1rem;
+      font-weight: 700;
+      margin: 0;
+      color: var(--text-main);
+    }
+
+    .profile-card-title p {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin: 0;
+    }
+
     .profile-nav-tabs {
-      display: flex; background: #f3f4f6; border-radius: 10px; padding: 4px; border: none;
+      display: flex;
+      align-items: right;
+      justify-content: right;
+      background: var(--bg-primary);
+      border-radius: 10px;
+      padding: 4px;
+      border: none;
     }
+
     .profile-nav-link {
-      border: none !important; background: none; color: #4b5563; font-size: 0.82rem; font-weight: 600;
-      padding: 8px 16px; border-radius: 8px; transition: background 0.15s, color 0.15s;
+      border: none !important;
+      background: none;
+      color: var(--text-muted);
+      font-size: 0.82rem;
+      font-weight: 600;
+      padding: 8px 16px;
+      border-radius: 8px;
+      transition: background 0.15s, color 0.15s;
     }
+
     .profile-nav-link.active {
-      background: #fff !important; color: #b91c1c !important; box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+      background: var(--bg-card) !important;
+      color: var(--red-accent) !important;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
     }
 
-    .profile-card-body { padding: 28px; }
+    .profile-card-body {
+      padding: 28px;
+    }
 
-    .form-field { position: relative; margin-bottom: 18px; }
-    .form-field label { font-size: 0.83rem; font-weight: 600; color: #374151; margin-bottom: 6px; display: block; }
-    .form-field input, .form-field textarea {
-      width: 100%; padding: 11px 14px;
-      border: 1.5px solid #e5e7eb; border-radius: 10px;
-      font-size: 0.92rem; background: #f9fafb; color: #111827;
+    .form-field {
+      position: relative;
+      margin-bottom: 18px;
+    }
+
+    .form-field label {
+      font-size: 0.83rem;
+      font-weight: 600;
+      color: var(--text-main);
+      margin-bottom: 6px;
+      display: block;
+    }
+
+    .form-field input,
+    .form-field textarea {
+      width: 100%;
+      padding: 11px 14px;
+      border: 1.5px solid var(--border-color);
+      border-radius: 10px;
+      font-size: 0.92rem;
+      background: var(--input-bg);
+      color: var(--input-text);
       transition: border-color 0.2s, box-shadow 0.2s;
       outline: none;
     }
-    .form-field input:focus, .form-field textarea:focus {
-      border-color: #b91c1c;
-      box-shadow: 0 0 0 3px rgba(185,28,28,0.12);
-      background: #fff;
+
+    .form-field input:focus,
+    .form-field textarea:focus {
+      border-color: var(--red-accent);
+      box-shadow: 0 0 0 3px rgba(185, 28, 28, 0.12);
+      background: var(--bg-card);
     }
+
     .pw-eye-btn {
-      position: absolute; right: 12px; bottom: 11px;
-      background: none; border: none; cursor: pointer;
-      color: #9ca3af; font-size: 1rem; padding: 0;
+      position: absolute;
+      right: 12px;
+      bottom: 11px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: #9ca3af;
+      font-size: 1rem;
+      padding: 0;
     }
-    .pw-eye-btn:hover { color: #b91c1c; }
 
-    .pw-strength { margin-top: 6px; height: 4px; border-radius: 4px; background: #e5e7eb; overflow: hidden; }
-    .pw-strength-bar { height: 100%; border-radius: 4px; width: 0; transition: width 0.3s, background 0.3s; }
+    .pw-eye-btn:hover {
+      color: #b91c1c;
+    }
 
-    .pw-rules { margin-top: 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 4px 16px; }
-    .pw-rule  { font-size: 0.76rem; color: #9ca3af; display: flex; align-items: center; gap: 5px; }
-    .pw-rule.ok { color: #10b981; }
-    .pw-rule i  { font-size: 0.7rem; }
+    .pw-strength {
+      margin-top: 6px;
+      height: 4px;
+      border-radius: 4px;
+      background: var(--border-color);
+      overflow: hidden;
+    }
+
+    .pw-strength-bar {
+      height: 100%;
+      border-radius: 4px;
+      width: 0;
+      transition: width 0.3s, background 0.3s;
+    }
+
+    .pw-rules {
+      margin-top: 10px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4px 16px;
+    }
+
+    .pw-rule {
+      font-size: 0.76rem;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .pw-rule.ok {
+      color: #10b981;
+    }
+
+    .pw-rule i {
+      font-size: 0.7rem;
+    }
 
     .btn-save {
-      width: 100%; padding: 12px;
+      width: 100%;
+      padding: 12px;
       background: linear-gradient(135deg, #b91c1c, #dc2626);
-      border: none; border-radius: 10px;
-      color: #fff; font-size: 0.95rem; font-weight: 700;
-      cursor: pointer; transition: transform 0.15s, box-shadow 0.15s;
+      border: none;
+      border-radius: 10px;
+      color: #fff;
+      font-size: 0.95rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.15s, box-shadow 0.15s;
       margin-top: 6px;
     }
+
     .btn-save:hover {
       transform: translateY(-1px);
-      box-shadow: 0 6px 20px rgba(185,28,28,0.3);
+      box-shadow: 0 6px 20px rgba(185, 28, 28, 0.3);
     }
-    .btn-save:active { transform: translateY(0); }
-    .btn-save:disabled { opacity: 0.55; cursor: not-allowed; transform: none; box-shadow: none; }
+
+    .btn-save:active {
+      transform: translateY(0);
+    }
+
+    .btn-save:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
 
     /* Alert Boxes */
     .profile-alert {
-      border-radius: 10px; font-size: 0.87rem;
-      padding: 12px 16px; margin-bottom: 20px;
-      display: flex; align-items: center; gap: 10px;
+      border-radius: 10px;
+      font-size: 0.87rem;
+      padding: 12px 16px;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
     }
 
     /* Pending change Request UI details */
     .pending-details-box {
-      background: #fef2f2;
-      border: 1px solid #fee2e2;
+      background: var(--bg-card);
+      border: 1px solid var(--red-accent);
       border-radius: 12px;
       padding: 16px 20px;
       margin-bottom: 24px;
@@ -157,322 +315,431 @@
 
     /* Activity card */
     .activity-card {
-      background: #fff; border-radius: 18px;
-      box-shadow: 0 2px 16px rgba(0,0,0,0.07);
+      background: var(--bg-card);
+      border-radius: 18px;
+      box-shadow: 0 2px 16px rgba(0, 0, 0, 0.07);
+      border: 1px solid var(--border-color);
       overflow: hidden;
     }
+
     .activity-header {
-      padding: 20px 24px; border-bottom: 1px solid #f1f3f6;
-      font-size: 1rem; font-weight: 700; color: #111827;
-      display: flex; align-items: center; gap: 10px;
+      padding: 20px 24px;
+      border-bottom: 1px solid var(--border-color);
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 10px;
     }
-    .activity-list { list-style: none; padding: 0; margin: 0; }
+
+    .activity-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+
     .activity-list li {
-      padding: 13px 24px; border-bottom: 1px solid #f9fafb;
-      display: flex; align-items: flex-start; gap: 12px;
+      padding: 13px 24px;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
       font-size: 0.84rem;
     }
-    .activity-list li:last-child { border-bottom: none; }
-    .al-icon {
-      width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0;
-      display: flex; align-items: center; justify-content: center; font-size: 0.9rem;
+
+    .activity-list li:last-child {
+      border-bottom: none;
     }
-    .al-icon.clean   { background: #cffafe; color: #0891b2; }
-    .al-icon.export  { background: #d1fae5; color: #059669; }
-    .al-icon.import  { background: #dbeafe; color: #2563eb; }
-    .al-icon.login   { background: #ede9fe; color: #7c3aed; }
-    .al-icon.search  { background: #fef3c7; color: #d97706; }
-    .al-icon.other   { background: #f3f4f6; color: #6b7280; }
-    .al-action { color: #111827; font-weight: 500; flex: 1; }
-    .al-time   { color: #9ca3af; font-size: 0.75rem; margin-left: auto; white-space: nowrap; }
+
+    .al-icon {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.9rem;
+    }
+
+    .al-icon.clean {
+      background: #cffafe;
+      color: #0891b2;
+    }
+
+    .al-icon.export {
+      background: #d1fae5;
+      color: #059669;
+    }
+
+    .al-icon.import {
+      background: #dbeafe;
+      color: #2563eb;
+    }
+
+    .al-icon.login {
+      background: #ede9fe;
+      color: #7c3aed;
+    }
+
+    .al-icon.search {
+      background: #fef3c7;
+      color: #d97706;
+    }
+
+    .al-icon.other {
+      background: var(--bg-primary);
+      color: var(--text-muted);
+    }
+
+    .al-action {
+      color: var(--text-main);
+      font-weight: 500;
+      flex: 1;
+    }
+
+    .al-time {
+      color: var(--text-muted);
+      font-size: 0.75rem;
+      margin-left: auto;
+      white-space: nowrap;
+    }
 
     /* Info card */
     .info-card {
-      background: #fff; border-radius: 18px;
-      box-shadow: 0 2px 16px rgba(0,0,0,0.07);
+      background: var(--bg-card);
+      border-radius: 18px;
+      box-shadow: 0 2px 16px rgba(0, 0, 0, 0.07);
+      border: 1px solid var(--border-color);
       padding: 24px;
     }
-    .info-row { display: flex; justify-content: space-between; align-items: center; padding: 11px 0; border-bottom: 1px solid #f1f3f6; }
-    .info-row:last-child { border-bottom: none; }
-    .info-key  { font-size: 0.8rem; color: #6b7280; font-weight: 500; }
-    .info-val  { font-size: 0.85rem; color: #111827; font-weight: 600; max-width: 60%; text-align: right; word-break: break-word; }
 
-    .content-area { padding: 24px; }
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 11px 0;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .info-row:last-child {
+      border-bottom: none;
+    }
+
+    .info-key {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .info-val {
+      font-size: 0.85rem;
+      color: var(--text-main);
+      font-weight: 600;
+      max-width: 60%;
+      text-align: right;
+      word-break: break-word;
+    }
+
+    .content-area {
+      padding: 24px;
+    }
   </style>
 </head>
+
 <body>
-<div class="app-layout d-flex">
-  <div class="content-area flex-grow-1">
+  <div class="app-layout d-flex">
+    <div class="content-area flex-grow-1">
 
-    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
-        {% for cat, msg in messages %}
-          <div class="alert alert-{{ 'success' if cat == 'success' else 'danger' }} alert-dismissible fade show mb-3" role="alert">
-            <i class="bi bi-{{ 'check-circle' if cat == 'success' else 'exclamation-triangle' }}-fill me-2"></i>{{ msg }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-          </div>
-        {% endfor %}
+      {% for cat, msg in messages %}
+      <div class="alert alert-{{ 'success' if cat == 'success' else 'danger' }} alert-dismissible fade show mb-3"
+        role="alert">
+        <i class="bi bi-{{ 'check-circle' if cat == 'success' else 'exclamation-triangle' }}-fill me-2"></i>{{ msg }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+      {% endfor %}
       {% endif %}
-    {% endwith %}
+      {% endwith %}
 
-    <!-- ── Pending Change Request Banner ── -->
-    {% if pending_request %}
-    <div class="pending-details-box shadow-sm">
-      <div class="d-flex align-items-center gap-2 mb-2 text-danger fw-bold" style="font-size:0.9rem;">
-        <i class="bi bi-exclamation-octagon-fill"></i>
-        <span>Profile Update Pending Approval</span>
-      </div>
-      <p class="mb-3 text-muted">You submitted a request to edit your profile details. It is currently being reviewed by your Team Leader or Admin.</p>
-      
-      <div class="row g-2">
-        {% if pending_request.username != user_data.username %}
-        <div class="col-md-6 border-end pe-3">
-          <span class="text-muted d-block small">Username change</span>
-          <strong>{{ user_data.username }}</strong> &rarr; <span class="text-danger fw-bold">{{ pending_request.username }}</span>
+      <!-- ── Pending Change Request Banner ── -->
+      {% if pending_request %}
+      <div class="pending-details-box shadow-sm">
+        <div class="d-flex align-items-center gap-2 mb-2 text-danger fw-bold" style="font-size:0.9rem;">
+          <i class="bi bi-exclamation-octagon-fill"></i>
+          <span>Profile Update Pending Approval</span>
         </div>
-        {% endif %}
-        {% if pending_request.email != user_data.email %}
-        <div class="col-md-6">
-          <span class="text-muted d-block small">Email change</span>
-          <strong>{{ user_data.email or 'None' }}</strong> &rarr; <span class="text-danger fw-bold">{{ pending_request.email }}</span>
-        </div>
-        {% endif %}
-        {% if pending_request.phone_number != user_data.phone_number %}
-        <div class="col-md-6 border-end pe-3 mt-2">
-          <span class="text-muted d-block small">Phone number change</span>
-          <strong>{{ user_data.phone_number or 'None' }}</strong> &rarr; <span class="text-danger fw-bold">{{ pending_request.phone_number }}</span>
-        </div>
-        {% endif %}
-        {% if pending_request.address != user_data.address %}
-        <div class="col-md-6 mt-2">
-          <span class="text-muted d-block small">Address change</span>
-          <strong>{{ user_data.address or 'None' }}</strong> &rarr; <span class="text-danger fw-bold">{{ pending_request.address }}</span>
-        </div>
-        {% endif %}
-      </div>
-    </div>
-    {% endif %}
+        <p class="mb-3 text-muted">You submitted a request to edit your profile details. It is currently being reviewed
+          by your Team Leader or Admin.</p>
 
-    <!-- ── Hero ──────────────────────────────── -->
-    <div class="profile-hero">
-      <div class="d-flex align-items-center gap-4 position-relative" style="z-index:1;">
-        <div class="profile-avatar">
-          {{ (user_data.username or 'U')[0].upper() }}
-        </div>
-        <div>
-          <h1>{{ user_data.username }}</h1>
-          <span class="role-badge">{{ user_data.role | title }}</span>
-          <div style="font-size:0.82rem; margin-top:6px; opacity:0.8;">
-            <i class="bi bi-envelope me-1"></i>{{ user_data.email or 'No email set' }}
+        <div class="row g-2">
+          {% if pending_request.username != user_data.username %}
+          <div class="col-md-6 border-end pe-3">
+            <span class="text-muted d-block small">Username change</span>
+            <strong>{{ user_data.username }}</strong> &rarr; <span class="text-danger fw-bold">{{
+              pending_request.username }}</span>
           </div>
-        </div>
-      </div>
-      <div class="d-flex gap-3 mt-4 flex-wrap position-relative" style="z-index:1;">
-        <div class="stat-pill">
-          <div class="sp-num">{{ (my_stats.total_events or 0)|int }}</div>
-          <div class="sp-lbl">Total Events</div>
-        </div>
-        <div class="stat-pill">
-          <div class="sp-num">{{ (my_stats.total_cleans or 0)|int }}</div>
-          <div class="sp-lbl">Files Cleaned</div>
-        </div>
-        <div class="stat-pill">
-          <div class="sp-num">{{ (my_stats.total_uploads or 0)|int }}</div>
-          <div class="sp-lbl">Uploads</div>
-        </div>
-        <div class="stat-pill">
-          <div class="sp-num">{{ (my_stats.total_exports or 0)|int }}</div>
-          <div class="sp-lbl">Exports</div>
-        </div>
-      </div>
-    </div>
-
-    <div class="row g-4">
-
-      <!-- Left: Edit / Change Password -->
-      <div class="col-lg-6">
-
-        <!-- Nav Card -->
-        <div class="profile-card mb-4">
-          <div class="profile-card-header">
-            <div class="profile-card-title">
-              <div class="profile-card-icon" id="cardIcon" style="background:#fef2f2;color:#b91c1c;"><i class="bi bi-pencil-square"></i></div>
-              <div>
-                <h2 id="cardTitle">Edit Profile Details</h2>
-                <p id="cardSub">Submit profile changes for approval</p>
-              </div>
-            </div>
-            <ul class="nav profile-nav-tabs" id="profileTabs" role="tablist">
-              <li class="nav-item">
-                <button class="profile-nav-link active" id="edit-tab" data-bs-toggle="tab" data-bs-target="#edit-pane" type="button" role="tab">Details</button>
-              </li>
-              <li class="nav-item">
-                <button class="profile-nav-link" id="pw-tab" data-bs-toggle="tab" data-bs-target="#pw-pane" type="button" role="tab">Password</button>
-              </li>
-            </ul>
+          {% endif %}
+          {% if pending_request.email != user_data.email %}
+          <div class="col-md-6">
+            <span class="text-muted d-block small">Email change</span>
+            <strong>{{ user_data.email or 'None' }}</strong> &rarr; <span class="text-danger fw-bold">{{
+              pending_request.email }}</span>
           </div>
-          <div class="profile-card-body">
-
-            <!-- Alert banner -->
-            <div id="formAlert" class="profile-alert alert alert-danger" style="display:none;" role="alert"></div>
-
-            <div class="tab-content" id="profileTabsContent">
-
-              <!-- Tab 1: Edit profile details -->
-              <div class="tab-pane fade show active" id="edit-pane" role="tabpanel" aria-labelledby="edit-tab">
-                <form id="editForm" method="post" action="{{ url_for('profile_update') }}">
-                  <input type="hidden" name="csrf" value="{{ csrf_token() if csrf_token is defined else '' }}">
-
-                  <div class="form-field">
-                    <label for="username">Username</label>
-                    <input type="text" id="username" name="username" value="{{ user_data.username }}" required>
-                  </div>
-
-                  <div class="form-field">
-                    <label for="email">Email Address</label>
-                    <input type="email" id="email" name="email" value="{{ user_data.email or '' }}" placeholder="Enter email">
-                  </div>
-
-                  <div class="form-field">
-                    <label for="phone_number">Phone Number</label>
-                    <input type="text" id="phone_number" name="phone_number" value="{{ user_data.phone_number or '' }}" placeholder="e.g. +91 98765 43210">
-                  </div>
-
-                  <div class="form-field">
-                    <label for="address">Postal Address</label>
-                    <textarea id="address" name="address" rows="3" placeholder="Enter full address">{{ user_data.address or '' }}</textarea>
-                  </div>
-
-                  <button type="submit" class="btn-save" id="btnSaveDetails">
-                    <i class="bi bi-send-check-fill me-2"></i>Submit for Approval
-                  </button>
-                </form>
-              </div>
-
-              <!-- Tab 2: Change password -->
-              <div class="tab-pane fade" id="pw-pane" role="tabpanel" aria-labelledby="pw-tab">
-                <form id="pwForm" method="post" action="{{ url_for('change_password') }}">
-                  <input type="hidden" name="csrf" value="{{ csrf_token() if csrf_token is defined else '' }}">
-
-                  <div class="form-field">
-                    <label for="cur_pw">Current Password</label>
-                    <input type="password" id="cur_pw" name="current_password"
-                           placeholder="Enter current password" required autocomplete="current-password">
-                    <button type="button" class="pw-eye-btn" data-target="cur_pw" tabindex="-1">
-                      <i class="bi bi-eye"></i>
-                    </button>
-                  </div>
-
-                  <div class="form-field">
-                    <label for="new_pw">New Password</label>
-                    <input type="password" id="new_pw" name="new_password"
-                           placeholder="Choose a strong new password" required autocomplete="new-password">
-                    <button type="button" class="pw-eye-btn" data-target="new_pw" tabindex="-1">
-                      <i class="bi bi-eye"></i>
-                    </button>
-                    <div class="pw-strength mt-2"><div class="pw-strength-bar" id="pwBar"></div></div>
-                    <div class="pw-rules" id="pwRules">
-                      <span class="pw-rule" id="r-len"><i class="bi bi-circle"></i> 8+ characters</span>
-                      <span class="pw-rule" id="r-upper"><i class="bi bi-circle"></i> Uppercase</span>
-                      <span class="pw-rule" id="r-num"><i class="bi bi-circle"></i> Number</span>
-                      <span class="pw-rule" id="r-special"><i class="bi bi-circle"></i> Special char</span>
-                    </div>
-                  </div>
-
-                  <div class="form-field">
-                    <label for="conf_pw">Confirm New Password</label>
-                    <input type="password" id="conf_pw" name="confirm_password"
-                           placeholder="Re-enter new password" required autocomplete="new-password">
-                    <button type="button" class="pw-eye-btn" data-target="conf_pw" tabindex="-1">
-                      <i class="bi bi-eye"></i>
-                    </button>
-                  </div>
-
-                  <button type="submit" class="btn-save" id="btnSavePw">
-                    <i class="bi bi-lock-fill me-2"></i>Update Password (Immediate)
-                  </button>
-                </form>
-              </div>
-
-            </div>
+          {% endif %}
+          {% if pending_request.phone_number != user_data.phone_number %}
+          <div class="col-md-6 border-end pe-3 mt-2">
+            <span class="text-muted d-block small">Phone number change</span>
+            <strong>{{ user_data.phone_number or 'None' }}</strong> &rarr; <span class="text-danger fw-bold">{{
+              pending_request.phone_number }}</span>
           </div>
-        </div>
-
-      </div>
-
-      <!-- Right: Info Panel + Recent Activity -->
-      <div class="col-lg-6">
-
-        <!-- Info card -->
-        <div class="info-card mb-4">
-          <div style="font-size:0.9rem; font-weight:700; color:#111827; margin-bottom:14px; border-bottom: 1.5px solid #f1f3f6; padding-bottom: 8px;">
-            <i class="bi bi-person-badge-fill me-2" style="color:#b91c1c;"></i>Account Details Overview
-          </div>
-          <div class="info-row">
-            <span class="info-key">Username</span>
-            <span class="info-val">{{ user_data.username }}</span>
-          </div>
-          <div class="info-row">
-            <span class="info-key">Email Address</span>
-            <span class="info-val">{{ user_data.email or '—' }}</span>
-          </div>
-          <div class="info-row">
-            <span class="info-key">Phone Number</span>
-            <span class="info-val">{{ user_data.phone_number or '—' }}</span>
-          </div>
-          <div class="info-row text-align-right">
-            <span class="info-key">Address</span>
-            <span class="info-val">{{ user_data.address or '—' }}</span>
-          </div>
-          <div class="info-row">
-            <span class="info-key">System Role</span>
-            <span class="info-val">
-              <span style="background:#fef2f2;color:#b91c1c;padding:3px 12px;border-radius:999px;font-size:0.75rem;font-weight:700;text-transform:uppercase;">
-                {{ user_data.role }}
-              </span>
-            </span>
-          </div>
-          <div class="info-row">
-            <span class="info-key">Account Status</span>
-            <span class="info-val">
-              {% if user_data.is_active %}
-                <span style="background:#d1fae5;color:#065f46;padding:3px 12px;border-radius:999px;font-size:0.75rem;font-weight:700;">ACTIVE</span>
-              {% else %}
-                <span style="background:#fee2e2;color:#991b1b;padding:3px 12px;border-radius:999px;font-size:0.75rem;font-weight:700;">INACTIVE</span>
-              {% endif %}
-            </span>
-          </div>
-          {% if user_data.created_at %}
-          <div class="info-row">
-            <span class="info-key">Member since</span>
-            <span class="info-val">{{ user_data.created_at.strftime('%d %b %Y') }}</span>
+          {% endif %}
+          {% if pending_request.address != user_data.address %}
+          <div class="col-md-6 mt-2">
+            <span class="text-muted d-block small">Address change</span>
+            <strong>{{ user_data.address or 'None' }}</strong> &rarr; <span class="text-danger fw-bold">{{
+              pending_request.address }}</span>
           </div>
           {% endif %}
         </div>
+      </div>
+      {% endif %}
 
-        <!-- Recent Activity -->
-        <div class="activity-card">
-          <div class="activity-header">
-            <i class="bi bi-activity" style="color:#b91c1c;"></i>
-            My Recent Activity
-            <span style="margin-left:auto;font-size:0.78rem;font-weight:400;color:#6b7280;">Last 10 events</span>
+      <!-- ── Hero ──────────────────────────────── -->
+      <div class="profile-hero">
+        <div class="d-flex align-items-center gap-4 position-relative" style="z-index:1;">
+          <div class="profile-avatar">
+            {{ (user_data.username or 'U')[0].upper() }}
           </div>
-          {% if recent_activity %}
-          <ul class="activity-list">
-            {% for act in recent_activity %}
+          <div>
+            <h1>{{ user_data.username }}</h1>
+            <span class="role-badge">{{ user_data.role | title }}</span>
+            <div style="font-size:0.82rem; margin-top:6px; opacity:0.8;">
+              <i class="bi bi-envelope me-1"></i>{{ user_data.email or 'No email set' }}
+            </div>
+          </div>
+        </div>
+        <div class="d-flex gap-3 mt-4 flex-wrap position-relative" style="z-index:1;">
+          <div class="stat-pill">
+            <div class="sp-num">{{ (my_stats.total_events or 0)|int }}</div>
+            <div class="sp-lbl">Total Events</div>
+          </div>
+          <div class="stat-pill">
+            <div class="sp-num">{{ (my_stats.total_cleans or 0)|int }}</div>
+            <div class="sp-lbl">Files Cleaned</div>
+          </div>
+          <div class="stat-pill">
+            <div class="sp-num">{{ (my_stats.total_uploads or 0)|int }}</div>
+            <div class="sp-lbl">Uploads</div>
+          </div>
+          <div class="stat-pill">
+            <div class="sp-num">{{ (my_stats.total_exports or 0)|int }}</div>
+            <div class="sp-lbl">Exports</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row g-4">
+
+        <!-- Left: Edit / Change Password -->
+        <div class="col-lg-6">
+
+          <!-- Nav Card -->
+          <div class="profile-card mb-4">
+            <div class="profile-card-header">
+              <div class="profile-card-title">
+                <div class="profile-card-icon" id="cardIcon" style="background:#fef2f2;color:#b91c1c;"><i
+                    class="bi bi-pencil-square"></i></div>
+                <div>
+                  <h2 id="cardTitle">Edit Profile Details</h2>
+                  <p id="cardSub">Submit profile changes for approval</p>
+                </div>
+              </div>
+              <ul class="nav profile-nav-tabs" id="profileTabs" role="tablist">
+                <li class="nav-item">
+                  <button class="profile-nav-link active" id="edit-tab" data-bs-toggle="tab" data-bs-target="#edit-pane"
+                    type="button" role="tab">Details</button>
+                </li>
+                <li class="nav-item">
+                  <button class="profile-nav-link" id="pw-tab" data-bs-toggle="tab" data-bs-target="#pw-pane"
+                    type="button" role="tab" Password</button>
+                </li>
+              </ul>
+            </div>
+            <div class="profile-card-body">
+
+              <!-- Alert banner -->
+              <div id="formAlert" class="profile-alert alert alert-danger" style="display:none;" role="alert"></div>
+
+              <div class="tab-content" id="profileTabsContent">
+
+                <!-- Tab 1: Edit profile details -->
+                <div class="tab-pane fade show active" id="edit-pane" role="tabpanel" aria-labelledby="edit-tab">
+                  <form id="editForm" method="post" action="{{ url_for('profile_update') }}">
+                    <input type="hidden" name="csrf" value="{{ csrf_token() if csrf_token is defined else '' }}">
+
+                    <div class="form-field">
+                      <label for="username">Username</label>
+                      <input type="text" id="username" name="username" value="{{ user_data.username }}" required>
+                    </div>
+
+                    <div class="form-field">
+                      <label for="email">Email Address</label>
+                      <input type="email" id="email" name="email" value="{{ user_data.email or '' }}"
+                        placeholder="Enter email">
+                    </div>
+
+                    <div class="form-field">
+                      <label for="phone_number">Phone Number</label>
+                      <input type="text" id="phone_number" name="phone_number"
+                        value="{{ user_data.phone_number or '' }}" placeholder="e.g. +91 98765 43210">
+                    </div>
+
+                    <div class="form-field">
+                      <label for="address">Postal Address</label>
+                      <textarea id="address" name="address" rows="3"
+                        placeholder="Enter full address">{{ user_data.address or '' }}</textarea>
+                    </div>
+
+                    <button type="submit" class="btn-save" id="btnSaveDetails">
+                      <i class="bi bi-send-check-fill me-2"></i>Submit for Approval
+                    </button>
+                  </form>
+                </div>
+
+                <!-- Tab 2: Change password -->
+                <div class="tab-pane fade" id="pw-pane" role="tabpanel" aria-labelledby="pw-tab">
+                  <form id="pwForm" method="post" action="{{ url_for('change_password') }}">
+                    <input type="hidden" name="csrf" value="{{ csrf_token() if csrf_token is defined else '' }}">
+
+                    <div class="form-field">
+                      <label for="cur_pw">Current Password</label>
+                      <input type="password" id="cur_pw" name="current_password" placeholder="Enter current password"
+                        required autocomplete="current-password">
+                      <button type="button" class="pw-eye-btn" data-target="cur_pw" tabindex="-1">
+                        <i class="bi bi-eye"></i>
+                      </button>
+                    </div>
+
+                    <div class="form-field">
+                      <label for="new_pw">New Password</label>
+                      <input type="password" id="new_pw" name="new_password" placeholder="Choose a strong new password"
+                        required autocomplete="new-password">
+                      <button type="button" class="pw-eye-btn" data-target="new_pw" tabindex="-1">
+                        <i class="bi bi-eye"></i>
+                      </button>
+                      <div class="pw-strength mt-2">
+                        <div class="pw-strength-bar" id="pwBar"></div>
+                      </div>
+                      <div class="pw-rules" id="pwRules">
+                        <span class="pw-rule" id="r-len"><i class="bi bi-circle"></i> 8+ characters</span>
+                        <span class="pw-rule" id="r-upper"><i class="bi bi-circle"></i> Uppercase</span>
+                        <span class="pw-rule" id="r-num"><i class="bi bi-circle"></i> Number</span>
+                        <span class="pw-rule" id="r-special"><i class="bi bi-circle"></i> Special char</span>
+                      </div>
+                    </div>
+
+                    <div class="form-field">
+                      <label for="conf_pw">Confirm New Password</label>
+                      <input type="password" id="conf_pw" name="confirm_password" placeholder="Re-enter new password"
+                        required autocomplete="new-password">
+                      <button type="button" class="pw-eye-btn" data-target="conf_pw" tabindex="-1">
+                        <i class="bi bi-eye"></i>
+                      </button>
+                    </div>
+
+                    <button type="submit" class="btn-save" id="btnSavePw">
+                      <i class="bi bi-lock-fill me-2"></i>Update Password (Immediate)
+                    </button>
+                  </form>
+                </div>
+
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Right: Info Panel + Recent Activity -->
+        <div class="col-lg-6">
+
+          <!-- Info card -->
+          <div class="info-card mb-4">
+            <div
+              style="font-size:0.9rem; font-weight:700; color:var(--text-main); margin-bottom:14px; border-bottom: 1.5px solid var(--border-color); padding-bottom: 8px;">
+              <i class="bi bi-person-badge-fill me-2" style="color:var(--red-accent);"></i>Account Details Overview
+            </div>
+            <div class="info-row">
+              <span class="info-key">Username</span>
+              <span class="info-val">{{ user_data.username }}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-key">Email Address</span>
+              <span class="info-val">{{ user_data.email or '—' }}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-key">Phone Number</span>
+              <span class="info-val">{{ user_data.phone_number or '—' }}</span>
+            </div>
+            <div class="info-row text-align-right">
+              <span class="info-key">Address</span>
+              <span class="info-val">{{ user_data.address or '—' }}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-key">System Role</span>
+              <span class="info-val">
+                <span
+                  style="background:#fef2f2;color:#b91c1c;padding:3px 12px;border-radius:999px;font-size:0.75rem;font-weight:700;text-transform:uppercase;">
+                  {{ user_data.role }}
+                </span>
+              </span>
+            </div>
+            <div class="info-row">
+              <span class="info-key">Account Status</span>
+              <span class="info-val">
+                {% if user_data.is_active %}
+                <span
+                  style="background:#d1fae5;color:#065f46;padding:3px 12px;border-radius:999px;font-size:0.75rem;font-weight:700;">ACTIVE</span>
+                {% else %}
+                <span
+                  style="background:#fee2e2;color:#991b1b;padding:3px 12px;border-radius:999px;font-size:0.75rem;font-weight:700;">INACTIVE</span>
+                {% endif %}
+              </span>
+            </div>
+            {% if user_data.created_at %}
+            <div class="info-row">
+              <span class="info-key">Member since</span>
+              <span class="info-val">{{ user_data.created_at.strftime('%d %b %Y') }}</span>
+            </div>
+            {% endif %}
+          </div>
+
+          <!-- Recent Activity -->
+          <div class="activity-card">
+            <div class="activity-header">
+              <i class="bi bi-activity" style="color:#b91c1c;"></i>
+              My Recent Activity
+              <span style="margin-left:auto;font-size:0.78rem;font-weight:400;color:var(--text-muted);">Last 10
+                events</span>
+            </div>
+            {% if recent_activity %}
+            <ul class="activity-list">
+              {% for act in recent_activity %}
               {% set al = act.action | lower %}
               {% if 'cleaned file' in al %}
-                {% set ic='clean' %}{% set ii='bi-magic' %}
+              {% set ic='clean' %}{% set ii='bi-magic' %}
               {% elif 'export' in al %}
-                {% set ic='export' %}{% set ii='bi-box-arrow-up' %}
+              {% set ic='export' %}{% set ii='bi-box-arrow-up' %}
               {% elif 'upload' in al or 'ingest' in al %}
-                {% set ic='import' %}{% set ii='bi-upload' %}
+              {% set ic='import' %}{% set ii='bi-upload' %}
               {% elif 'login' in al or 'logout' in al %}
-                {% set ic='login' %}{% set ii='bi-door-open-fill' %}
+              {% set ic='login' %}{% set ii='bi-door-open-fill' %}
               {% elif 'search' in al %}
-                {% set ic='search' %}{% set ii='bi-search' %}
+              {% set ic='search' %}{% set ii='bi-search' %}
               {% else %}
-                {% set ic='other' %}{% set ii='bi-dot' %}
+              {% set ic='other' %}{% set ii='bi-dot' %}
               {% endif %}
               <li>
                 <div class="al-icon {{ ic }}"><i class="bi {{ ii }}"></i></div>
@@ -481,155 +748,156 @@
                 </div>
                 <div class="al-time">
                   {% if act.created_at %}
-                    {{ act.created_at.strftime('%d %b, %H:%M') }}
+                  {{ act.created_at.strftime('%d %b, %H:%M') }}
                   {% endif %}
                 </div>
               </li>
-            {% endfor %}
-          </ul>
-          {% else %}
+              {% endfor %}
+            </ul>
+            {% else %}
             <div style="padding:32px 24px; text-align:center; color:#9ca3af;">
               <i class="bi bi-journal-x" style="font-size:2rem;"></i>
               <p style="margin-top:10px;">No activity yet</p>
             </div>
-          {% endif %}
+            {% endif %}
+          </div>
+
         </div>
 
-      </div>
+      </div><!-- /row -->
+    </div><!-- /content-area -->
+  </div>
 
-    </div><!-- /row -->
-  </div><!-- /content-area -->
-</div>
-
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script>
-  // ─── Eye toggle ─────────────────────────────────────────────────────
-  document.querySelectorAll('.pw-eye-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const inp = document.getElementById(btn.dataset.target);
-      const show = inp.type === 'password';
-      inp.type = show ? 'text' : 'password';
-      btn.querySelector('i').className = show ? 'bi bi-eye-slash' : 'bi bi-eye';
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    // ─── Eye toggle ─────────────────────────────────────────────────────
+    document.querySelectorAll('.pw-eye-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const inp = document.getElementById(btn.dataset.target);
+        const show = inp.type === 'password';
+        inp.type = show ? 'text' : 'password';
+        btn.querySelector('i').className = show ? 'bi bi-eye-slash' : 'bi bi-eye';
+      });
     });
-  });
 
-  // ─── Tab Title Updates ─────────────────────────────────────────────
-  const cardIcon  = document.getElementById('cardIcon');
-  const cardTitle = document.getElementById('cardTitle');
-  const cardSub   = document.getElementById('cardSub');
+    // ─── Tab Title Updates ─────────────────────────────────────────────
+    const cardIcon = document.getElementById('cardIcon');
+    const cardTitle = document.getElementById('cardTitle');
+    const cardSub = document.getElementById('cardSub');
 
-  document.getElementById('edit-tab').addEventListener('shown.bs.tab', () => {
-    cardIcon.style.background = '#fef2f2'; cardIcon.style.color = '#b91c1c';
-    cardIcon.innerHTML = '<i class="bi bi-pencil-square"></i>';
-    cardTitle.textContent = 'Edit Profile Details';
-    cardSub.textContent = 'Submit profile changes for approval';
-  });
+    document.getElementById('edit-tab').addEventListener('shown.bs.tab', () => {
+      cardIcon.style.background = '#fef2f2'; cardIcon.style.color = '#b91c1c';
+      cardIcon.innerHTML = '<i class="bi bi-pencil-square"></i>';
+      cardTitle.textContent = 'Edit Profile Details';
+      cardSub.textContent = 'Submit profile changes for approval';
+    });
 
-  document.getElementById('pw-tab').addEventListener('shown.bs.tab', () => {
-    cardIcon.style.background = '#ede9fe'; cardIcon.style.color = '#7c3aed';
-    cardIcon.innerHTML = '<i class="bi bi-shield-lock-fill"></i>';
-    cardTitle.textContent = 'Change Password';
-    cardSub.textContent = 'Update password (immediate, no approval required)';
-  });
+    document.getElementById('pw-tab').addEventListener('shown.bs.tab', () => {
+      cardIcon.style.background = '#ede9fe'; cardIcon.style.color = '#7c3aed';
+      cardIcon.innerHTML = '<i class="bi bi-shield-lock-fill"></i>';
+      cardTitle.textContent = 'Change Password';
+      cardSub.textContent = 'Update password (immediate, no approval required)';
+    });
 
-  // ─── Password strength meter ─────────────────────────────────────────
-  const newPwInp = document.getElementById('new_pw');
-  const bar      = document.getElementById('pwBar');
-  const rules    = {
-    'r-len':     v => v.length >= 8,
-    'r-upper':   v => /[A-Z]/.test(v),
-    'r-num':     v => /\d/.test(v),
-    'r-special': v => /[^A-Za-z0-9]/.test(v),
-  };
+    // ─── Password strength meter ─────────────────────────────────────────
+    const newPwInp = document.getElementById('new_pw');
+    const bar = document.getElementById('pwBar');
+    const rules = {
+      'r-len': v => v.length >= 8,
+      'r-upper': v => /[A-Z]/.test(v),
+      'r-num': v => /\d/.test(v),
+      'r-special': v => /[^A-Za-z0-9]/.test(v),
+    };
 
-  newPwInp.addEventListener('input', () => {
-    const v = newPwInp.value;
-    let score = 0;
-    for (const [id, fn] of Object.entries(rules)) {
-      const el = document.getElementById(id);
-      const ok = fn(v);
-      if (ok) score++;
-      el.className = 'pw-rule' + (ok ? ' ok' : '');
-      el.querySelector('i').className = ok ? 'bi bi-check-circle-fill' : 'bi bi-circle';
-    }
-    const pct   = (score / 4) * 100;
-    const color = score <= 1 ? '#ef4444' : score === 2 ? '#f59e0b' : score === 3 ? '#3b82f6' : '#10b981';
-    bar.style.width    = pct + '%';
-    bar.style.background = color;
-  });
-
-  // ─── AJAX handler for Forms ─────────────────────────────────────────
-  const formAlert = document.getElementById('formAlert');
-
-  function showAlert(msg, isSuccess) {
-    formAlert.style.display = 'flex';
-    formAlert.className = 'profile-alert alert ' + (isSuccess ? 'alert-success' : 'alert-danger');
-    formAlert.innerHTML = `<i class="bi bi-${isSuccess ? 'check-circle' : 'exclamation-triangle'}-fill me-2"></i>${msg}`;
-    formAlert.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  }
-
-  // Details Form Submit
-  const editForm = document.getElementById('editForm');
-  const btnSaveDetails = document.getElementById('btnSaveDetails');
-  editForm.addEventListener('submit', async e => {
-    e.preventDefault();
-    btnSaveDetails.disabled = true;
-    btnSaveDetails.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Submitting…';
-    try {
-      const fd = new FormData(editForm);
-      const r  = await fetch(editForm.action, {
-        method: 'POST',
-        headers: { 'X-Requested-With': 'XMLHttpRequest' },
-        body: fd
-      });
-      const data = await r.json();
-      if (data.ok) {
-        showAlert(data.message || 'Request submitted successfully! It is pending approval.', true);
-        setTimeout(() => { window.location.reload(); }, 1500);
-      } else {
-        showAlert(data.error || 'Something went wrong.', false);
+    newPwInp.addEventListener('input', () => {
+      const v = newPwInp.value;
+      let score = 0;
+      for (const [id, fn] of Object.entries(rules)) {
+        const el = document.getElementById(id);
+        const ok = fn(v);
+        if (ok) score++;
+        el.className = 'pw-rule' + (ok ? ' ok' : '');
+        el.querySelector('i').className = ok ? 'bi bi-check-circle-fill' : 'bi bi-circle';
       }
-    } catch(err) {
-      showAlert('Request failed. Please try again.', false);
-    } finally {
-      btnSaveDetails.disabled = false;
-      btnSaveDetails.innerHTML = '<i class="bi bi-send-check-fill me-2"></i>Submit for Approval';
-    }
-  });
+      const pct = (score / 4) * 100;
+      const color = score <= 1 ? '#ef4444' : score === 2 ? '#f59e0b' : score === 3 ? '#3b82f6' : '#10b981';
+      bar.style.width = pct + '%';
+      bar.style.background = color;
+    });
 
-  // Password Form Submit
-  const pwForm = document.getElementById('pwForm');
-  const btnSavePw = document.getElementById('btnSavePw');
-  pwForm.addEventListener('submit', async e => {
-    e.preventDefault();
-    btnSavePw.disabled = true;
-    btnSavePw.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Saving…';
-    try {
-      const fd = new FormData(pwForm);
-      const r  = await fetch(pwForm.action, {
-        method: 'POST',
-        headers: { 'X-Requested-With': 'XMLHttpRequest' },
-        body: fd
-      });
-      const data = await r.json();
-      if (data.ok) {
-        showAlert('Password changed successfully! 🎉', true);
-        pwForm.reset();
-        bar.style.width = '0';
-        document.querySelectorAll('.pw-rule').forEach(el => {
-          el.className = 'pw-rule';
-          el.querySelector('i').className = 'bi bi-circle';
+    // ─── AJAX handler for Forms ─────────────────────────────────────────
+    const formAlert = document.getElementById('formAlert');
+
+    function showAlert(msg, isSuccess) {
+      formAlert.style.display = 'flex';
+      formAlert.className = 'profile-alert alert ' + (isSuccess ? 'alert-success' : 'alert-danger');
+      formAlert.innerHTML = `<i class="bi bi-${isSuccess ? 'check-circle' : 'exclamation-triangle'}-fill me-2"></i>${msg}`;
+      formAlert.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    // Details Form Submit
+    const editForm = document.getElementById('editForm');
+    const btnSaveDetails = document.getElementById('btnSaveDetails');
+    editForm.addEventListener('submit', async e => {
+      e.preventDefault();
+      btnSaveDetails.disabled = true;
+      btnSaveDetails.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Submitting…';
+      try {
+        const fd = new FormData(editForm);
+        const r = await fetch(editForm.action, {
+          method: 'POST',
+          headers: { 'X-Requested-With': 'XMLHttpRequest' },
+          body: fd
         });
-      } else {
-        showAlert(data.error || 'Something went wrong.', false);
+        const data = await r.json();
+        if (data.ok) {
+          showAlert(data.message || 'Request submitted successfully! It is pending approval.', true);
+          setTimeout(() => { window.location.reload(); }, 1500);
+        } else {
+          showAlert(data.error || 'Something went wrong.', false);
+        }
+      } catch (err) {
+        showAlert('Request failed. Please try again.', false);
+      } finally {
+        btnSaveDetails.disabled = false;
+        btnSaveDetails.innerHTML = '<i class="bi bi-send-check-fill me-2"></i>Submit for Approval';
       }
-    } catch(err) {
-      showAlert('Request failed. Please try again.', false);
-    } finally {
-      btnSavePw.disabled = false;
-      btnSavePw.innerHTML = '<i class="bi bi-lock-fill me-2"></i>Update Password (Immediate)';
-    }
-  });
-</script>
+    });
+
+    // Password Form Submit
+    const pwForm = document.getElementById('pwForm');
+    const btnSavePw = document.getElementById('btnSavePw');
+    pwForm.addEventListener('submit', async e => {
+      e.preventDefault();
+      btnSavePw.disabled = true;
+      btnSavePw.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Saving…';
+      try {
+        const fd = new FormData(pwForm);
+        const r = await fetch(pwForm.action, {
+          method: 'POST',
+          headers: { 'X-Requested-With': 'XMLHttpRequest' },
+          body: fd
+        });
+        const data = await r.json();
+        if (data.ok) {
+          showAlert('Password changed successfully! 🎉', true);
+          pwForm.reset();
+          bar.style.width = '0';
+          document.querySelectorAll('.pw-rule').forEach(el => {
+            el.className = 'pw-rule';
+            el.querySelector('i').className = 'bi bi-circle';
+          });
+        } else {
+          showAlert(data.error || 'Something went wrong.', false);
+        }
+      } catch (err) {
+        showAlert('Request failed. Please try again.', false);
+      } finally {
+        btnSavePw.disabled = false;
+        btnSavePw.innerHTML = '<i class="bi bi-lock-fill me-2"></i>Update Password (Immediate)';
+      }
+    });
+  </script>
 </body>
+
 </html>

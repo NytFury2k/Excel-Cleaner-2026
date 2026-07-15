@@ -10,7 +10,9 @@
   <link rel="icon" href="https://paramantra.us/aldius/images/favicon.png" type="image/gif">
   <style>
     :root {
-      --red: #b91c1c;
+      --red-accent: #b91c1c;
+      --red-hover: #991b1b;
+      --red: var(--red-accent);
       --border: #e5e7eb;
       --surface: #f9fafb;
     }
@@ -133,7 +135,7 @@
 
     .pagination .page-link:hover {
       background: #fee2e2;
-      color: #991b1b;
+      color: var(--red-hover);
     }
 
     .pagination .page-item.active .page-link {
@@ -172,8 +174,8 @@
     }
 
     .btn-danger:hover {
-      background: #991b1b;
-      border-color: #991b1b;
+      background: var(--red-hover);
+      border-color: var(--red-hover);
     }
 
     .btn-outline-danger {
@@ -214,7 +216,7 @@
       height: 42px;
       border-radius: 10px;
       background: #fef2f2;
-      color: #b91c1c;
+      color: var(--red-accent);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -273,9 +275,9 @@
     }
 
     .sidebar-brand {
-      background: #b91c1c;
+      background: var(--red-accent);
       padding: 20px;
-      border-bottom: 1px solid #991b1b;
+      border-bottom: 1px solid var(--red-hover);
       display: flex;
       justify-content: center;
       align-items: center;
@@ -303,7 +305,7 @@
 
     .sidebar-link:hover {
       background: #fef2f2;
-      color: #b91c1c;
+      color: var(--red-accent);
     }
 
     .sidebar-link i {
@@ -630,9 +632,7 @@
             <div class="card shadow-sm">
               <div class="card-header d-flex justify-content-between align-items-center py-2">
                 <span><i class="bi bi-database me-2 text-danger"></i>Master Records</span>
-                <button type="button" class="btn btn-danger btn-sm fw-semibold" id="exportFilteredBtn">
-                  <i class="bi bi-download me-1"></i>Export Filtered Records
-                </button>
+                <button type="button" class="btn btn-success btn-sm fw-semibold" id="exportFilteredBtn">Export Filtered Records</button>
               </div>
               <div class="card-body p-0">
                 <div class="table-responsive">
@@ -798,7 +798,7 @@
         <form id="uploadForm">
           <div class="modal-body p-4">
             <div class="text-center p-4 border border-dashed rounded-3 mb-3"
-              style="border: 2px dashed #b91c1c; background: #fef2f2;">
+              style="border: 2px dashed var(--red-accent); background: var(--red-light);">
               <i class="bi bi-file-earmark-excel fs-1 text-danger mb-3 d-block"></i>
               <h6 class="fw-bold">Select spreadsheet file</h6>
               <p class="text-muted small">Supports standard Excel formats (.xlsx, .xls) and CSV (.csv)</p>
@@ -1135,16 +1135,15 @@
         const endIdx = Math.min(page * perPage, total);
 
         let html = `
-                <div class="text-muted small mb-2 mb-md-0">
-                    Showing <strong>${startIdx}</strong> to <strong>${endIdx}</strong> of <strong>${total}</strong> records
-                </div>
-                <nav>
+                <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 w-100 px-3">
+                  <small class="text-muted">Page ${page} of ${pages}</small>
+                  <nav aria-label="Dashboard pagination">
                     <ul class="pagination pagination-sm mb-0">
-                        <li class="page-item ${page === 1 ? 'disabled' : ''}">
-                            <button class="page-link page-btn" data-page="${page - 1}">
-                                <i class="bi bi-chevron-left"></i>
-                            </button>
-                        </li>
+                      <li class="page-item ${page === 1 ? 'disabled' : ''}">
+                        <button class="page-link page-btn" data-page="${page - 1}">
+                          <i class="bi bi-chevron-left"></i>
+                        </button>
+                      </li>
             `;
 
         let startPage = Math.max(1, page - 2);
@@ -1182,6 +1181,13 @@
                         </li>
                     </ul>
                 </nav>
+                <form id="dashboardPageJumpForm" class="d-flex align-items-center gap-2">
+                  <label class="text-muted small mb-0" for="dashboardPageJumpInput" style="white-space:nowrap;">Go to page</label>
+                  <input id="dashboardPageJumpInput" type="number" min="1" max="${pages}" value="${page}"
+                    class="form-control form-control-sm" style="width:70px;" aria-label="Jump to page">
+                  <button type="button" id="dashboardPageJumpBtn" class="btn btn-sm btn-outline-danger">Go</button>
+                </form>
+              </div>
             `;
 
         paginationControls.innerHTML = html;
@@ -1193,6 +1199,26 @@
             fetchRecords(targetPage);
           });
         });
+
+        const dashboardPageJumpInput = document.getElementById("dashboardPageJumpInput");
+        const dashboardPageJumpBtn = document.getElementById("dashboardPageJumpBtn");
+        if (dashboardPageJumpInput && dashboardPageJumpBtn) {
+          dashboardPageJumpBtn.addEventListener("click", function () {
+            const targetPage = parseInt(dashboardPageJumpInput.value);
+            if (!targetPage || targetPage < 1 || targetPage > pages) {
+              dashboardPageJumpInput.classList.add("is-invalid");
+              return;
+            }
+            dashboardPageJumpInput.classList.remove("is-invalid");
+            fetchRecords(targetPage);
+          });
+          dashboardPageJumpInput.addEventListener("keydown", function (event) {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              dashboardPageJumpBtn.click();
+            }
+          });
+        }
       }
 
       // 3. Search Form Submission
@@ -1289,7 +1315,7 @@
       ];
 
       const initialModalBodyHtml = `
-            <div class="text-center p-4 border border-dashed rounded-3 mb-3" style="border: 2px dashed #b91c1c; background: #fef2f2;">
+            <div class="text-center p-4 border border-dashed rounded-3 mb-3" style="border: 2px dashed var(--red-accent); background: var(--red-light);">
               <i class="bi bi-file-earmark-excel fs-1 text-danger mb-3 d-block"></i>
               <h6 class="fw-bold">Select spreadsheet file</h6>
               <p class="text-muted small">Supports standard Excel formats (.xlsx, .xls) and CSV (.csv)</p>

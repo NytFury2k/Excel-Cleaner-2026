@@ -10,7 +10,10 @@
   <link rel="icon" href="https://paramantra.us/aldius/images/favicon.png" type="image/gif">
   <style>
     :root {
-      --red: #b91c1c;
+      --red-accent: #b91c1c;
+      --red-hover: #991b1b;
+      --red-light: #fee2e2;
+      --red: var(--red-accent);
       --border: #e5e7eb;
       --surface: #f9fafb;
     }
@@ -63,8 +66,8 @@
     }
 
     .btn-danger:hover {
-      background: #991b1b;
-      border-color: #991b1b;
+      background: var(--red-hover);
+      border-color: var(--red-hover);
     }
 
     .table thead th {
@@ -100,7 +103,7 @@
 
     .pagination .page-link:hover {
       background: #fee2e2;
-      color: #991b1b;
+      color: var(--red-hover);
     }
 
     .pagination .page-item.active .page-link {
@@ -218,9 +221,9 @@
     }
 
     .sidebar-brand {
-      background: #b91c1c;
+      background: var(--red-accent);
       padding: 20px;
-      border-bottom: 1px solid #991b1b;
+      border-bottom: 1px solid var(--red-hover);
       display: flex;
       justify-content: center;
       align-items: center;
@@ -248,7 +251,7 @@
 
     .sidebar-link:hover {
       background: #fef2f2;
-      color: #b91c1c;
+      color: var(--red-accent);
     }
 
     .sidebar-link i {
@@ -273,32 +276,25 @@
       <div id="usersData" data-caller-role='{{ caller_role|default("") }}' data-search='{{ search|default("") }}'
         style="display:none;"></div>
 
-      <div class="container mt-3">
+      <div class="container-fluid">
+
         {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}{% for category, message in messages %}
+        {% if messages %}
+        {% for category, message in messages %}
         <div class="alert alert-{{ category }} alert-dismissible fade show">
-          {{ message|safe }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+          {{ message|safe }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
-        {% endfor %}{% endif %}{% endwith %}
-      </div>
-
-      <div class="container">
-        <div class="page-hdr mb-4">
-          <h2></i>Registered Users</h2>
-          <p>Browse and filter user accounts</p>
-        </div>
-
-        {# ── Transient flash messages ── #}
-        {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}<div class="mb-3" id="flashArea">{% for category, message in messages %}
-          <div class="alert alert-{{ category }} alert-dismissible fade show">
-            {{ message|safe }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-          </div>
-          {% endfor %}
-        </div>
+        {% endfor %}
         {% endif %}
         {% endwith %}
+
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <div>
+            <h3 style="font-size:1.35rem;font-weight:700;color:var(--text);margin-bottom:4px;">Registered Users</h3>
+            <p class="text-muted" style="font-size:0.875rem;">Browse and filter user accounts</p>
+          </div>
+        </div>
 
         <div class="card shadow-sm mb-4">
           <div class="card-body" style="padding:16px 20px;">
@@ -395,7 +391,7 @@
 
                     <td>
                       {% if user.role == "admin" %}<span class="badge"
-                        style="background:#fef2f2;color:#b91c1c;border:1px solid #fecaca;">Admin</span>
+                        style="background:#fef2f2;color: var(--red-accent);border:1px solid #fecaca;">Admin</span>
                       {% elif user.role == "manager" %}<span class="badge"
                         style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;">Manager</span>
                       {% elif user.role == "team_lead" %}<span class="badge"
@@ -465,28 +461,47 @@
         </div>
 
         {% if total_pages > 1 %}
-        <nav class="mt-3">
-          <ul class="pagination justify-content-center flex-wrap mb-0">
-            {% if page > 1 %}<li class="page-item"><a class="page-link"
-                href="{{ url_for('list_users', page=page-1, search=search, role=role_filter, status=status_filter, sort=sort) }}"><i
-                  class="bi bi-chevron-left" style="font-size:0.7rem;"></i></a></li>{% endif %}
-            {% if page > 3 %}<li class="page-item"><a class="page-link"
-                href="{{ url_for('list_users', page=1, search=search, role=role_filter, status=status_filter, sort=sort) }}">1</a>
-            </li>
-            <li class="page-item disabled"><span class="page-link">…</span></li>{% endif %}
-            {% for p in range(page-2, page+3) %}{% if 1<=p<=total_pages %}<li
-              class="page-item {% if p==page %}active{% endif %}"><a class="page-link"
-                href="{{ url_for('list_users', page=p, search=search, role=role_filter, status=status_filter, sort=sort) }}">{{
-                p }}</a></li>{% endif %}{% endfor %}
-              {% if page < total_pages-2 %}<li class="page-item disabled"><span class="page-link">…</span></li>
-                <li class="page-item"><a class="page-link"
-                    href="{{ url_for('list_users', page=total_pages, search=search, role=role_filter, status=status_filter, sort=sort) }}">{{
-                    total_pages }}</a></li>{% endif %}
-                {% if page < total_pages %}<li class="page-item"><a class="page-link"
-                    href="{{ url_for('list_users', page=page+1, search=search, role=role_filter, status=status_filter, sort=sort) }}"><i
-                      class="bi bi-chevron-right" style="font-size:0.7rem;"></i></a></li>{% endif %}
-          </ul>
-        </nav>
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mt-3">
+          <small class="text-muted">Page {{ page }} of {{ total_pages }}</small>
+
+          <nav aria-label="User pagination">
+            <ul class="pagination pagination-sm mb-0">
+              <li class="page-item {% if page <= 1 %}disabled{% endif %}">
+                <a class="page-link" href="{{ url_for('list_users', page=page-1, search=search, role=role_filter, status=status_filter, sort=sort) if page > 1 else '#' }}" aria-label="Previous">
+                  <i class="bi bi-chevron-left"></i>
+                </a>
+              </li>
+              {% if page > 3 %}
+              <li class="page-item"><a class="page-link" href="{{ url_for('list_users', page=1, search=search, role=role_filter, status=status_filter, sort=sort) }}">1</a></li>
+              <li class="page-item disabled"><span class="page-link">…</span></li>
+              {% endif %}
+              {% for p in range(page-2, page+3) %}
+              {% if 1 <= p <= total_pages %}
+              <li class="page-item {% if p == page %}active{% endif %}"><a class="page-link" href="{{ url_for('list_users', page=p, search=search, role=role_filter, status=status_filter, sort=sort) }}">{{ p }}</a></li>
+              {% endif %}
+              {% endfor %}
+              {% if page < total_pages-2 %}
+              <li class="page-item disabled"><span class="page-link">…</span></li>
+              <li class="page-item"><a class="page-link" href="{{ url_for('list_users', page=total_pages, search=search, role=role_filter, status=status_filter, sort=sort) }}">{{ total_pages }}</a></li>
+              {% endif %}
+              <li class="page-item {% if page >= total_pages %}disabled{% endif %}">
+                <a class="page-link" href="{{ url_for('list_users', page=page+1, search=search, role=role_filter, status=status_filter, sort=sort) if page < total_pages else '#' }}" aria-label="Next">
+                  <i class="bi bi-chevron-right"></i>
+                </a>
+              </li>
+            </ul>
+          </nav>
+
+          <form method="get" action="{{ url_for('list_users') }}" class="d-flex align-items-center gap-2">
+            <input type="hidden" name="search" value="{{ search }}">
+            <input type="hidden" name="role" value="{{ role_filter }}">
+            <input type="hidden" name="status" value="{{ status_filter }}">
+            <input type="hidden" name="sort" value="{{ sort }}">
+            <label class="text-muted small mb-0" for="pageJumpInput" style="white-space:nowrap;">Go to page</label>
+            <input id="pageJumpInput" type="number" name="page" min="1" max="{{ total_pages }}" value="{{ page }}" class="form-control form-control-sm" style="width:70px;" aria-label="Jump to page">
+            <button type="submit" class="btn btn-sm btn-outline-danger">Go</button>
+          </form>
+        </div>
         {% endif %}
 
       </div>

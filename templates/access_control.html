@@ -10,7 +10,9 @@
   <link rel="icon" href="https://paramantra.us/aldius/images/favicon.png" type="image/gif">
   <style>
     :root {
-      --red: #b91c1c;
+      --red-accent: #b91c1c;
+      --red-hover: #991b1b;
+      --red: var(--red-accent);
       --border: #e5e7eb;
       --surface: #f9fafb;
     }
@@ -101,9 +103,9 @@
     }
 
     .sidebar-brand {
-      background: #b91c1c;
+      background: var(--red-accent);
       padding: 20px;
-      border-bottom: 1px solid #991b1b;
+      border-bottom: 1px solid var(--red-hover);
       display: flex;
       justify-content: center;
       align-items: center;
@@ -131,7 +133,7 @@
 
     .sidebar-link:hover {
       background: #fef2f2;
-      color: #b91c1c;
+      color: var(--red-accent);
     }
 
     .sidebar-link i {
@@ -176,7 +178,7 @@
                   <tr>
                     <td>
                       {% if role == 'admin' %}<span class="role-badge"
-                        style="background:#fef2f2;color:#b91c1c;border:1px solid #fecaca;">Admin</span>
+                        style="background:#fef2f2;color: var(--red-accent);border:1px solid #fecaca;">Admin</span>
                       {% elif role == 'manager' %}<span class="role-badge"
                         style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;">Manager</span>
                       {% elif role == 'team_lead' %}<span class="role-badge"

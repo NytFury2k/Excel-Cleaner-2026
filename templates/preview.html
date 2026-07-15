@@ -10,7 +10,10 @@
   <link rel="icon" href="https://paramantra.us/aldius/images/favicon.png" type="image/gif">
   <style>
     :root {
-      --red: #b91c1c;
+      --red-accent: #b91c1c;
+      --red-hover: #991b1b;
+      --red-light: #fee2e2;
+      --red: var(--red-accent);
       --border: #e5e7eb;
       --surface: #f9fafb;
     }
@@ -50,8 +53,8 @@
     }
 
     .btn-danger:hover {
-      background: #991b1b;
-      border-color: #991b1b;
+      background: var(--red-hover);
+      border-color: var(--red-hover);
     }
 
     .btn-outline-danger {
@@ -229,9 +232,9 @@
     }
 
     .sidebar-brand {
-      background: #b91c1c;
+      background: var(--red-accent);
       padding: 20px;
-      border-bottom: 1px solid #991b1b;
+      border-bottom: 1px solid var(--red-hover);
       display: flex;
       justify-content: center;
       align-items: center;
@@ -250,7 +253,7 @@
 
     .sidebar-link:hover {
       background: #fef2f2;
-      color: #b91c1c;
+      color: var(--red-accent);
     }
 
     .sidebar-link i {
@@ -282,7 +285,7 @@
 
         <div class="mb-4">
           <h2 style="font-size:1.35rem;font-weight:700;color:#111827;margin-bottom:4px;">
-            <i class="bi bi-check2-circle me-2" style="color:#b91c1c;"></i>Cleaning Summary
+            <i class="bi bi-check2-circle me-2" style="color: var(--red-accent);"></i>Cleaning Summary
           </h2>
           <p style="font-size:0.875rem;color:#6b7280;margin:0;">Overview of your processed dataset</p>
           <p style="font-size:0.875rem;color:#6b7280;margin:0;">File: <strong style="color:#374151;">{{ uploaded_file
@@ -299,9 +302,9 @@
       {% if selected_filters %}
       <div class="card shadow-sm mb-4">
         <div class="card-header d-flex align-items-center gap-2">
-          <i class="bi bi-funnel" style="color:#b91c1c;"></i>
+          <i class="bi bi-funnel" style="color: var(--red-accent);"></i>
           Filters Applied <span class="badge ms-1"
-            style="background:#fef2f2;color:#b91c1c;border:1px solid #fecaca;font-size:0.75rem;">{{ filters_count
+            style="background:#fef2f2;color: var(--red-accent);border:1px solid #fecaca;font-size:0.75rem;">{{ filters_count
             }}</span>
         </div>
         <div class="card-body" style="padding:16px 20px;">
@@ -339,9 +342,9 @@
           </div>
         </div>
         <div class="col-6 col-md-3">
-          <div class="stat-card" style="border-left-color:#b91c1c;">
-            <div class="stat-icon" style="color:#b91c1c;"><i class="bi bi-arrow-repeat"></i></div>
-            <div class="stat-num" style="color:#b91c1c;">{{ removed }}</div>
+          <div class="stat-card" style="border-left-color: var(--red-accent);">
+            <div class="stat-icon" style="color: var(--red-accent);"><i class="bi bi-arrow-repeat"></i></div>
+            <div class="stat-num" style="color: var(--red-accent);">{{ removed }}</div>
             <div class="stat-lbl">Duplicates Removed</div>
           </div>
         </div>
@@ -406,9 +409,9 @@
             <li class="nav-item">
               <button class="nav-link px-3 py-2" id="tab-removed" onclick="switchTab('removed')"
                 style="font-size:0.85rem;" {% if removed==0 %}disabled title="No removed rows" {% endif %}>
-                <i class="bi bi-arrow-repeat me-1" style="color:#b91c1c;"></i>
+                <i class="bi bi-arrow-repeat me-1" style="color: var(--red-accent);"></i>
                 Removed <span class="badge ms-1" id="badge-removed"
-                  style="background:#fef2f2;color:#b91c1c;font-size:0.72rem;">{{ removed }}</span>
+                  style="background:#fef2f2;color: var(--red-accent);font-size:0.72rem;">{{ removed }}</span>
               </button>
             </li>
           </ul>
@@ -446,9 +449,9 @@
       {% if grouped_errors %}
       <div class="card shadow-sm">
         <div class="card-header d-flex align-items-center gap-2">
-          <i class="bi bi-bug" style="color:#b91c1c;"></i>
+          <i class="bi bi-bug" style="color: var(--red-accent);"></i>
           <span>Validation Issues</span>
-          <span class="badge ms-1" style="background:#fef2f2;color:#b91c1c;border:1px solid #fecaca;">{{
+          <span class="badge ms-1" style="background:#fef2f2;color: var(--red-accent);border:1px solid #fecaca;">{{
             grouped_errors|length }} type{{ 's' if grouped_errors|length != 1 else '' }}</span>
         </div>
         <div class="card-body">

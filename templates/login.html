@@ -94,6 +94,23 @@
       transition: border-color 0.15s, box-shadow 0.15s; 
     }
 
+    .form-control::placeholder {
+      color: var(--text-muted) !important;
+      opacity: 1 !important;
+    }
+    .form-control::-webkit-input-placeholder {
+      color: var(--text-muted) !important;
+      opacity: 1 !important;
+    }
+    .form-control:-ms-input-placeholder {
+      color: var(--text-muted) !important;
+      opacity: 1 !important;
+    }
+    .form-control::-ms-input-placeholder {
+      color: var(--text-muted) !important;
+      opacity: 1 !important;
+    }
+
     .form-control:focus { 
       border-color: var(--red-accent) !important; 
       box-shadow: 0 0 0 3px rgba(239,68,68,0.15) !important; 
@@ -235,7 +252,7 @@
         </div>
 
         {% if lockout_mins %}
-        <div id="lockout-banner" style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:0.84rem;color:#b91c1c;text-align:center;">
+        <div id="lockout-banner" style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:0.84rem;color: var(--red-accent);text-align:center;">
           <i class="bi bi-shield-lock me-1"></i>
           Account locked. Try again in <strong><span id="lockout-countdown"></span></strong>
         </div>

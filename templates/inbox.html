@@ -10,14 +10,14 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
-    body { font-family: 'Inter', sans-serif; background: #f0f2f8; }
+    body { font-family: 'Inter', sans-serif; background: var(--bg-primary); color: var(--text-main); }
     
-    .inbox-title h1 { font-size: 1.4rem; font-weight: 800; color: #111827; margin: 0; }
-    .inbox-title p { font-size: 0.82rem; color: #6b7280; margin: 0; }
+    .inbox-title h1 { font-size: 1.4rem; font-weight: 800; color: var(--text-main); margin: 0; }
+    .inbox-title p { font-size: 0.82rem; color: var(--text-muted); margin: 0; }
 
     /* Card styling */
     .inbox-card {
-      background: #fff; border-radius: 16px; border: 1px solid #e5e7eb;
+      background: var(--bg-card); border-radius: 16px; border: 1px solid var(--border-color);
       box-shadow: 0 2px 12px rgba(0,0,0,0.04);
       margin-bottom: 20px; transition: transform 0.2s, box-shadow 0.2s, opacity 0.4s;
       overflow: hidden;
@@ -26,9 +26,9 @@
     .inbox-card.fading-out { opacity: 0; transform: scale(0.95); }
 
     .inbox-card-header {
-      padding: 16px 24px; border-bottom: 1.5px solid #f3f4f6;
+      padding: 16px 24px; border-bottom: 1.5px solid var(--border-color);
       display: flex; align-items: center; justify-content: space-between;
-      background: #fafafa;
+      background: var(--bg-primary);
     }
     .inbox-user-info { display: flex; align-items: center; gap: 12px; }
     .inbox-avatar {
@@ -36,31 +36,31 @@
       background: #fee2e2; color: #b91c1c; font-weight: 700;
       display: flex; align-items: center; justify-content: center; font-size: 0.95rem;
     }
-    .inbox-user-name { font-size: 0.92rem; font-weight: 700; color: #111827; margin: 0; }
-    .inbox-user-role { font-size: 0.72rem; font-weight: 600; text-transform: uppercase; color: #9ca3af; }
-    .inbox-time { font-size: 0.76rem; color: #6b7280; }
+    .inbox-user-name { font-size: 0.92rem; font-weight: 700; color: var(--text-main); margin: 0; }
+    .inbox-user-role { font-size: 0.72rem; font-weight: 600; text-transform: uppercase; color: var(--text-muted); }
+    .inbox-time { font-size: 0.76rem; color: var(--text-muted); }
 
     .inbox-card-body { padding: 24px; }
     
     /* Comparison layout */
     .comp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
-    .comp-side { background: #f9fafb; border-radius: 12px; padding: 16px; border: 1.5px solid #f3f4f6; }
-    .comp-side.new { background: #f0fdf4; border-color: #dcfce7; }
-    .comp-title { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; color: #6b7280; letter-spacing: 0.5px; margin-bottom: 12px; }
-    .comp-side.new .comp-title { color: #15803d; }
+    .comp-side { background: var(--bg-primary); border-radius: 12px; padding: 16px; border: 1.5px solid var(--border-color); }
+    .comp-side.new { background: var(--red-light); border-color: var(--border-color); }
+    .comp-title { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.5px; margin-bottom: 12px; }
+    .comp-side.new .comp-title { color: var(--red-accent); }
     
     .attr-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px dashed #e5e7eb; font-size: 0.84rem; }
     .attr-row:last-child { border-bottom: none; }
-    .attr-key { color: #6b7280; font-weight: 500; }
-    .attr-val { color: #111827; font-weight: 600; word-break: break-all; }
-    .comp-side.new .attr-val.changed { color: #166534; background: #bbf7d0; padding: 1px 6px; border-radius: 4px; }
-    .comp-side.old .attr-val.changed { color: #991b1b; text-decoration: line-through; background: #fee2e2; padding: 1px 6px; border-radius: 4px; }
+    .attr-key { color: var(--text-muted); font-weight: 500; }
+    .attr-val { color: var(--text-main); font-weight: 600; word-break: break-all; }
+    .comp-side.new .attr-val.changed { color: var(--red-accent); background: var(--bg-card); padding: 1px 6px; border-radius: 4px; }
+    .comp-side.old .attr-val.changed { color: var(--red-accent); text-decoration: line-through; background: var(--red-light); padding: 1px 6px; border-radius: 4px; }
 
     /* Footer actions */
     .inbox-card-footer {
-      padding: 16px 24px; border-top: 1.5px solid #f3f4f6;
+      padding: 16px 24px; border-top: 1.5px solid var(--border-color);
       display: flex; justify-content: flex-end; gap: 12px;
-      background: #fafafa;
+      background: var(--bg-primary);
     }
     .btn-approve {
       background: linear-gradient(135deg, #10b981, #059669); border: none; color: #fff;
@@ -193,7 +193,7 @@
           {% elif item.type == 'notification' %}
 
             <!-- ── ITEM TYPE: NOTIFICATION (Export / Import / Clean Action Alert) ── -->
-            <div class="inbox-card" style="{% if not item.is_read %}border-left: 4px solid #b91c1c; background:#fafafa;{% endif %}">
+            <div class="inbox-card" style="{% if not item.is_read %}border-left: 4px solid var(--red-accent); background:var(--bg-primary);{% endif %}">
               <div class="inbox-card-header">
                 <div class="inbox-user-info">
                   <div class="notif-badge-box {{ item.action_type }}">
@@ -217,7 +217,7 @@
                 </div>
               </div>
               <div class="inbox-card-body" style="padding: 20px 24px;">
-                <p class="mb-0 text-dark" style="font-size:0.9rem; line-height:1.45;">
+                <p class="mb-0" style="font-size:0.9rem; line-height:1.45; color:var(--text-main);">
                   {{ item.message }}
                 </p>
               </div>
@@ -226,7 +226,7 @@
           {% endif %}
         {% endfor %}
       {% else %}
-        <div style="padding: 80px 24px; text-align: center; color: #9ca3af; background:#fff; border-radius:18px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+        <div style="padding: 80px 24px; text-align: center; color: var(--text-muted); background:var(--bg-card); border-radius:18px; box-shadow:0 1px 3px rgba(0,0,0,0.05); border:1px solid var(--border-color);">
           <i class="bi bi-inbox fs-1 text-muted"></i>
           <h5 class="mt-3 fw-bold">Inbox is empty</h5>
           <p class="text-muted small">No profile requests or activity alerts have arrived.</p>

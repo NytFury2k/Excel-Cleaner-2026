@@ -10,7 +10,10 @@
   <link rel="icon" href="https://paramantra.us/aldius/images/favicon.png" type="image/gif">
   <style>
     :root {
-      --red: #b91c1c;
+      --red-accent: #b91c1c;
+      --red-hover: #991b1b;
+      --red-light: #fee2e2;
+      --red: var(--red-accent);
       --border: #e5e7eb;
       --surface: #f9fafb;
       --bg-primary: #f4f5f7;
@@ -103,7 +106,7 @@
     .type-pill.selected {
       border-color: #fecaca;
       background-color: #fee2e2;
-      color: #991b1b;
+      color: var(--red-hover);
     }
 
     [data-theme="dark"] .type-pill.selected {
@@ -202,7 +205,7 @@
     .file-type-tag.tag-removed,
     .hist-badge.badge-removed {
       background-color: #fee2e2 !important;
-      color: #991b1b !important;
+      color: var(--red-hover) !important;
       border-color: #fecaca !important;
     }
 
@@ -273,7 +276,7 @@
 
     .badge-removed {
       background-color: #fee2e2 !important;
-      color: #991b1b !important;
+      color: var(--red-hover) !important;
       border-color: #fecaca !important;
     }
 
