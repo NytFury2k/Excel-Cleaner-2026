@@ -158,11 +158,11 @@
     padding: 8px 12px;
     min-height: 42px;
     font-size: 0.95rem;
-    line-height: 1.4;
+    line-height: 1;
     font-weight: 500;
     text-decoration: none;
     border-radius: 8px;
-    margin: 8px 10px;
+    margin: 4px 10px;
   }
 
   .sidebar-link:hover {
@@ -206,7 +206,7 @@
     align-items: center;
     vertical-align: middle;
     font-size: 0.95rem;
-    line-height: 1.4;
+    line-height: 1;
   }
 
   .sidebar.collapsed .sidebar-text {
@@ -457,19 +457,6 @@
     background-color: var(--input-bg) !important;
     color: var(--input-text) !important;
     box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15) !important;
-  }
-
-  .btn-outline-danger {
-    color: var(--red-accent) !important;
-    border-color: var(--red-accent) !important;
-    background-color: transparent !important;
-  }
-
-  .btn-outline-danger:hover,
-  .btn-outline-danger:focus {
-    background-color: var(--red-accent) !important;
-    color: #fff !important;
-    border-color: var(--red-accent) !important;
   }
 
   .text-muted,
@@ -812,7 +799,7 @@
             <button id="btnInboxToggle" style="background:none;border:1px solid var(--border-color);border-radius:50%;width:36px;height:36px;display:inline-flex;align-items:center;justify-content:center;color:var(--text-main);position:relative;cursor:pointer;" title="Inbox & Notifications">
               <i class="bi bi-bell"></i>
               {% if pending_requests_count or unread_notifications_count %}
-              <span style="position:absolute;top:-4px;right:-4px;width:18px;height:18px;border-radius:50%;background:var(--red-accent);color:#fff;font-size:0.65rem;font-weight:700;display:flex;align-items:center;justify-content:center;" id="inboxTotalBadge">
+              <span style="position:absolute;top:-4px;right:-4px;width:18px;height:18px;border-radius:50%;background:#ef4444;color:#fff;font-size:0.65rem;font-weight:700;display:flex;align-items:center;justify-content:center;" id="inboxTotalBadge">
                 {{ (pending_requests_count or 0) + (unread_notifications_count or 0) }}
               </span>
               {% endif %}
@@ -821,14 +808,14 @@
             <div id="inboxDropdown" style="display:none;position:absolute;right:0;top:calc(100% + 6px);background:var(--bg-card);border:1px solid var(--border-color);border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,0.12);min-width:320px;z-index:9999;overflow:hidden;">
               <div style="padding:12px 16px;border-bottom:1px solid var(--border-color);font-weight:700;font-size:0.85rem;color:var(--text-main);display:flex;justify-content:space-between;align-items:center;">
                 <span>Notifications & Requests</span>
-                <button id="btnMarkAllRead" style="background:none;border:none;color:var(--red-accent);font-size:0.75rem;cursor:pointer;font-weight:600;padding:0;">Mark read</button>
+                <button id="btnMarkAllRead" style="background:none;border:none;color:#b91c1c;font-size:0.75rem;cursor:pointer;font-weight:600;padding:0;">Mark read</button>
               </div>
               <div id="inboxList" style="max-height:300px;overflow-y:auto;padding:8px 0;">
                 <div style="padding:20px;text-align:center;color:var(--text-muted);font-size:0.8rem;">
                   <span class="spinner-border spinner-border-sm me-2"></span>Loading...
                 </div>
               </div>
-              <a href="/inbox" style="display:block;text-align:center;padding:10px;font-size:0.8rem;font-weight:600;color:var(--red-accent);text-decoration:none;border-top:1px solid var(--border-color);background:var(--bg-primary);">
+              <a href="/inbox" style="display:block;text-align:center;padding:10px;font-size:0.8rem;font-weight:600;color:#b91c1c;text-decoration:none;border-top:1px solid var(--border-color);background:var(--bg-primary);">
                 Open Full Inbox
               </a>
             </div>

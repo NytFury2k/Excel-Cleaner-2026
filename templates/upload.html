@@ -15,12 +15,6 @@
       --surface: #f9fafb;
     }
 
-    [data-theme="dark"] {
-      --red: #ef4444;
-      --border: #2d2d34;
-      --surface: #18181c;
-    }
-
     body {
       background: #f4f5f7;
       font-family: system-ui, -apple-system, sans-serif;
@@ -333,6 +327,23 @@
       height: 3rem;
       color: var(--red);
     }
+    /* Tabbed navigation overrides */
+    .nav-pills .nav-link {
+      color: #4b5563 !important;
+      border: 1.5px solid #e5e7eb !important;
+      background: none !important;
+      transition: all 0.15s ease;
+    }
+    .nav-pills .nav-link.active {
+      background-color: var(--red) !important;
+      color: #fff !important;
+      border-color: var(--red) !important;
+    }
+    .nav-pills .nav-link:hover:not(.active) {
+      background-color: #fee2e2 !important;
+      color: var(--red) !important;
+      border-color: var(--red-light) !important;
+    }
   </style>
 </head>
 
@@ -370,43 +381,76 @@
 
         <!-- Page header (full width, above both cards) -->
         <div class="mb-4">
-          <h3 style="font-size:1.35rem;font-weight:700;color:var(--text-main);margin-bottom:4px;">Upload Excel or CSV
-            File</h3>
-          <p class="text-muted mb-0" style="font-size:0.875rem;">Upload your CRM data file to begin cleaning.</p>
+          <h3 style="font-size:1.35rem;font-weight:700;color:var(--text-main);margin-bottom:4px;">Upload Excel / CSV Files</h3>
+          <p class="text-muted mb-0" style="font-size:0.875rem;">Upload one or more files. Multi-sheet Excel workbooks are fully supported — each sheet will get its own column mapping.</p>
         </div>
 
         <div class="row g-4 align-items-start">
 
           <!-- Left: Upload card -->
-          <div class="col-lg-6 col-md-7">
-
-            <!-- Upload card -->
+          <div class="col-lg-6 col-md-7">            <!-- Upload card -->
             <div class="upload-card">
+
+              <!-- Tabbed Selector -->
+              <ul class="nav nav-pills justify-content-center mb-4 gap-2" id="importTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                  <button class="nav-link active py-2 px-3 fw-semibold" id="local-file-tab" data-bs-toggle="pill" data-bs-target="#local-file-pane" type="button" role="tab" aria-selected="true" style="border-radius:9px; font-size:0.85rem;">
+                    <i class="bi bi-file-earmark-arrow-up me-1"></i> Local Spreadsheet
+                  </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                  <button class="nav-link py-2 px-3 fw-semibold" id="google-sheet-tab" data-bs-toggle="pill" data-bs-target="#google-sheet-pane" type="button" role="tab" aria-selected="false" style="border-radius:9px; font-size:0.85rem;">
+                    <i class="bi bi-google me-1"></i> Google Sheets Link
+                  </button>
+                </li>
+              </ul>
+
               <form method="post" enctype="multipart/form-data" id="uploadForm">
+                
+                <div class="tab-content" id="importTabsContent">
+                  
+                  <!-- Local File pane -->
+                  <div class="tab-pane fade show active" id="local-file-pane" role="tabpanel" aria-labelledby="local-file-tab">
+                    <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+                      <div class="dz-icon" id="dzIcon">
+                        <i class="bi bi-file-earmark-spreadsheet" id="dzIconI"></i>
+                      </div>
+                      <p class="dz-title" id="dzTitle">Click to browse or drag &amp; drop</p>
+                      <p class="dz-sub">.xlsx, .xls, .csv &nbsp;·&nbsp; Max 50 MB per file &nbsp;·&nbsp; <strong>Multiple files supported</strong></p>
+                      <input type="file" id="fileInput" name="file" accept=".xlsx,.xls,.csv" multiple required>
+                    </div>
 
-                <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
-                  <div class="dz-icon" id="dzIcon">
-                    <i class="bi bi-file-earmark-spreadsheet" id="dzIconI"></i>
+                    <!-- File confirmation pill -->
+                    <div class="d-flex justify-content-center mt-3">
+                      <div class="file-chosen-label" id="fileChosenLabel">
+                        <i class="bi bi-check-circle-fill"></i>
+                        <span id="fileChosenName"></span>
+                        <button type="button" onclick="clearFile(event)"
+                          style="background:none;border:none;padding:0;margin-left:4px;color:#6b7280;line-height:1;font-size:0.9rem;"
+                          title="Remove file">
+                          <i class="bi bi-x-lg"></i>
+                        </button>
+                      </div>
+                    </div>
                   </div>
-                  <p class="dz-title" id="dzTitle">Click to browse or drag &amp; drop</p>
-                  <p class="dz-sub">.xlsx, .xls, .csv &nbsp;·&nbsp; Max 50 MB</p>
-                  <input type="file" id="fileInput" name="file" accept=".xlsx,.xls,.csv" required>
+                  
+                  <!-- Google Sheet pane -->
+                  <div class="tab-pane fade" id="google-sheet-pane" role="tabpanel" aria-labelledby="google-sheet-tab">
+                    <div class="mb-3 text-start bg-light p-3 border rounded-3">
+                      <label class="form-label fw-bold text-dark small" for="googleSheetUrlInput">Google Sheets URL (Public View Link)</label>
+                      <div class="input-group">
+                        <span class="input-group-text bg-white text-muted border-end-0" style="border-radius:8px 0 0 8px;"><i class="bi bi-link-45deg"></i></span>
+                        <input type="url" class="form-control bg-white border-start-0 py-2" id="googleSheetUrlInput" name="google_sheet_url" placeholder="https://docs.google.com/spreadsheets/d/.../edit?usp=sharing" style="border-radius:0 8px 8px 0; font-size:0.88rem;" oninput="validateUrlInput()">
+                      </div>
+                      <p class="text-muted small mt-2 mb-0" style="font-size:0.75rem; line-height:1.4;">
+                        <i class="bi bi-info-circle-fill text-warning me-1"></i> Make sure the sheet's sharing status is set to <strong>"Anyone with the link can view"</strong> (public viewer permissions) so the server can download the data.
+                      </p>
+                    </div>
+                  </div>
+                  
                 </div>
 
-                <!-- File confirmation pill (appears after selection) -->
-                <div class="d-flex justify-content-center mt-3">
-                  <div class="file-chosen-label" id="fileChosenLabel">
-                    <i class="bi bi-check-circle-fill"></i>
-                    <span id="fileChosenName"></span>
-                    <button type="button" onclick="clearFile(event)"
-                      style="background:none;border:none;padding:0;margin-left:4px;color:#6b7280;line-height:1;font-size:0.9rem;"
-                      title="Remove file">
-                      <i class="bi bi-x-lg"></i>
-                    </button>
-                  </div>
-                </div>
-
-                <button type="submit" class="btn-submit" id="submitBtn" disabled>
+                <button type="submit" class="btn-submit mt-3" id="submitBtn" disabled>
                   <i class="bi bi-gear-fill me-2"></i>Analyse &amp; Select Rules
                 </button>
 
@@ -465,25 +509,42 @@
     const dzTitle = document.getElementById("dzTitle");
     const dzIconI = document.getElementById("dzIconI");
 
-    const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50 MB
+    const ALLOWED_EXTS = [".xlsx", ".xls", ".csv"];
+    const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50 MB per file
 
-    function handleFile(file) {
-      if (!file) return;
-      if (file.size > MAX_FILE_SIZE) {
-        alert("File too large. Maximum upload size is 50 MB. Your file is " + (file.size / (1024 * 1024)).toFixed(1) + " MB.");
+    function handleFiles(fileList) {
+      if (!fileList || fileList.length === 0) return;
+      const files = Array.from(fileList);
+      let errors = [];
+
+      files.forEach(f => {
+        const ext = "." + f.name.split(".").pop().toLowerCase();
+        if (!ALLOWED_EXTS.includes(ext)) {
+          errors.push(f.name + ": unsupported format (use .xlsx, .xls or .csv)");
+        } else if (f.size > MAX_FILE_SIZE) {
+          errors.push(f.name + ": exceeds 50 MB limit (" + (f.size / (1024 * 1024)).toFixed(1) + " MB)");
+        }
+      });
+
+      if (errors.length) {
+        alert("Upload error:\n" + errors.join("\n"));
         fileInput.value = "";
         return;
       }
-      chosenName.textContent = file.name;
+
+      const label = files.length === 1
+        ? files[0].name
+        : files.length + " files selected (" + files.map(f => f.name).join(", ") + ")";
+      chosenName.textContent = label;
       fileChosenLabel.classList.add("visible");
       submitBtn.disabled = false;
       dropZone.classList.add("file-ready");
-      dzTitle.textContent = "File ready — click to change";
-      dzIconI.className = "bi bi-check-circle-fill";
+      dzTitle.textContent = files.length === 1 ? "File ready — click to change" : files.length + " files ready — click to change";
+      dzIconI.className = files.length === 1 ? "bi bi-check-circle-fill" : "bi bi-check2-all";
     }
 
     function clearFile(e) {
-      e.stopPropagation();
+      if (e) e.stopPropagation();
       fileInput.value = "";
       fileChosenLabel.classList.remove("visible");
       submitBtn.disabled = true;
@@ -492,19 +553,50 @@
       dzIconI.className = "bi bi-file-earmark-spreadsheet";
     }
 
-    fileInput.addEventListener("change", function () { handleFile(this.files[0]); });
+    // ── Google Sheets Tab Validation & State Management ────────────────────
+    function validateUrlInput() {
+      const urlInput = document.getElementById("googleSheetUrlInput");
+      const isGoogleSheetTab = document.getElementById("google-sheet-tab").classList.contains("active");
+      
+      if (isGoogleSheetTab) {
+        const val = urlInput.value.trim();
+        const hasValidUrl = val.includes("docs.google.com/spreadsheets/d/");
+        submitBtn.disabled = !hasValidUrl;
+      }
+    }
+
+    const localFileTab = document.getElementById('local-file-tab');
+    const googleSheetTab = document.getElementById('google-sheet-tab');
+
+    if (localFileTab) {
+      localFileTab.addEventListener('shown.bs.tab', function () {
+        submitBtn.disabled = !fileInput.files.length;
+        document.getElementById('googleSheetUrlInput').value = '';
+        fileInput.required = true;
+      });
+    }
+
+    if (googleSheetTab) {
+      googleSheetTab.addEventListener('shown.bs.tab', function () {
+        clearFile();
+        validateUrlInput();
+        fileInput.required = false;
+      });
+    }
+
+    fileInput.addEventListener("change", function () { handleFiles(this.files); });
 
     dropZone.addEventListener("dragover", function (e) { e.preventDefault(); dropZone.classList.add("dragover"); });
     dropZone.addEventListener("dragleave", function () { dropZone.classList.remove("dragover"); });
     dropZone.addEventListener("drop", function (e) {
       e.preventDefault();
       dropZone.classList.remove("dragover");
-      const file = e.dataTransfer.files[0];
-      if (file) {
+      const droppedFiles = e.dataTransfer.files;
+      if (droppedFiles && droppedFiles.length > 0) {
         const dt = new DataTransfer();
-        dt.items.add(file);
+        Array.from(droppedFiles).forEach(f => dt.items.add(f));
         fileInput.files = dt.files;
-        handleFile(file);
+        handleFiles(droppedFiles);
       }
     });
 

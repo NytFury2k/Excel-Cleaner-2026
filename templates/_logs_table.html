@@ -38,7 +38,7 @@
   <!-- Filter bar -->
   <div class="card shadow-sm mb-4">
     <div class="card-body" style="padding: 4ipx 14px;">
-      <form id="logsFilterForm" method="get" action="{{ url_for('admin_logs') }}" class="mb-4 mb-0">
+      <form method="get" action="{{ url_for('admin_logs') }}" class="mb-4 mb-0">
 
         <div class="row g-2 align-items-start">
           <div class="col-md-4">
@@ -72,17 +72,14 @@
                 style="border-radius:7px;font-size:0.83rem;" title="Clear filters"><i class="bi bi-x"></i></a>
               {% endif %}
             </div>
-            {% if not hide_add_filter %}
             <button type="button" id="addFilterBtn" class="btn btn-sm btn-secondary w-100"
               style="border-radius:7px;font-size:0.83rem;">Add Filter</button>
-            {% endif %}
           </div>
         </div>
       </form>
     </div>
   </div>
 
-  {% if not hide_add_filter %}
   <!-- Add Filter Modal -->
   <div class="modal fade" id="addFilterModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
@@ -93,14 +90,8 @@
         </div>
         <div class="modal-body">
           <div class="mb-2">
-            <label class="form-label">Field</label>
-            <select id="filterField" class="form-select form-select-sm">
-              <option value="username">User</option>
-              <option value="action">Action</option>
-              <option value="total_rows">Total Rows</option>
-              <option value="valid_rows">Valid Rows</option>
-              <option value="invalid_rows">Invalid Rows</option>
-            </select>
+            <label class="form-label">Field name</label>
+            <input type="text" id="filterField" class="form-control form-control-sm" placeholder="e.g. customer_name">
           </div>
           <div class="mb-2">
             <label class="form-label">Operator</label>
@@ -127,13 +118,13 @@
   </div>
 
   <script>
-    document.addEventListener("DOMContentLoaded", function () {
+    (function () {
       var addBtn = document.getElementById('addFilterBtn');
       if (!addBtn) return;
       var modalEl = document.getElementById('addFilterModal');
       var addFilterModal = new bootstrap.Modal(modalEl);
       var confirmBtn = document.getElementById('addFilterConfirm');
-      var form = document.getElementById("logsFilterForm");
+      var form = document.querySelector("form[action='{{ url_for('admin_logs') }}']");
 
       // Container to show active custom filters (inside the form so hidden inputs submit)
       var filterContainer = document.createElement('div');
@@ -164,15 +155,6 @@
         filterContainer.appendChild(pill);
       }
 
-      {% set f_fields = request.args.getlist('filter_field[]') %}
-      {% set f_ops = request.args.getlist('filter_op[]') %}
-      {% set f_vals = request.args.getlist('filter_value[]') %}
-      {% for i in range(f_fields|length) %}
-        {% if f_ops[i] is defined and f_vals[i] is defined %}
-          addFilterPill("{{ f_fields[i]|e }}", "{{ f_ops[i]|e }}", "{{ f_vals[i]|e }}");
-        {% endif %}
-      {% endfor %}
-
       confirmBtn.addEventListener('click', function () {
         var field = document.getElementById('filterField').value.trim();
         var op = document.getElementById('filterOp').value;
@@ -187,9 +169,8 @@
         document.getElementById('filterValue').value = '';
         addFilterModal.hide();
       });
-    });
+    })();
   </script>
-  {% endif %}
 
   <div class="d-flex justify-content-between align-items-center mb-3">
     <small class="text-muted" style="font-size:0.8rem;margin-left:16px;">
