@@ -322,6 +322,36 @@
       width: 42px;
       height: 42px;
       object-fit: contain;
+    /* Master Dataset Completeness Card Styling */
+    .field-health-card {
+      background: var(--input-bg, #ffffff);
+      border: 1.5px solid var(--border, #e5e7eb);
+      border-radius: 12px;
+      padding: 14px 16px;
+      transition: all 0.22s ease-in-out;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .field-health-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 10px 24px rgba(0, 0, 0, 0.09);
+      border-color: var(--red-accent, #b91c1c);
+    }
+
+    .health-progress-bar {
+      height: 6px;
+      border-radius: 999px;
+      background: #e5e7eb;
+      overflow: hidden;
+      margin: 10px 0 6px 0;
+    }
+
+    .health-progress-fill {
+      height: 100%;
+      border-radius: 999px;
+      transition: width 0.6s ease-in-out;
     }
   </style>
 </head>
@@ -474,223 +504,53 @@
 
         </div>
 
-        <!-- Search & Filtering Engine Console (Full Width & Compact) -->
+        <!-- Master Dataset Completeness & Data Quality Widget -->
         <div class="row g-3 mb-4">
           <div class="col-12">
-            <div class="card shadow-sm">
-              <div class="card-header d-flex justify-content-between align-items-center py-2">
-                <span class="small fw-bold"><i class="bi bi-sliders me-2 text-danger"></i>Search & Filtering
-                  Engine</span>
-              </div>
-              <div class="card-body p-3">
-                <form id="filterForm" class="row g-2">
-                  <div class="col-md-2">
-                    <label class="form-label small mb-1">Full Name</label>
-                    <input type="text" class="form-control form-control-sm" id="filterName" placeholder="Name...">
-                  </div>
-                  <div class="col-md-2">
-                    <label class="form-label small mb-1">Email Address</label>
-                    <input type="text" class="form-control form-control-sm" id="filterEmail" placeholder="Email...">
-                  </div>
-                  <div class="col-md-2">
-                    <label class="form-label small mb-1">Primary Phone</label>
-                    <input type="text" class="form-control form-control-sm" id="filterPhone" placeholder="Phone...">
-                  </div>
-                  <div class="col-md-2">
-                    <label class="form-label small mb-1">Company Name</label>
-                    <input type="text" class="form-control form-control-sm" id="filterCompany" placeholder="Company...">
-                  </div>
-                  <div class="col-md-2 d-flex align-items-end">
-                    <button type="button" class="btn btn-danger btn-sm w-100 py-1 fw-semibold"
-                      id="toggleMoreFiltersBtn">Filter More</button>
-                  </div>
-                  <div class="col-md-2 d-flex align-items-end">
-                    <button type="submit" class="btn btn-danger btn-sm w-100 py-1 fw-semibold">
-                      <i class="bi bi-search me-2"></i>Query Records
-                    </button>
-                  </div>
+            <div class="card shadow-sm border-0" style="border-radius: 14px; overflow: hidden; background: var(--surface);">
+              
+              <!-- Card Header with Colorful Badges & Summary -->
+              <div class="card-header bg-white border-bottom py-3 px-4 d-flex flex-wrap justify-content-between align-items-center gap-3">
+                <div>
+                  <h5 class="fw-bold mb-1" style="font-size: 1.12rem; color: var(--text-main);">
+                    <i class="bi bi-shield-check me-2 text-danger"></i>Master Dataset Completeness & Health
+                  </h5>
+                  <p class="text-muted mb-0" style="font-size: 0.82rem;">
+                    Field-by-field completeness breakdown across all master database records. Click any card to filter records in Downloads console.
+                  </p>
+                </div>
 
-                  <!-- Collapsible More Filters Container -->
-                  <div class="col-12 mt-2 d-none" id="moreFiltersWrapper">
-                    <div class="card bg-light-subtle border-light-subtle p-3">
-                      <div class="row g-2">
-                        <div class="col-md-2">
-                          <label class="form-label small mb-1">Alternate Phone</label>
-                          <input type="text" class="form-control form-control-sm" id="filterAlternatePhone"
-                            placeholder="Alt Phone...">
-                        </div>
-                        <div class="col-md-2">
-                          <label class="form-label small mb-1">Job Title</label>
-                          <input type="text" class="form-control form-control-sm" id="filterJobTitle"
-                            placeholder="Job Title...">
-                        </div>
-                        <div class="col-md-2">
-                          <label class="form-label small mb-1">Department</label>
-                          <input type="text" class="form-control form-control-sm" id="filterDepartment"
-                            placeholder="Department...">
-                        </div>
-                        <div class="col-md-2">
-                          <label class="form-label small mb-1">Website URL</label>
-                          <input type="text" class="form-control form-control-sm" id="filterWebsiteUrl"
-                            placeholder="Website...">
-                        </div>
-                        <div class="col-md-2">
-                          <label class="form-label small mb-1">Address Line 1</label>
-                          <input type="text" class="form-control form-control-sm" id="filterAddress1"
-                            placeholder="Address 1...">
-                        </div>
-                        <div class="col-md-2">
-                          <label class="form-label small mb-1">Address Line 2</label>
-                          <input type="text" class="form-control form-control-sm" id="filterAddress2"
-                            placeholder="Address 2...">
-                        </div>
-                        <div class="col-md-2">
-                          <label class="form-label small mb-1">City</label>
-                          <input type="text" class="form-control form-control-sm" id="filterCity" placeholder="City...">
-                        </div>
-                        <div class="col-md-2">
-                          <label class="form-label small mb-1">State / Province</label>
-                          <input type="text" class="form-control form-control-sm" id="filterStateProvince"
-                            placeholder="State/Prov...">
-                        </div>
-                        <div class="col-md-2">
-                          <label class="form-label small mb-1">Postal / ZIP Code</label>
-                          <input type="text" class="form-control form-control-sm" id="filterPostalZip"
-                            placeholder="ZIP Code...">
-                        </div>
-                        <div class="col-md-2">
-                          <label class="form-label small mb-1">Country</label>
-                          <input type="text" class="form-control form-control-sm" id="filterCountry"
-                            placeholder="Country...">
-                        </div>
-                        <div class="col-md-2">
-                          <label class="form-label small mb-1">LinkedIn Profile</label>
-                          <input type="text" class="form-control form-control-sm" id="filterLinkedIn"
-                            placeholder="LinkedIn...">
-                        </div>
-                        <div class="col-md-2">
-                          <label class="form-label small mb-1">Industry</label>
-                          <input type="text" class="form-control form-control-sm" id="filterIndustry"
-                            placeholder="Industry...">
-                        </div>
-                        <div class="col-md-2">
-                          <label class="form-label small mb-1">Lead Source</label>
-                          <input type="text" class="form-control form-control-sm" id="filterLeadSource"
-                            placeholder="Lead Source...">
-                        </div>
-                        <div class="col-md-2">
-                          <label class="form-label small mb-1">Record Status</label>
-                          <input type="text" class="form-control form-control-sm" id="filterRecordStatus"
-                            placeholder="Status...">
-                        </div>
-                        <div class="col-md-2">
-                          <label class="form-label small mb-1">Date of Birth</label>
-                          <input type="text" class="form-control form-control-sm" id="filterDOB" placeholder="DOB...">
-                        </div>
-                        <div class="col-md-2">
-                          <label class="form-label small mb-1">Gender</label>
-                          <input type="text" class="form-control form-control-sm" id="filterGender"
-                            placeholder="Gender...">
-                        </div>
-                        <div class="col-md-2">
-                          <label class="form-label small mb-1">Company Size</label>
-                          <input type="text" class="form-control form-control-sm" id="filterCompanySize"
-                            placeholder="Size...">
-                        </div>
-                        <div class="col-md-2">
-                          <label class="form-label small mb-1">Annual Revenue</label>
-                          <input type="text" class="form-control form-control-sm" id="filterAnnualRevenue"
-                            placeholder="Revenue...">
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <!-- Multiple Custom Attribute Filters Container -->
-                  <div class="col-12 mt-2">
-                    <div class="d-flex justify-content-between align-items-center mb-1">
-                      <span class="small fw-semibold text-muted"><i
-                          class="bi bi-funnel-fill text-danger me-1"></i>Custom Attributes Filters</span>
-                      <button type="button" class="btn btn-sm btn-secondary py-0 px-2" id="addCustomFilterBtn"
-                        style="font-size: 0.72rem; border-radius: 5px;">
-                        <i class="bi bi-plus-circle me-1"></i>Add Custom Filter
-                      </button>
-                    </div>
-                    <div id="customFiltersWrapper" class="row g-2">
-                      <!-- Dynamic rows of custom filters will be added here -->
-                    </div>
-                  </div>
-                </form>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Data Quality & Completeness Stats Widget -->
-        <div class="row g-3 mb-4 d-none" id="missingStatsCard">
-          <div class="col-12">
-            <div class="card shadow-sm">
-              <div class="card-header d-flex justify-content-between align-items-center py-2 bg-light-subtle">
-                <span class="small fw-bold"><i class="bi bi-shield-exclamation me-2 text-danger"></i>Result Set
-                  Completeness (Click card to filter records with missing values)</span>
-                <button type="button" class="btn btn-sm btn-outline-danger py-0 px-2" id="clearMissingFilterBtn"
-                  style="display: none; font-size: 0.75rem;">
-                  <i class="bi bi-x-circle me-1"></i>Clear Missing Filter
-                </button>
-              </div>
-              <div class="card-body p-3">
-                <div class="row g-2" id="missingStatsContainer">
-                  <!-- Dynamic boxes injected here via JS -->
+                <div class="d-flex flex-wrap align-items-center gap-2" id="completenessSummaryPills">
+                  <span class="badge px-3 py-2 fs-6 fw-semibold rounded-pill bg-success-subtle text-success border border-success-subtle">
+                    <i class="bi bi-heart-pulse-fill me-1"></i><span id="overallScoreText">--% Complete</span>
+                  </span>
+                  <span class="badge px-3 py-2 fs-6 fw-semibold rounded-pill bg-primary-subtle text-primary border border-primary-subtle">
+                    <i class="bi bi-columns-gap me-1"></i><span id="totalFieldsText">-- Fields</span>
+                  </span>
+                  <span class="badge px-3 py-2 fs-6 fw-semibold rounded-pill bg-warning-subtle text-warning border border-warning-subtle" id="needsAttentionBadge" style="display:none;">
+                    <i class="bi bi-exclamation-triangle-fill me-1"></i><span id="needsAttentionText">0 Needs Attention</span>
+                  </span>
                 </div>
               </div>
-            </div>
-          </div>
-        </div>
 
-        <div class="row g-3 mb-4">
-
-          <!-- Master Records Column (Full Width) -->
-          <div class="col-12">
-            <!-- Master Records Table -->
-            <div class="card shadow-sm">
-              <div class="card-header d-flex justify-content-between align-items-center py-2">
-                <span><i class="bi bi-database me-2 text-danger"></i>Master Records</span>
-                <button type="button" class="btn btn-success btn-sm fw-semibold" id="exportFilteredBtn">Export Filtered Records</button>
-              </div>
-              <div class="card-body p-0">
-                <div class="table-responsive">
-                  <table class="table table-hover align-middle mb-0" id="recordsTable">
-                    <thead>
-                      <tr>
-                        <th>ID</th>
-                        <th>Name</th>
-                        <th>Email</th>
-                        <th>Phone</th>
-                        <th>Company</th>
-                        <th>Location</th>
-                        <th class="text-center">Custom Fields</th>
-                        <th class="text-center">Action</th>
-                      </tr>
-                    </thead>
-                    <tbody id="recordsTableBody">
-                      <tr>
-                        <td colspan="8" class="text-center py-5">
-                          <div class="spinner-border text-danger" role="status">
-                            <span class="visually-hidden">Loading...</span>
-                          </div>
-                          <p class="text-muted mt-2 mb-0">Querying database records...</p>
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
+              <!-- Card Body: Grid of Fields -->
+              <div class="card-body p-4">
+                <div class="row g-3" id="datasetCompletenessContainer">
+                  <div class="col-12 text-center py-4 text-muted">
+                    <div class="spinner-border text-danger" role="status"></div>
+                    <p class="mt-2 mb-0" style="font-size: 0.85rem;">Calculating dataset completeness...</p>
+                  </div>
                 </div>
-                <!-- Pagination -->
-                <div class="d-flex flex-wrap justify-content-between align-items-center p-3" id="paginationControls">
+
+                <div class="text-center mt-3" id="expandCompletenessBtnWrapper" style="display:none;">
+                  <button type="button" class="btn btn-sm btn-outline-danger px-4 py-2 fw-semibold" id="toggleCompletenessGridBtn" style="border-radius: 999px; font-size: 0.82rem;">
+                    <i class="bi bi-chevron-down me-1"></i>Show All Fields
+                  </button>
                 </div>
               </div>
+
             </div>
           </div>
-
         </div>
 
         <!-- Bottom Info & Activity Layer -->
@@ -858,799 +718,189 @@
     </div>
   </div>
 
-  <div id="customFieldsData" data-fields='{{ custom_fields|tojson }}' style="display:none;"></div>
-
   <script>
     document.addEventListener("DOMContentLoaded", function () {
-      const rawFields = document.getElementById("customFieldsData").getAttribute("data-fields");
-      window.customFieldsRegistry = JSON.parse(rawFields || "[]");
+      const container = document.getElementById("datasetCompletenessContainer");
+      const overallScoreText = document.getElementById("overallScoreText");
+      const totalFieldsText = document.getElementById("totalFieldsText");
+      const needsAttentionBadge = document.getElementById("needsAttentionBadge");
+      const needsAttentionText = document.getElementById("needsAttentionText");
+      const toggleBtn = document.getElementById("toggleCompletenessGridBtn");
+      const toggleWrapper = document.getElementById("expandCompletenessBtnWrapper");
 
-      window.selectedMissingField = "";
-      let currentPage = 1;
-      const perPage = 15;
+      if (!container) return;
 
-      const filterForm = document.getElementById("filterForm");
-      const recordsTableBody = document.getElementById("recordsTableBody");
-      const paginationControls = document.getElementById("paginationControls");
-      const customFiltersWrapper = document.getElementById("customFiltersWrapper");
-      const addCustomFilterBtn = document.getElementById("addCustomFilterBtn");
+      let allStatsEntries = [];
+      let isExpanded = false;
 
-      // 1. Add multiple custom filter rows
-      function addCustomFilterRow(initialFieldId = "", initialValue = "") {
-        const rowDiv = document.createElement("div");
-        rowDiv.className = "col-md-6 custom-filter-row";
+      const iconColorMap = {
+        full_name: { bg: "#e0e7ff", color: "#4f46e5", icon: "bi-person-fill" },
+        email_address: { bg: "#dbeafe", color: "#2563eb", icon: "bi-envelope-fill" },
+        primary_phone_number: { bg: "#dcfce7", color: "#16a34a", icon: "bi-telephone-fill" },
+        alternate_phone_number: { bg: "#ccfbf1", color: "#0d9488", icon: "bi-phone-fill" },
+        company_name: { bg: "#fef3c7", color: "#d97706", icon: "bi-building-fill" },
+        job_title: { bg: "#fae8ff", color: "#c084fc", icon: "bi-briefcase-fill" },
+        department: { bg: "#f3e8ff", color: "#9333ea", icon: "bi-diagram-3-fill" },
+        website_url: { bg: "#cff4fc", color: "#0891b2", icon: "bi-link-45deg" },
+        address_line_1: { bg: "#fee2e2", color: "#e11d48", icon: "bi-house-door-fill" },
+        address_line_2: { bg: "#ffedd5", color: "#ea580c", icon: "bi-house-fill" },
+        city: { bg: "#e0f2fe", color: "#0284c7", icon: "bi-geo-alt-fill" },
+        state_province: { bg: "#fce7f3", color: "#db2777", icon: "bi-map-fill" },
+        postal_zip_code: { bg: "#f1f5f9", color: "#475569", icon: "bi-mailbox2" },
+        country: { bg: "#dbeafe", color: "#1d4ed8", icon: "bi-globe2" },
+        linkedin_profile_url: { bg: "#e0e7ff", color: "#0284c7", icon: "bi-linkedin" },
+        industry: { bg: "#fef9c3", color: "#ca8a04", icon: "bi-buildings-fill" },
+        lead_source: { bg: "#f1f5f9", color: "#64748b", icon: "bi-funnel-fill" },
+        record_status: { bg: "#fee2e2", color: "#dc2626", icon: "bi-flag-fill" },
+        date_of_birth: { bg: "#fae8ff", color: "#a21caf", icon: "bi-calendar-event-fill" },
+        gender: { bg: "#fce7f3", color: "#e11d48", icon: "bi-gender-ambiguous" },
+        company_size: { bg: "#dcfce7", color: "#059669", icon: "bi-people-fill" },
+        annual_revenue: { bg: "#d1fae5", color: "#15803d", icon: "bi-currency-dollar" }
+      };
 
-        let optionsHtml = '<option value="">-- Select Custom Attribute --</option>';
-        if (window.customFieldsRegistry) {
-          window.customFieldsRegistry.forEach(f => {
-            const selected = String(f.id) === String(initialFieldId) ? "selected" : "";
-            optionsHtml += `<option value="${f.id}" ${selected}>${f.field_name}</option>`;
-          });
+      function formatTitle(col) {
+        return col.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+      }
+
+      function renderCompletenessGrid() {
+        if (!allStatsEntries.length) {
+          container.innerHTML = `
+            <div class="col-12 text-center py-4 text-muted">
+              <i class="bi bi-inbox fs-3 d-block mb-2"></i>
+              No database columns found to analyze completeness.
+            </div>
+          `;
+          return;
         }
 
-        rowDiv.innerHTML = `
-                <div class="input-group input-group-sm">
-                    <select class="form-select custom-filter-field" style="max-width: 180px;" required>
-                        ${optionsHtml}
-                    </select>
-                    <input type="text" class="form-control custom-filter-val" placeholder="Filter value..." value="${initialValue}" required>
-                    <button type="button" class="btn btn-danger btn-remove-custom-filter">
-                        <i class="bi bi-trash-fill"></i>
-                    </button>
-                </div>
-            `;
+        const visibleEntries = isExpanded ? allStatsEntries : allStatsEntries.slice(0, 8);
+        let html = "";
 
-        customFiltersWrapper.appendChild(rowDiv);
+        visibleEntries.forEach(([col, info]) => {
+          const completePct = info.complete_percentage;
+          const missingPct = info.missing_percentage;
+          const filledCnt = info.filled_count;
+          const missingCnt = info.missing_count;
+          const label = formatTitle(col);
+          const iconMeta = iconColorMap[col] || { bg: "#f3f4f6", color: "#ef4444", icon: "bi-card-list" };
 
-        // Attach delete handler
-        rowDiv.querySelector(".btn-remove-custom-filter").addEventListener("click", function () {
-          rowDiv.remove();
-        });
-      }
-
-      if (addCustomFilterBtn) {
-        addCustomFilterBtn.addEventListener("click", () => addCustomFilterRow());
-      }
-
-      const toggleMoreFiltersBtn = document.getElementById("toggleMoreFiltersBtn");
-      const moreFiltersWrapper = document.getElementById("moreFiltersWrapper");
-      if (toggleMoreFiltersBtn && moreFiltersWrapper) {
-        toggleMoreFiltersBtn.addEventListener("click", function () {
-          if (moreFiltersWrapper.classList.contains("d-none")) {
-            moreFiltersWrapper.classList.remove("d-none");
-            toggleMoreFiltersBtn.innerHTML = '<i class="bi bi-funnel-fill me-1"></i>Filter Less';
-            toggleMoreFiltersBtn.classList.remove("btn-outline-danger");
-            toggleMoreFiltersBtn.classList.add("btn-danger");
-          } else {
-            moreFiltersWrapper.classList.add("d-none");
-            toggleMoreFiltersBtn.innerHTML = '<i class="bi bi-funnel me-1"></i>Filter More';
-            toggleMoreFiltersBtn.classList.add("btn-outline-danger");
-            toggleMoreFiltersBtn.classList.remove("btn-danger");
-          }
-        });
-      }
-
-      const exportFilteredBtn = document.getElementById("exportFilteredBtn");
-      if (exportFilteredBtn) {
-        exportFilteredBtn.addEventListener("click", function () {
-          const name = document.getElementById("filterName").value.trim();
-          const email = document.getElementById("filterEmail").value.trim();
-          const phone = document.getElementById("filterPhone").value.trim();
-          const company = document.getElementById("filterCompany").value.trim();
-
-          const customFilters = [];
-          document.querySelectorAll(".custom-filter-row").forEach(row => {
-            const fid = row.querySelector(".custom-filter-field").value;
-            const val = row.querySelector(".custom-filter-val").value.trim();
-            if (fid && val) {
-              customFilters.push({ id: fid, val: val });
-            }
-          });
-
-          const queryParams = {
-            name: name,
-            email: email,
-            phone: phone,
-            company: company,
-            custom_filters: JSON.stringify(customFilters)
+          let theme = {
+            fill: "linear-gradient(90deg, #10b981, #059669)",
+            badge: "bg-success-subtle text-success border-success-subtle",
+            textColor: "text-success"
           };
 
-          const moreFields = [
-            { id: "filterAlternatePhone", param: "alternate_phone_number" },
-            { id: "filterJobTitle", param: "job_title" },
-            { id: "filterDepartment", param: "department" },
-            { id: "filterWebsiteUrl", param: "website_url" },
-            { id: "filterAddress1", param: "address_line_1" },
-            { id: "filterAddress2", param: "address_line_2" },
-            { id: "filterCity", param: "city" },
-            { id: "filterStateProvince", param: "state_province" },
-            { id: "filterPostalZip", param: "postal_zip_code" },
-            { id: "filterCountry", param: "country" },
-            { id: "filterLinkedIn", param: "linkedin_profile_url" },
-            { id: "filterIndustry", param: "industry" },
-            { id: "filterLeadSource", param: "lead_source" },
-            { id: "filterRecordStatus", param: "record_status" },
-            { id: "filterDOB", param: "date_of_birth" },
-            { id: "filterGender", param: "gender" },
-            { id: "filterCompanySize", param: "company_size" },
-            { id: "filterAnnualRevenue", param: "annual_revenue" }
-          ];
-
-          moreFields.forEach(f => {
-            const el = document.getElementById(f.id);
-            if (el) {
-              const val = el.value.trim();
-              if (val) {
-                queryParams[f.param] = val;
-              }
-            }
-          });
-
-          if (window.selectedMissingField) {
-            queryParams["missing_field"] = window.selectedMissingField;
+          if (completePct < 50) {
+            theme = {
+              fill: "linear-gradient(90deg, #ef4444, #b91c1c)",
+              badge: "bg-danger-subtle text-danger border-danger-subtle",
+              textColor: "text-danger"
+            };
+          } else if (completePct < 70) {
+            theme = {
+              fill: "linear-gradient(90deg, #f59e0b, #d97706)",
+              badge: "bg-warning-subtle text-warning border-warning-subtle",
+              textColor: "text-warning"
+            };
+          } else if (completePct < 85) {
+            theme = {
+              fill: "linear-gradient(90deg, #06b6d4, #0284c7)",
+              badge: "bg-info-subtle text-info border-info-subtle",
+              textColor: "text-info"
+            };
           }
-
-          const params = new URLSearchParams(queryParams);
-          window.location.href = `/api/records/export?${params.toString()}`;
-        });
-      }
-
-      // 2. Fetch and render records
-      function fetchRecords(page = 1) {
-        currentPage = page;
-        if (!recordsTableBody) return;
-        recordsTableBody.innerHTML = `
-                <tr>
-                    <td colspan="8" class="text-center py-5">
-                        <div class="spinner-border text-danger" role="status">
-                            <span class="visually-hidden">Loading...</span>
-                        </div>
-                        <p class="text-muted mt-2 mb-0">Querying database records...</p>
-                    </td>
-                </tr>
-            `;
-
-        // Gather filters
-        const name = document.getElementById("filterName").value.trim();
-        const email = document.getElementById("filterEmail").value.trim();
-        const phone = document.getElementById("filterPhone").value.trim();
-        const company = document.getElementById("filterCompany").value.trim();
-
-        const customFilters = [];
-        document.querySelectorAll(".custom-filter-row").forEach(row => {
-          const fid = row.querySelector(".custom-filter-field").value;
-          const val = row.querySelector(".custom-filter-val").value.trim();
-          if (fid && val) {
-            customFilters.push({ id: fid, val: val });
-          }
-        });
-
-        // Construct query parameters
-        const queryParams = {
-          page: page,
-          per_page: perPage,
-          name: name,
-          email: email,
-          phone: phone,
-          company: company,
-          custom_filters: JSON.stringify(customFilters)
-        };
-
-        // Gather and set other master columns dynamically
-        const moreFields = [
-          { id: "filterAlternatePhone", param: "alternate_phone_number" },
-          { id: "filterJobTitle", param: "job_title" },
-          { id: "filterDepartment", param: "department" },
-          { id: "filterWebsiteUrl", param: "website_url" },
-          { id: "filterAddress1", param: "address_line_1" },
-          { id: "filterAddress2", param: "address_line_2" },
-          { id: "filterCity", param: "city" },
-          { id: "filterStateProvince", param: "state_province" },
-          { id: "filterPostalZip", param: "postal_zip_code" },
-          { id: "filterCountry", param: "country" },
-          { id: "filterLinkedIn", param: "linkedin_profile_url" },
-          { id: "filterIndustry", param: "industry" },
-          { id: "filterLeadSource", param: "lead_source" },
-          { id: "filterRecordStatus", param: "record_status" },
-          { id: "filterDOB", param: "date_of_birth" },
-          { id: "filterGender", param: "gender" },
-          { id: "filterCompanySize", param: "company_size" },
-          { id: "filterAnnualRevenue", param: "annual_revenue" }
-        ];
-
-        moreFields.forEach(f => {
-          const el = document.getElementById(f.id);
-          if (el) {
-            const val = el.value.trim();
-            if (val) {
-              queryParams[f.param] = val;
-            }
-          }
-        });
-
-        const params = new URLSearchParams(queryParams);
-
-        if (window.selectedMissingField) {
-          params.set("missing_field", window.selectedMissingField);
-        }
-
-        fetch(`/api/records?${params.toString()}`)
-          .then(res => {
-            if (!res.ok) throw new Error("Network response was not ok");
-            return res.json();
-          })
-          .then(data => {
-            renderTable(data.records);
-            renderPagination(data.total, data.page, data.pages);
-            renderMissingStats(data.missing_stats);
-          })
-          .catch(err => {
-            console.error(err);
-            recordsTableBody.innerHTML = `
-                        <tr>
-                            <td colspan="8" class="text-center py-5 text-danger">
-                                <i class="bi bi-exclamation-triangle-fill fs-3 mb-2 d-block"></i>
-                                An error occurred while fetching database records. Please try again.
-                            </td>
-                        </tr>
-                    `;
-          });
-      }
-
-      function renderTable(records) {
-        if (!records || records.length === 0) {
-          recordsTableBody.innerHTML = `
-                    <tr>
-                        <td colspan="8" class="text-center py-5 text-muted">
-                            <i class="bi bi-folder2-open fs-2 mb-3 d-block"></i>
-                            No matching records found. Try adjusting your query parameters.
-                        </td>
-                    </tr>
-                `;
-          return;
-        }
-
-        let html = "";
-        records.forEach(r => {
-          const hasCustom = r.custom_fields && Object.keys(r.custom_fields).length > 0;
-          const location = [r.city, r.state, r.country].filter(Boolean).join(", ") || "--";
 
           html += `
-                    <tr>
-                        <td><span class="badge bg-secondary">#${r.id}</span></td>
-                        <td><strong>${r.name || "--"}</strong></td>
-                        <td><span class="text-muted">${r.email || "--"}</span></td>
-                        <td><span class="text-muted">${r.phone ? String(r.phone).replace(/\.0+$/, '') : "--"}</span></td>
-                        <td><span class="text-muted">${r.company || "--"}</span></td>
-                        <td><span class="text-muted small">${location}</span></td>
-                        <td class="text-center">
-                            ${hasCustom ?
-              `<span class="badge bg-danger-subtle text-danger px-3 py-1">${Object.keys(r.custom_fields).length} attributes</span>` :
-              `<span class="text-muted small">none</span>`
-            }
-                        </td>
-                        <td class="text-center">
-                            <button class="btn btn-sm btn-danger btn-view-details" data-id="${r.id}">
-                                View Details
-                            </button>
-                        </td>
-                    </tr>
-                `;
-        });
-        recordsTableBody.innerHTML = html;
+            <div class="col-xl-3 col-lg-4 col-md-6 col-sm-6">
+              <div class="field-health-card" onclick="window.location.href='/downloads?missing_field=${col}'">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                  <div class="d-flex align-items-center gap-2">
+                    <div style="width:34px; height:34px; border-radius:9px; background:${iconMeta.bg}; color:${iconMeta.color}; display:flex; align-items:center; justify-content:center; font-size:1rem; flex-shrink:0; box-shadow: 0 2px 6px rgba(0,0,0,0.06);">
+                      <i class="bi ${iconMeta.icon}"></i>
+                    </div>
+                    <div>
+                      <span class="fw-bold text-truncate d-block" style="font-size:0.85rem; max-width:130px; color:var(--text-main);" title="${label}">${label}</span>
+                      <span class="text-muted" style="font-size:0.72rem;">${filledCnt.toLocaleString()} / ${(filledCnt + missingCnt).toLocaleString()} rows</span>
+                    </div>
+                  </div>
+                  <span class="badge px-2 py-1 ${theme.badge} rounded-pill" style="font-size:0.7rem;">
+                    ${missingPct}% missing
+                  </span>
+                </div>
 
-        // Attach listeners to View Details buttons
-        document.querySelectorAll(".btn-view-details").forEach(btn => {
-          btn.addEventListener("click", function () {
-            const recordId = this.getAttribute("data-id");
-            showRecordDetails(recordId);
-          });
-        });
-      }
+                <div class="health-progress-bar">
+                  <div class="health-progress-fill" style="width: ${completePct}%; background: ${theme.fill};"></div>
+                </div>
 
-      function renderPagination(total, page, pages) {
-        if (total === 0 || !paginationControls) {
-          paginationControls.innerHTML = "";
-          return;
-        }
-
-        const startIdx = (page - 1) * perPage + 1;
-        const endIdx = Math.min(page * perPage, total);
-
-        let html = `
-                <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 w-100 px-3">
-                  <small class="text-muted">Page ${page} of ${pages}</small>
-                  <nav aria-label="Dashboard pagination">
-                    <ul class="pagination pagination-sm mb-0">
-                      <li class="page-item ${page === 1 ? 'disabled' : ''}">
-                        <button class="page-link page-btn" data-page="${page - 1}">
-                          <i class="bi bi-chevron-left"></i>
-                        </button>
-                      </li>
-            `;
-
-        let startPage = Math.max(1, page - 2);
-        let endPage = Math.min(pages, page + 2);
-
-        if (startPage > 1) {
-          html += `<li class="page-item"><button class="page-link page-btn" data-page="1">1</button></li>`;
-          if (startPage > 2) {
-            html += `<li class="page-item disabled"><span class="page-link text-muted">...</span></li>`;
-          }
-        }
-
-        for (let i = startPage; i <= endPage; i++) {
-          html += `
-                    <li class="page-item ${i === page ? 'active' : ''}">
-                        <button class="page-link page-btn" data-page="${i}">
-                            ${i}
-                        </button>
-                    </li>
-                `;
-        }
-
-        if (endPage < pages) {
-          if (endPage < pages - 1) {
-            html += `<li class="page-item disabled"><span class="page-link text-muted">...</span></li>`;
-          }
-          html += `<li class="page-item"><button class="page-link page-btn" data-page="${pages}">${pages}</button></li>`;
-        }
-
-        html += `
-                        <li class="page-item ${page === pages ? 'disabled' : ''}">
-                            <button class="page-link page-btn" data-page="${page + 1}">
-                                <i class="bi bi-chevron-right"></i>
-                            </button>
-                        </li>
-                    </ul>
-                </nav>
-                <form id="dashboardPageJumpForm" class="d-flex align-items-center gap-2">
-                  <label class="text-muted small mb-0" for="dashboardPageJumpInput" style="white-space:nowrap;">Go to page</label>
-                  <input id="dashboardPageJumpInput" type="number" min="1" max="${pages}" value="${page}"
-                    class="form-control form-control-sm" style="width:70px;" aria-label="Jump to page">
-                  <button type="button" id="dashboardPageJumpBtn" class="btn btn-sm btn-outline-danger">Go</button>
-                </form>
+                <div class="d-flex justify-content-between align-items-center mt-1" style="font-size: 0.74rem;">
+                  <span class="fw-bold ${theme.textColor}">${completePct}% Complete</span>
+                  <span class="text-muted" style="font-weight: 500;"><i class="bi bi-arrow-right-short"></i>Filter records</span>
+                </div>
               </div>
-            `;
-
-        paginationControls.innerHTML = html;
-
-        // Attach listeners to page buttons
-        document.querySelectorAll(".page-btn").forEach(btn => {
-          btn.addEventListener("click", function () {
-            const targetPage = parseInt(this.getAttribute("data-page"));
-            fetchRecords(targetPage);
-          });
+            </div>
+          `;
         });
 
-        const dashboardPageJumpInput = document.getElementById("dashboardPageJumpInput");
-        const dashboardPageJumpBtn = document.getElementById("dashboardPageJumpBtn");
-        if (dashboardPageJumpInput && dashboardPageJumpBtn) {
-          dashboardPageJumpBtn.addEventListener("click", function () {
-            const targetPage = parseInt(dashboardPageJumpInput.value);
-            if (!targetPage || targetPage < 1 || targetPage > pages) {
-              dashboardPageJumpInput.classList.add("is-invalid");
-              return;
-            }
-            dashboardPageJumpInput.classList.remove("is-invalid");
-            fetchRecords(targetPage);
-          });
-          dashboardPageJumpInput.addEventListener("keydown", function (event) {
-            if (event.key === "Enter") {
-              event.preventDefault();
-              dashboardPageJumpBtn.click();
-            }
-          });
+        container.innerHTML = html;
+
+        if (allStatsEntries.length > 8 && toggleWrapper) {
+          toggleWrapper.style.display = "block";
+          if (toggleBtn) {
+            toggleBtn.innerHTML = isExpanded ?
+              '<i class="bi bi-chevron-up me-1"></i>Collapse Grid' :
+              `<i class="bi bi-chevron-down me-1"></i>Show All Fields (${allStatsEntries.length})`;
+          }
+        } else if (toggleWrapper) {
+          toggleWrapper.style.display = "none";
         }
       }
 
-      // 3. Search Form Submission
-      if (filterForm) {
-        filterForm.addEventListener("submit", function (e) {
-          e.preventDefault();
-          fetchRecords(1);
+      if (toggleBtn) {
+        toggleBtn.addEventListener("click", function () {
+          isExpanded = !isExpanded;
+          renderCompletenessGrid();
         });
       }
 
-      // 4. View Custom Details Modal Resolver
-      const detailsModalEl = document.getElementById('detailsModal');
-      const detailsModal = detailsModalEl ? new bootstrap.Modal(detailsModalEl) : null;
-      const detailsModalBody = document.getElementById("detailsModalBody");
-      const detailsModalTitle = document.getElementById("detailsModalTitle");
-
-      function showRecordDetails(id) {
-        if (!detailsModal || !detailsModalTitle || !detailsModalBody) return;
-        detailsModalTitle.innerText = `Record Details (ID: #${id})`;
-        detailsModalBody.innerHTML = `
-                <div class="text-center py-4">
-                    <div class="spinner-border text-danger" role="status">
-                        <span class="visually-hidden">Loading details...</span>
-                    </div>
-                </div>
-            `;
-        detailsModal.show();
-
-        fetch(`/api/records/${id}/custom`)
-          .then(res => {
-            if (!res.ok) throw new Error("Could not resolve details");
-            return res.json();
-          })
-          .then(data => {
-            if (!data || Object.keys(data).length === 0) {
-              detailsModalBody.innerHTML = `
-                            <div class="alert alert-secondary mb-0">
-                                <i class="bi bi-info-circle me-2"></i> No custom JSON attributes registered for this record.
-                            </div>
-                        `;
-              return;
-            }
-
-            let html = `<ul class="list-group list-group-flush bg-transparent">`;
-            for (const [key, val] of Object.entries(data)) {
-              html += `
-                            <li class="list-group-item bg-transparent border-light-subtle px-0 py-2 d-flex justify-content-between align-items-center">
-                                <div class="fw-semibold text-muted">${key}</div>
-                                <div class="text-danger text-end ms-2 font-monospace">${val}</div>
-                            </li>
-                        `;
-            }
-            html += `</ul>`;
-            detailsModalBody.innerHTML = html;
-          })
-          .catch(err => {
-            console.error(err);
-            detailsModalBody.innerHTML = `
-                        <div class="alert alert-danger mb-0">
-                            <i class="bi bi-exclamation-octagon me-2"></i> Failed to resolve custom JSON details.
-                        </div>
-                    `;
-          });
-      }
-
-      // 5. Upload Sheet AJAX Form submission
-      const uploadForm = document.getElementById("uploadForm");
-      const uploadStatus = document.getElementById("uploadStatus");
-      const uploadSubmitBtn = document.getElementById("uploadSubmitBtn");
-
-      const masterColumnsList = [
-        { value: "master:full_name", text: "Full Name" },
-        { value: "master:email_address", text: "Email Address" },
-        { value: "master:primary_phone_number", text: "Primary Phone Number" },
-        { value: "master:alternate_phone_number", text: "Alternate Phone Number" },
-        { value: "master:company_name", text: "Company Name" },
-        { value: "master:job_title", text: "Job Title" },
-        { value: "master:department", text: "Department" },
-        { value: "master:website_url", text: "Website URL" },
-        { value: "master:address_line_1", text: "Address Line 1" },
-        { value: "master:address_line_2", text: "Address Line 2" },
-        { value: "master:city", text: "City" },
-        { value: "master:state_province", text: "State / Province" },
-        { value: "master:postal_zip_code", text: "Postal / ZIP Code" },
-        { value: "master:country", text: "Country" },
-        { value: "master:linkedin_profile_url", text: "LinkedIn Profile URL" },
-        { value: "master:industry", text: "Industry" },
-        { value: "master:lead_source", text: "Lead Source" },
-        { value: "master:record_status", text: "Record Status" },
-        { value: "master:date_of_birth", text: "Date of Birth" },
-        { value: "master:gender", text: "Gender" },
-        { value: "master:company_size", text: "Company Size" },
-        { value: "master:annual_revenue", text: "Annual Revenue" }
-      ];
-
-      const initialModalBodyHtml = `
-            <div class="text-center p-4 border border-dashed rounded-3 mb-3" style="border: 2px dashed var(--red-accent); background: var(--red-light);">
-              <i class="bi bi-file-earmark-excel fs-1 text-danger mb-3 d-block"></i>
-              <h6 class="fw-bold">Select spreadsheet file</h6>
-              <p class="text-muted small">Supports standard Excel formats (.xlsx, .xls) and CSV (.csv)</p>
-              <input type="file" id="excelFile" class="form-control mt-3" accept=".xlsx, .xls, .csv" required>
-            </div>
-            <div id="uploadStatus" class="alert d-none"></div>
-        `;
-
-      window.resetUploadModal = function () {
-        const modalBody = document.querySelector("#uploadModal .modal-body");
-        const modalFooter = document.querySelector("#uploadModal .modal-footer");
-
-        modalBody.innerHTML = initialModalBodyHtml;
-        modalFooter.innerHTML = `
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                <button type="submit" class="btn btn-danger px-4" id="uploadSubmitBtn">
-                  Start Ingestion
-                </button>
-            `;
-      };
-
-      window.renderMappingUI = function (data) {
-        const modalBody = document.querySelector("#uploadModal .modal-body");
-        const modalFooter = document.querySelector("#uploadModal .modal-footer");
-
-        window.uploadDraftFilename = data.filename;
-        window.uploadDraftOriginalFilename = data.original_filename;
-
-        let html = `
-                <div class="mb-3">
-                    <h6 class="fw-bold text-danger"><i class="bi bi-shuffle me-1"></i>Map Excel Columns</h6>
-                    <p class="text-muted small">Align spreadsheet columns with master columns or custom registry definitions.</p>
-                </div>
-                <div class="table-responsive" style="max-height: 280px; border: 1px solid #e5e7eb; border-radius: 8px;">
-                    <table class="table table-sm table-hover align-middle mb-0" style="font-size: 0.82rem;">
-                        <thead class="table-light sticky-top">
-                            <tr>
-                                <th>Excel Column Header</th>
-                                <th>Target Mapping</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-            `;
-
-        data.columns.forEach(col => {
-          const suggestion = data.suggestions[col] || "create_new";
-
-          let options = `<option value="ignore" ${suggestion === "ignore" ? "selected" : ""}>[Ignore Column]</option>`;
-          options += `<option value="create_new" ${suggestion === "create_new" ? "selected" : ""}>[Create New Custom Field]</option>`;
-
-          // Master Columns optgroup
-          options += `<optgroup label="Master Columns">`;
-          masterColumnsList.forEach(m => {
-            const selected = suggestion === m.value ? "selected" : "";
-            options += `<option value="${m.value}" ${selected}>${m.text}</option>`;
-          });
-          options += `</optgroup>`;
-
-          // Custom Fields optgroup
-          options += `<optgroup label="Custom Fields">`;
-          data.custom_fields.forEach(c => {
-            const val = `custom:${c.id}`;
-            const selected = suggestion === val ? "selected" : "";
-            options += `<option value="${val}" ${selected}>${c.field_name}</option>`;
-          });
-          options += `</optgroup>`;
-
-          html += `
-                    <tr class="mapping-row" data-excel-col="${col}">
-                        <td><strong>${col}</strong></td>
-                        <td>
-                            <select class="form-select form-select-sm mapping-select">
-                                ${options}
-                            </select>
-                        </td>
-                    </tr>
-                `;
-        });
-
-        html += `
-                        </tbody>
-                    </table>
-                </div>
-                <div id="uploadStatus" class="alert d-none mt-3"></div>
-            `;
-
-        modalBody.innerHTML = html;
-        modalFooter.innerHTML = `
-                <button type="button" class="btn btn-secondary" onclick="resetUploadModal()">Back</button>
-                <button type="button" class="btn btn-danger px-4" id="proceedIngestionSubmitBtn" onclick="submitMappingIngestion()">
-                    Confirm & Ingest
-                </button>
-            `;
-      };
-
-      window.submitMappingIngestion = function () {
-        const btn = document.getElementById("proceedIngestionSubmitBtn");
-        const statusDiv = document.getElementById("uploadStatus");
-
-        const mapping = {};
-        document.querySelectorAll(".mapping-row").forEach(row => {
-          const col = row.dataset.excelCol;
-          const target = row.querySelector(".mapping-select").value;
-          mapping[col] = target;
-        });
-
-        btn.disabled = true;
-        btn.innerHTML = `<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Ingesting...`;
-
-        statusDiv.className = "alert alert-info";
-        statusDiv.innerHTML = `<i class="bi bi-info-circle me-2"></i>Running database ingestion and checking for duplicates. Please wait...`;
-        statusDiv.classList.remove("d-none");
-
-        fetch("/api/browser/proceed-ingestion", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            filename: window.uploadDraftFilename,
-            original_filename: window.uploadDraftOriginalFilename,
-            mapping: mapping
-          })
+      fetch("/api/dataset/completeness")
+        .then(res => {
+          if (!res.ok) throw new Error("Failed to load completeness data");
+          return res.json();
         })
-          .then(res => {
-            if (!res.ok) {
-              return res.json().then(data => { throw new Error(data.error || "Ingestion failed"); });
+        .then(data => {
+          if (overallScoreText) overallScoreText.textContent = `${data.overall_health_score}% Complete`;
+          if (totalFieldsText) totalFieldsText.textContent = `${data.total_fields} Fields`;
+
+          if (needsAttentionBadge && needsAttentionText) {
+            if (data.needs_attention_count > 0) {
+              needsAttentionText.textContent = `${data.needs_attention_count} Needs Attention`;
+              needsAttentionBadge.style.display = "inline-flex";
+            } else {
+              needsAttentionBadge.style.display = "none";
             }
-            return res.json();
-          })
-          .then(data => {
-            statusDiv.className = "alert alert-success";
-            statusDiv.innerHTML = `<i class="bi bi-check-circle me-2"></i> Ingestion started successfully! Redirecting to Import History...`;
-
-            setTimeout(() => {
-              window.location.href = "/history";
-            }, 1500);
-          })
-          .catch(err => {
-            console.error(err);
-            statusDiv.className = "alert alert-danger";
-            statusDiv.innerHTML = `<i class="bi bi-exclamation-triangle-fill me-2"></i> Error: ${err.message}`;
-            btn.disabled = false;
-            btn.innerHTML = `Confirm & Ingest`;
-          });
-      };
-
-      if (uploadForm) {
-        uploadForm.addEventListener("submit", function (e) {
-          e.preventDefault();
-
-          const fileInput = document.getElementById("excelFile");
-          if (!fileInput) return; // Mapping is visible
-
-          if (!fileInput.files || fileInput.files.length === 0) {
-            alert("Please select a file to upload.");
-            return;
           }
 
-          const file = fileInput.files[0];
-          const formData = new FormData();
-          formData.append("file", file);
-
-          uploadSubmitBtn.disabled = true;
-          uploadSubmitBtn.innerHTML = `<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Uploading...`;
-
-          const statusDiv = document.getElementById("uploadStatus");
-          statusDiv.className = "alert alert-info";
-          statusDiv.innerHTML = `<i class="bi bi-info-circle me-2"></i>Uploading spreadsheet file, please wait...`;
-          statusDiv.classList.remove("d-none");
-
-          fetch("/api/upload-draft", {
-            method: "POST",
-            body: formData
-          })
-            .then(res => {
-              if (!res.ok) {
-                return res.json().then(data => { throw new Error(data.error || "Upload failed"); });
-              }
-              return res.json();
-            })
-            .then(data => {
-              renderMappingUI(data);
-            })
-            .catch(err => {
-              console.error(err);
-              const statusDiv = document.getElementById("uploadStatus");
-              statusDiv.className = "alert alert-danger";
-              statusDiv.innerHTML = `<i class="bi bi-exclamation-triangle-fill me-2"></i> Error: ${err.message}`;
-              uploadSubmitBtn.disabled = false;
-              uploadSubmitBtn.innerText = "Start Ingestion";
-            });
+          if (data.completeness_stats) {
+            allStatsEntries = Object.entries(data.completeness_stats);
+            allStatsEntries.sort((a, b) => a[1].complete_percentage - b[1].complete_percentage);
+            renderCompletenessGrid();
+          }
+        })
+        .catch(err => {
+          console.error(err);
+          container.innerHTML = `
+            <div class="col-12 text-center py-4 text-danger">
+              <i class="bi bi-exclamation-triangle-fill fs-3 mb-2 d-block"></i>
+              Could not fetch dataset completeness statistics.
+            </div>
+          `;
         });
-      }
-
-      // 6. Data Quality & Completeness Stats Renderer
-      let lastStats = null;
-      let showAllStats = false;
-      const missingStatsCard = document.getElementById("missingStatsCard");
-      const missingStatsContainer = document.getElementById("missingStatsContainer");
-      const clearMissingFilterBtn = document.getElementById("clearMissingFilterBtn");
-
-      // Format column name to human-readable title
-      function formatFieldName(col) {
-        return col.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
-      }
-
-      function renderMissingStats(stats) {
-        if (!missingStatsCard || !missingStatsContainer) return;
-        if (!stats || Object.keys(stats).length === 0) {
-          missingStatsCard.classList.add("d-none");
-          return;
-        }
-
-        lastStats = stats;
-        missingStatsCard.classList.remove("d-none");
-
-        // Convert stats object to an array of entries
-        let entries = Object.entries(stats);
-
-        // Sort by percentage in descending order
-        entries.sort((a, b) => b[1].percentage - a[1].percentage);
-
-        // Filter out 0% missing items if showAllStats is false, or slice to first 5 items
-        let visibleEntries = entries;
-        let showMoreBox = false;
-
-        if (!showAllStats) {
-          visibleEntries = entries.slice(0, 5);
-          showMoreBox = true;
-        }
-
-        let html = "";
-        visibleEntries.forEach(([col, info]) => {
-          const pct = info.percentage;
-          const count = info.count;
-          const label = formatFieldName(col);
-
-          // Color card according to completeness level
-          let badgeClass = "text-body border-secondary-subtle";
-          const activeClass = window.selectedMissingField === col ? "border border-danger border-3 bg-danger-subtle text-danger shadow" : "border-1 bg-body-tertiary";
-
-          html += `
-                    <div class="col-6 col-sm-4 col-md-3 col-lg-2">
-                        <div class="card h-100 ${badgeClass} ${activeClass} text-center p-3 d-flex flex-column justify-content-center align-items-center"
-                             onclick="filterByMissingField('${col}')" style="cursor: pointer; min-height: 95px; transition: transform 0.2s;">
-                            <span class="small fw-bold text-truncate w-100 mb-1" style="font-size: 0.8rem;">${label}</span>
-                            <span class="fs-6 fw-bold" style="font-size: 1rem;">${pct}% missing</span>
-                            <span class="text-muted small" style="font-size: 0.72rem;">(${count} rows)</span>
-                        </div>
-                    </div>
-                `;
-        });
-
-        if (showMoreBox && entries.length > 5) {
-          // 6th box is "Show More" card
-          html += `
-                    <div class="col-6 col-sm-4 col-md-3 col-lg-2">
-                        <div class="card h-100 bg-danger-subtle text-danger border border-danger text-center p-3 d-flex flex-column justify-content-center align-items-center"
-                             onclick="toggleStatsExpansion(true)" style="cursor: pointer; min-height: 95px; font-weight: bold;">
-                            <i class="bi bi-plus-circle-fill fs-4 mb-1"></i>
-                            <span style="font-size: 0.9rem;">Show More</span>
-                            <span class="text-muted small" style="font-size: 0.7rem;">(${entries.length - 5} columns)</span>
-                        </div>
-                    </div>
-                `;
-        } else if (showAllStats && entries.length > 5) {
-          // Inline "Show Less" box at the end when expanded
-          html += `
-                    <div class="col-6 col-sm-4 col-md-3 col-lg-2">
-                        <div class="card h-100 bg-danger-subtle text-danger border border-danger text-center p-3 d-flex flex-column justify-content-center align-items-center"
-                             onclick="toggleStatsExpansion(false)" style="cursor: pointer; min-height: 95px; font-weight: bold;">
-                            <i class="bi bi-dash-circle-fill fs-4 mb-1"></i>
-                            <span style="font-size: 0.9rem;">Show Less</span>
-                            <span class="text-muted small" style="font-size: 0.7rem;">(Collapse grid)</span>
-                        </div>
-                    </div>
-                `;
-        }
-
-        missingStatsContainer.innerHTML = html;
-      }
-
-      window.filterByMissingField = function (col) {
-        window.selectedMissingField = col;
-        if (clearMissingFilterBtn) {
-          clearMissingFilterBtn.style.display = "inline-block";
-        }
-        fetchRecords(1);
-      };
-
-      if (clearMissingFilterBtn) {
-        clearMissingFilterBtn.addEventListener("click", function () {
-          window.selectedMissingField = "";
-          this.style.display = "none";
-          fetchRecords(1);
-        });
-      }
-
-      window.toggleStatsExpansion = function (expand) {
-        showAllStats = expand;
-        if (lastStats) {
-          renderMissingStats(lastStats);
-        }
-      };
-
-      // Load initial records list
-      if (recordsTableBody) {
-        fetchRecords(1);
-      }
     });
   </script>
+
+  </main>
+
+  </div>
 </body>
 
 </html>

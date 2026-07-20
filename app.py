@@ -2655,6 +2655,10 @@ def downloads():
         export_rows   = []
         total_exports = 0
 
+    # --- Fetch custom attributes registry for search filters ---
+    cursor.execute("SELECT id, field_name FROM field_registry WHERE is_active = 1")
+    custom_fields = cursor.fetchall()
+
     conn.close()
 
     # Enrich export rows
@@ -2696,6 +2700,7 @@ def downloads():
         hist_total_pages=hist_total_pages,
         hist_start=hist_start,
         hist_end=hist_end,
+        custom_fields=custom_fields,
         hist_page_url=lambda p: url_for(
             "downloads",
             hist_page=p,
@@ -4825,6 +4830,64 @@ def get_records():
         "pages": pages,
         "per_page": per_page,
         "missing_stats": missing_stats
+    })
+
+@app.route('/api/dataset/completeness', methods=['GET'])
+@login_required()
+def dataset_completeness():
+    if "user_id" not in session or session.get("role") not in ROLE_PERMISSIONS:
+        return jsonify({"error": "Unauthorized"}), 403
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute("SELECT COUNT(*) AS cnt FROM master_records")
+    total_row = cursor.fetchone()
+    total = total_row["cnt"] if total_row else 0
+
+    cursor.execute("DESCRIBE master_records")
+    cols_info = cursor.fetchall()
+    cols = [c["Field"] for c in cols_info]
+
+    missing_stats = {}
+    overall_completeness_sum = 0
+    count_cols = 0
+    needs_attention = 0
+
+    if total > 0:
+        missing_cols = [c for c in cols if c not in ('id', 'file_id', 'custom_fields', 'created_at', 'updated_at', 'imported_by')]
+        cases = ", ".join([f"COUNT(CASE WHEN `{col}` IS NULL OR `{col}` = '' THEN 1 END) AS `{col}`" for col in missing_cols])
+        stats_query = f"SELECT {cases} FROM master_records"
+        
+        cursor.execute(stats_query)
+        stats_row = cursor.fetchone()
+        if stats_row:
+            for col in missing_cols:
+                missing_count = stats_row[col] or 0
+                pct_missing = round((missing_count / total) * 100, 1)
+                pct_complete = round(100.0 - pct_missing, 1)
+                
+                overall_completeness_sum += pct_complete
+                count_cols += 1
+                if pct_missing >= 25.0:
+                    needs_attention += 1
+
+                missing_stats[col] = {
+                    "missing_count": missing_count,
+                    "filled_count": total - missing_count,
+                    "missing_percentage": pct_missing,
+                    "complete_percentage": pct_complete
+                }
+
+    overall_score = round(overall_completeness_sum / count_cols, 1) if count_cols > 0 else 0.0
+
+    conn.close()
+    return jsonify({
+        "total_records": total,
+        "total_fields": count_cols,
+        "overall_health_score": overall_score,
+        "needs_attention_count": needs_attention,
+        "completeness_stats": missing_stats
     })
 
 @app.route('/api/records/export', methods=['GET'])
