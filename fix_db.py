@@ -101,7 +101,8 @@ sql_statements = [
     CREATE TABLE IF NOT EXISTS master_records (
         id SERIAL PRIMARY KEY,
         file_id INT NOT NULL REFERENCES uploaded_files(id) ON DELETE CASCADE,
-        full_name VARCHAR(255) NULL,
+        first_name VARCHAR(255) NULL,
+        last_name VARCHAR(255) NULL,
         email_address VARCHAR(255) NULL,
         primary_phone_number VARCHAR(100) NULL,
         alternate_phone_number VARCHAR(100) NULL,
@@ -195,7 +196,8 @@ sql_statements = [
 
 # Separate index and trigger statements (Postgres doesn't support inline INDEX in CREATE TABLE)
 sql_statements.extend([
-    "CREATE INDEX IF NOT EXISTS idx_full_name ON master_records(full_name)",
+    "CREATE INDEX IF NOT EXISTS idx_first_name ON master_records(first_name)",
+    "CREATE INDEX IF NOT EXISTS idx_last_name ON master_records(last_name)",
     "CREATE INDEX IF NOT EXISTS idx_email ON master_records(email_address)",
     "CREATE INDEX IF NOT EXISTS idx_phone ON master_records(primary_phone_number)",
     "CREATE INDEX IF NOT EXISTS idx_company ON master_records(company_name)",
@@ -291,6 +293,12 @@ try:
 
     # Seed Default Field Aliases
     default_aliases = [
+        ("First Name", "master", "first_name"),
+        ("Last Name", "master", "last_name"),
+        ("FirstName", "master", "first_name"),
+        ("LastName", "master", "last_name"),
+        ("First_Name", "master", "first_name"),
+        ("Last_Name", "master", "last_name"),
         ("Full Name", "master", "full_name"),
         ("Name", "master", "full_name"),
         ("Email Address", "master", "email_address"),

@@ -915,7 +915,7 @@ def log_search(user_id, username, search_term):
 # ── Hybrid Database Ingestion ──────────────────────────────────────────────────
 
 MASTER_COLUMNS = {
-    'full_name', 'email_address', 'primary_phone_number', 'alternate_phone_number',
+    'first_name', 'last_name', 'email_address', 'primary_phone_number', 'alternate_phone_number',
     'company_name', 'job_title', 'department', 'website_url', 'address_line_1', 'address_line_2',
     'city', 'state_province', 'postal_zip_code', 'country', 'linkedin_profile_url', 'industry',
     'lead_source', 'record_status', 'date_of_birth', 'gender', 'company_size', 'annual_revenue',
@@ -1005,7 +1005,8 @@ def ingest_uploaded_file(file_id, file_path, username):
         for _, row in df.iterrows():
             record_dict = {
                 'file_id': file_id,
-                'full_name': None,
+                'first_name': None,
+                'last_name': None,
                 'email_address': None,
                 'primary_phone_number': None,
                 'alternate_phone_number': None,
@@ -1045,7 +1046,16 @@ def ingest_uploaded_file(file_id, file_path, username):
                     
                 mapping = header_mapping[header]
                 if mapping['type'] == 'master':
-                    record_dict[mapping['target']] = str(cleaned_val)
+                    target_col = mapping['target']
+                    if target_col == 'full_name':
+                        name_val = str(cleaned_val).strip()
+                        parts = name_val.split(None, 1)
+                        if len(parts) > 0:
+                            record_dict['first_name'] = parts[0]
+                        if len(parts) > 1:
+                            record_dict['last_name'] = parts[1]
+                    else:
+                        record_dict[target_col] = str(cleaned_val)
                 else:
                     record_dict['custom_fields'][mapping['target']] = str(cleaned_val)
                     
@@ -1059,7 +1069,7 @@ def ingest_uploaded_file(file_id, file_path, username):
         # Bulk insert records
         if records_to_insert:
             columns_list = [
-                'file_id', 'full_name', 'email_address', 'primary_phone_number', 'alternate_phone_number',
+                'file_id', 'first_name', 'last_name', 'email_address', 'primary_phone_number', 'alternate_phone_number',
                 'company_name', 'job_title', 'department', 'website_url', 'address_line_1', 'address_line_2',
                 'city', 'state_province', 'postal_zip_code', 'country', 'linkedin_profile_url', 'industry',
                 'lead_source', 'record_status', 'date_of_birth', 'gender', 'company_size', 'annual_revenue',

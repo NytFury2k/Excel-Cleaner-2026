@@ -98,7 +98,37 @@ def _validate_env():
     
 _validate_env()
 
-
+def basic_auth_required():
+    def decorator(f):
+        @wraps(f)
+        def decorated(*args, **kwargs):
+            auth = request.authorization
+            if not auth or not auth.username or not auth.password:
+                return jsonify({"error": "Unauthorized Access. Username and password required."}), 401
+                
+            conn = get_db_connection()
+            cursor = conn.cursor(dictionary=True)
+            cursor.execute(
+                "SELECT id, username, password, role, is_active, status FROM users WHERE username = %s",
+                (auth.username,)
+            )
+            user = cursor.fetchone()
+            conn.close()
+            
+            if not user or user.get("is_active") != 1 or user.get("status") == "deactivated":
+                return jsonify({"error": "Unauthorized Access. Invalid username or inactive account."}), 401
+                
+            import bcrypt
+            if not bcrypt.checkpw(auth.password.encode('utf-8'), user["password"].encode('utf-8')):
+                return jsonify({"error": "Unauthorized Access. Incorrect password."}), 401
+                
+            session["user_id"] = user["id"]
+            session["username"] = user["username"]
+            session["role"] = user["role"]
+            
+            return f(*args, **kwargs)
+        return decorated
+    return decorator
 
 INACTIVITY_LIMIT = timedelta(minutes=30)
 
@@ -1981,7 +2011,8 @@ def choose_rules():
     presets = []
     custom_fields_registry = []
     master_fields = [
-        {"name": "Full Name", "identifier": "full_name", "type": "text"},
+        {"name": "First Name", "identifier": "first_name", "type": "text"},
+        {"name": "Last Name", "identifier": "last_name", "type": "text"},
         {"name": "Email Address", "identifier": "email_address", "type": "email"},
         {"name": "Primary Phone Number", "identifier": "primary_phone_number", "type": "phone"},
         {"name": "Alternate Phone Number", "identifier": "alternate_phone_number", "type": "phone"},
@@ -2128,7 +2159,7 @@ def clean_data():
     # Read master rules configurations from form
     master_rules_saved = {}
     master_fields_ids = [
-        "full_name", "email_address", "primary_phone_number", "alternate_phone_number",
+        "first_name", "last_name", "email_address", "primary_phone_number", "alternate_phone_number",
         "company_name", "job_title", "department", "website_url", "address_line_1",
         "address_line_2", "city", "state_province", "postal_zip_code", "country",
         "linkedin_profile_url", "industry", "lead_source", "record_status", "date_of_birth",
@@ -2362,7 +2393,7 @@ def clean_data():
     if store_in_db:
         # Master field identifier → DB column name (1-to-1 match by convention)
         MASTER_FIELD_IDENTIFIERS = {
-            "full_name", "email_address", "primary_phone_number", "alternate_phone_number",
+            "first_name", "last_name", "email_address", "primary_phone_number", "alternate_phone_number",
             "company_name", "job_title", "department", "website_url", "address_line_1",
             "address_line_2", "city", "state_province", "postal_zip_code", "country",
             "linkedin_profile_url", "industry", "lead_source", "record_status",
@@ -2406,22 +2437,30 @@ def clean_data():
                     for col, master_id in mapping.items():
                         val = row.get(col)
                         if val is not None and str(val).strip() not in ("", "nan", "NaT"):
-                            record[master_id] = str(val).strip()
+                            if master_id == "full_name":
+                                name_val = str(val).strip()
+                                parts = name_val.split(None, 1)
+                                if len(parts) > 0:
+                                    record['first_name'] = parts[0]
+                                if len(parts) > 1:
+                                    record['last_name'] = parts[1]
+                            else:
+                                record[master_id] = str(val).strip()
 
                     cursor_store.execute("""
                         INSERT INTO master_records (
-                            file_id, full_name, email_address, primary_phone_number,
+                            file_id, first_name, last_name, email_address, primary_phone_number,
                             alternate_phone_number, company_name, job_title, department,
                             website_url, address_line_1, address_line_2, city, state_province,
                             postal_zip_code, country, linkedin_profile_url, industry,
                             lead_source, record_status, date_of_birth, gender,
                             company_size, annual_revenue, created_at, updated_at, imported_by
                         ) VALUES (
-                            %s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s
+                            %s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s
                         )
                     """, (
                         sheet.get("file_id", 0),
-                        record["full_name"], record["email_address"],
+                        record.get("first_name"), record.get("last_name"), record["email_address"],
                         record["primary_phone_number"], record["alternate_phone_number"],
                         record["company_name"], record["job_title"], record["department"],
                         record["website_url"], record["address_line_1"], record["address_line_2"],
@@ -4689,7 +4728,6 @@ def get_records():
     
     # Support basic mappings
     search_mappings = {
-        'name': 'full_name',
         'email': 'email_address',
         'phone': 'primary_phone_number',
         'company': 'company_name',
@@ -4700,6 +4738,12 @@ def get_records():
         if val and col_name in cols:
             query_parts.append(f"`{col_name}` LIKE %s")
             params.append(f"%{val}%")
+            
+    # Handle name query manually across first_name and last_name
+    name_val = request.args.get('name', '').strip()
+    if name_val:
+        query_parts.append("(first_name LIKE %s OR last_name LIKE %s)")
+        params.extend([f"%{name_val}%", f"%{name_val}%"])
             
     # Support dynamic search on other master columns
     for c in cols:
@@ -4793,7 +4837,7 @@ def get_records():
                 record_data[c] = val
                 
         # Compatibility mapping properties for UI rendering
-        record_data["name"] = item.get("full_name") or "--"
+        record_data["name"] = f"{item.get('first_name') or ''} {item.get('last_name') or ''}".strip() or "--"
         record_data["email"] = item.get("email_address") or "--"
         record_data["phone"] = item.get("primary_phone_number") or "--"
         record_data["company"] = item.get("company_name") or "--"
@@ -4890,6 +4934,450 @@ def dataset_completeness():
         "completeness_stats": missing_stats
     })
 
+@app.route('/api/enrich/apollo', methods=['POST'])
+@login_required()
+def enrich_apollo():
+    if "user_id" not in session or session.get("role") not in ROLE_PERMISSIONS:
+        return jsonify({"error": "Unauthorized"}), 403
+
+    data = request.get_json() or {}
+    record_id = data.get("record_id")
+    dynamic_api_key = data.get("api_key")
+
+    if not record_id:
+        return jsonify({"error": "Missing record_id"}), 400
+
+    apollo_key = dynamic_api_key or os.environ.get("APOLLO_API_KEY")
+    if not apollo_key:
+        return jsonify({"error": "api_key_required"}), 200
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute("SELECT * FROM master_records WHERE id = %s", (record_id,))
+    record = cursor.fetchone()
+    if not record:
+        conn.close()
+        return jsonify({"error": "Record not found"}), 404
+
+    # Call Apollo Match API
+    import requests
+    apollo_url = "https://api.apollo.io/v1/people/match"
+    
+    first_name = record.get("first_name") or ""
+    last_name = record.get("last_name") or ""
+    full_name = f"{first_name} {last_name}".strip()
+
+    payload = {
+        "email": record.get("email_address"),
+        "first_name": first_name,
+        "last_name": last_name,
+        "name": full_name,
+        "company_name": record.get("company_name")
+    }
+    payload = {k: v for k, v in payload.items() if v}
+
+    try:
+        response = requests.post(apollo_url, json=payload, headers={
+            "Content-Type": "application/json",
+            "Cache-Control": "no-cache",
+            "X-Api-Key": apollo_key
+        }, timeout=10)
+    except Exception as e:
+        conn.close()
+        return jsonify({"error": f"Failed to connect to Apollo API: {str(e)}"}), 500
+
+    if response.status_code != 200:
+        if response.status_code == 401:
+            conn.close()
+            return jsonify({"error": "invalid_api_key"}), 200
+        
+        err_msg = ""
+        try:
+            err_json = response.json()
+            err_msg = err_json.get("message") or err_json.get("error") or ""
+        except Exception:
+            pass
+        if not err_msg:
+            err_msg = response.text or f"Status {response.status_code}"
+            
+        conn.close()
+        return jsonify({"error": f"Apollo API Error ({response.status_code}): {err_msg}"}), 500
+
+    res_json = response.json()
+    person = res_json.get("person")
+    if not person:
+        conn.close()
+        return jsonify({"success": True, "match_found": False, "message": "No match found in Apollo for this contact."})
+
+    # Map Apollo fields back to our schema
+    enriched = {}
+    
+    # Names
+    enriched["first_name"] = person.get("first_name") or ""
+    enriched["last_name"] = person.get("last_name") or ""
+    
+    # Email
+    enriched["email_address"] = person.get("email") or ""
+    
+    # Phone
+    phone = ""
+    phone_numbers = person.get("phone_numbers") or []
+    if phone_numbers:
+        phone = phone_numbers[0].get("raw_number") or phone_numbers[0].get("sanitized_number") or ""
+    if not phone:
+        phone = person.get("sanitized_phone") or ""
+    enriched["primary_phone_number"] = phone
+
+    # Company
+    org = person.get("organization") or {}
+    enriched["company_name"] = org.get("name") or person.get("organization_name") or ""
+    
+    # Job Title / Department
+    enriched["job_title"] = person.get("title") or ""
+    enriched["department"] = person.get("department") or ""
+    
+    # Website / Domain
+    enriched["website_url"] = org.get("website_url") or ""
+    if not enriched["website_url"] and org.get("primary_domain"):
+        enriched["website_url"] = f"https://{org['primary_domain']}"
+        
+    # Location
+    enriched["city"] = person.get("city") or ""
+    enriched["state_province"] = person.get("state") or ""
+    enriched["country"] = person.get("country") or ""
+    
+    # Address details
+    street = org.get("primary_address", {}).get("street_address") or ""
+    enriched["address_line_1"] = street
+    enriched["address_line_2"] = ""
+    enriched["postal_zip_code"] = org.get("primary_address", {}).get("postal_code") or ""
+    
+    # Social
+    enriched["linkedin_profile_url"] = person.get("linkedin_url") or ""
+    
+    # Industry
+    enriched["industry"] = org.get("industry") or ""
+    
+    # Lead Source
+    enriched["lead_source"] = "Apollo Enrichment"
+    
+    # Record Status
+    enriched["record_status"] = "Enriched"
+    
+    # Company Size / Revenue
+    enriched["company_size"] = org.get("estimated_num_employees") or ""
+    if enriched["company_size"]:
+        enriched["company_size"] = str(enriched["company_size"])
+        
+    rev = org.get("annual_revenue") or ""
+    if rev:
+        if isinstance(rev, (int, float)):
+            if rev >= 1_000_000_000:
+                rev = f"${round(rev / 1_000_000_000, 1)}B"
+            elif rev >= 1_000_000:
+                rev = f"${round(rev / 1_000_000, 1)}M"
+            else:
+                rev = f"${rev:,}"
+        enriched["annual_revenue"] = str(rev)
+
+    # Filter out empty or none values from enriched mapping
+    enriched = {k: str(v).strip() for k, v in enriched.items() if v is not None and str(v).strip()}
+
+    # Clean existing record values to compare
+    existing = {}
+    for col in enriched.keys():
+        val = record.get(col)
+        existing[col] = str(val).strip() if val is not None else ""
+
+    conn.close()
+    return jsonify({
+        "success": True,
+        "match_found": True,
+        "record_id": record_id,
+        "existing": existing,
+        "enriched": enriched
+    })
+
+@app.route('/api/enrich/save', methods=['POST'])
+@login_required()
+def enrich_save():
+    if "user_id" not in session or session.get("role") not in ROLE_PERMISSIONS:
+        return jsonify({"error": "Unauthorized"}), 403
+
+    data = request.get_json() or {}
+    record_id = data.get("record_id")
+    fields_to_update = data.get("fields")
+
+    if not record_id or not fields_to_update:
+        return jsonify({"error": "Missing record_id or fields"}), 400
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute("SELECT * FROM master_records WHERE id = %s", (record_id,))
+    record = cursor.fetchone()
+    if not record:
+        conn.close()
+        return jsonify({"error": "Record not found"}), 404
+
+    # Resolve allowed columns dynamically
+    cursor.execute("DESCRIBE master_records")
+    valid_cols = [row['Field'] for row in cursor.fetchall()]
+
+    update_fields = {}
+    for col, val in fields_to_update.items():
+        if col in valid_cols and col not in ('id', 'file_id', 'created_at', 'updated_at', 'imported_by'):
+            update_fields[col] = val
+
+    if not update_fields:
+        conn.close()
+        return jsonify({"error": "No valid fields to update"}), 400
+
+    set_clause = ", ".join([f"`{col}` = %s" for col in update_fields.keys()])
+    params = list(update_fields.values()) + [record_id]
+    update_query = f"UPDATE master_records SET {set_clause}, updated_at = NOW() WHERE id = %s"
+
+    cursor.execute(update_query, params)
+    log_action(session["user_id"], f"Enriched record #{record_id} via Apollo: {', '.join(update_fields.keys())}")
+    conn.close()
+
+    return jsonify({"success": True, "message": f"Successfully updated {len(update_fields)} fields on record #{record_id}."})
+
+@app.route('/api/enrich/apollo/bulk', methods=['POST'])
+@login_required()
+def enrich_apollo_bulk():
+    if "user_id" not in session or session.get("role") not in ROLE_PERMISSIONS:
+        return jsonify({"error": "Unauthorized"}), 403
+
+    data = request.get_json() or {}
+    record_ids = data.get("record_ids")
+    filters = data.get("filters")
+    dynamic_api_key = data.get("api_key")
+
+    if not record_ids and not filters:
+        return jsonify({"error": "Missing record_ids or filters parameters"}), 400
+
+    apollo_key = dynamic_api_key or os.environ.get("APOLLO_API_KEY")
+    if not apollo_key:
+        return jsonify({"error": "api_key_required"}), 200
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute("DESCRIBE master_records")
+    valid_cols = [row['Field'] for row in cursor.fetchall()]
+
+    if filters:
+        query_parts = ["1=1"]
+        params = []
+        
+        search_mappings = {
+            'email': 'email_address',
+            'phone': 'primary_phone_number',
+            'company': 'company_name',
+            'city': 'city'
+        }
+        
+        for arg_name, col_name in search_mappings.items():
+            val = str(filters.get(arg_name, '')).strip()
+            if val and col_name in valid_cols:
+                query_parts.append(f"`{col_name}` LIKE %s")
+                params.append(f"%{val}%")
+                
+        # Handle name filter manually across first_name and last_name
+        name_val = str(filters.get('name', '')).strip()
+        if name_val:
+            query_parts.append("(first_name LIKE %s OR last_name LIKE %s)")
+            params.extend([f"%{name_val}%", f"%{name_val}%"])
+                
+        for c in valid_cols:
+            if c in ('id', 'file_id', 'custom_fields', 'created_at', 'updated_at', 'imported_by') or c in search_mappings.values():
+                continue
+            val = str(filters.get(c, '')).strip()
+            if val:
+                query_parts.append(f"`{c}` LIKE %s")
+                params.append(f"%{val}%")
+                
+        missing_field = str(filters.get("missing_field", "")).strip()
+        if missing_field and missing_field in valid_cols:
+            query_parts.append(f"(`{missing_field}` IS NULL OR `{missing_field}` = '' OR `{missing_field}` = '--')")
+            
+        custom_filters_str = str(filters.get("custom_filters", "")).strip()
+        if custom_filters_str:
+            try:
+                import json
+                custom_filters = json.loads(custom_filters_str)
+                for f in custom_filters:
+                    fid = str(f.get('id', '')).strip()
+                    fval = str(f.get('val', '')).strip()
+                    if fid and fval and fid in valid_cols:
+                        query_parts.append(f"`{fid}` LIKE %s")
+                        params.append(f"%{fval}%")
+            except Exception:
+                pass
+                
+        where_clause = " AND ".join(query_parts)
+        cursor.execute(f"SELECT id FROM master_records WHERE {where_clause}", params)
+        record_ids = [row["id"] for row in cursor.fetchall()]
+
+    if not record_ids:
+        conn.close()
+        return jsonify({"success": True, "total": 0, "enriched": 0, "no_match": 0, "failed": 0, "details": []})
+
+    import requests
+    apollo_url = "https://api.apollo.io/v1/people/match"
+
+    total = len(record_ids)
+    enriched_count = 0
+    no_match_count = 0
+    failed_count = 0
+    details = []
+
+    for rid in record_ids:
+        cursor.execute("SELECT * FROM master_records WHERE id = %s", (rid,))
+        record = cursor.fetchone()
+        if not record:
+            failed_count += 1
+            details.append({"id": rid, "status": "failed", "error": "Record not found"})
+            continue
+
+        first_name = record.get("first_name") or ""
+        last_name = record.get("last_name") or ""
+        full_name = f"{first_name} {last_name}".strip()
+
+        payload = {
+            "email": record.get("email_address"),
+            "first_name": first_name,
+            "last_name": last_name,
+            "name": full_name,
+            "company_name": record.get("company_name")
+        }
+        payload = {k: v for k, v in payload.items() if v}
+
+        try:
+            res = requests.post(apollo_url, json=payload, headers={
+                "Content-Type": "application/json",
+                "Cache-Control": "no-cache",
+                "X-Api-Key": apollo_key
+            }, timeout=8)
+        except Exception as e:
+            failed_count += 1
+            details.append({"id": rid, "status": "failed", "error": f"Connection error: {str(e)}"})
+            continue
+
+        if res.status_code == 401:
+            conn.close()
+            return jsonify({"error": "invalid_api_key"}), 200
+        elif res.status_code != 200:
+            err_msg = ""
+            try:
+                err_json = res.json()
+                err_msg = err_json.get("message") or err_json.get("error") or ""
+            except Exception:
+                pass
+            if not err_msg:
+                err_msg = res.text or f"Status {res.status_code}"
+                
+            failed_count += 1
+            details.append({"id": rid, "status": "failed", "error": f"Apollo API Error ({res.status_code}): {err_msg}"})
+            continue
+
+        res_json = res.json()
+        person = res_json.get("person")
+        if not person:
+            no_match_count += 1
+            details.append({"id": rid, "status": "no_match"})
+            continue
+
+        enriched = {}
+        
+        enriched["first_name"] = person.get("first_name") or ""
+        enriched["last_name"] = person.get("last_name") or ""
+        enriched["email_address"] = person.get("email") or ""
+        
+        phone = ""
+        phone_numbers = person.get("phone_numbers") or []
+        if phone_numbers:
+            phone = phone_numbers[0].get("raw_number") or phone_numbers[0].get("sanitized_number") or ""
+        if not phone:
+            phone = person.get("sanitized_phone") or ""
+        enriched["primary_phone_number"] = phone
+
+        org = person.get("organization") or {}
+        enriched["company_name"] = org.get("name") or person.get("organization_name") or ""
+        enriched["job_title"] = person.get("title") or ""
+        enriched["department"] = person.get("department") or ""
+        
+        enriched["website_url"] = org.get("website_url") or ""
+        if not enriched["website_url"] and org.get("primary_domain"):
+            enriched["website_url"] = f"https://{org['primary_domain']}"
+            
+        enriched["city"] = person.get("city") or ""
+        enriched["state_province"] = person.get("state") or ""
+        enriched["country"] = person.get("country") or ""
+        
+        street = org.get("primary_address", {}).get("street_address") or ""
+        enriched["address_line_1"] = street
+        enriched["address_line_2"] = ""
+        enriched["postal_zip_code"] = org.get("primary_address", {}).get("postal_code") or ""
+        enriched["linkedin_profile_url"] = person.get("linkedin_url") or ""
+        enriched["industry"] = org.get("industry") or ""
+        
+        enriched["lead_source"] = "Apollo Bulk Enrichment"
+        enriched["record_status"] = "Enriched"
+        
+        enriched["company_size"] = org.get("estimated_num_employees") or ""
+        if enriched["company_size"]:
+            enriched["company_size"] = str(enriched["company_size"])
+            
+        rev = org.get("annual_revenue") or ""
+        if rev:
+            if isinstance(rev, (int, float)):
+                if rev >= 1_000_000_000:
+                    rev = f"${round(rev / 1_000_000_000, 1)}B"
+                elif rev >= 1_000_000:
+                    rev = f"${round(rev / 1_000_000, 1)}M"
+                else:
+                    rev = f"${rev:,}"
+            enriched["annual_revenue"] = str(rev)
+
+        update_fields = {}
+        for col, enriched_val in enriched.items():
+            if col in valid_cols and col not in ('id', 'file_id', 'created_at', 'updated_at', 'imported_by'):
+                exist_val = record.get(col)
+                if exist_val is None or str(exist_val).strip() == "" or str(exist_val).strip() == "--":
+                    if enriched_val and str(enriched_val).strip():
+                        update_fields[col] = str(enriched_val).strip()
+
+        if update_fields:
+            update_fields["record_status"] = "Enriched"
+            update_fields["lead_source"] = "Apollo Bulk Enrichment"
+
+            set_clause = ", ".join([f"`{col}` = %s" for col in update_fields.keys()])
+            params = list(update_fields.values()) + [rid]
+            update_query = f"UPDATE master_records SET {set_clause}, updated_at = NOW() WHERE id = %s"
+
+            cursor.execute(update_query, params)
+            conn.commit()
+            
+            log_action(session["user_id"], f"Bulk Enriched record #{rid} via Apollo: {', '.join(update_fields.keys())}")
+            enriched_count += 1
+            details.append({"id": rid, "status": "enriched", "fields": list(update_fields.keys())})
+        else:
+            no_match_count += 1
+            details.append({"id": rid, "status": "skipped", "message": "No new empty fields found to enrich"})
+
+    conn.close()
+    return jsonify({
+        "success": True,
+        "total": total,
+        "enriched": enriched_count,
+        "no_match": no_match_count,
+        "failed": failed_count,
+        "details": details
+    })
+
 @app.route('/api/records/export', methods=['GET'])
 @login_required()
 def export_records():
@@ -4909,7 +5397,6 @@ def export_records():
         
         # Support basic mappings
         search_mappings = {
-            'name': 'full_name',
             'email': 'email_address',
             'phone': 'primary_phone_number',
             'company': 'company_name',
@@ -4920,6 +5407,12 @@ def export_records():
             if val and col_name in cols:
                 query_parts.append(f"`{col_name}` LIKE %s")
                 params.append(f"%{val}%")
+                
+        # Handle name query manually across first_name and last_name
+        name_val = request.args.get('name', '').strip()
+        if name_val:
+            query_parts.append("(first_name LIKE %s OR last_name LIKE %s)")
+            params.extend([f"%{name_val}%", f"%{name_val}%"])
                 
         # Support dynamic search on other master columns
         for c in cols:
@@ -5220,7 +5713,7 @@ def get_record_custom_fields(record_id):
     # 2. Add other populated columns that aren't metadata or main table columns
     for col, val in row.items():
         if col in ('id', 'file_id', 'custom_fields', 'created_at', 'updated_at', 'imported_by',
-                   'full_name', 'email_address', 'primary_phone_number', 'company_name', 'city', 'state_province'):
+                   'first_name', 'last_name', 'email_address', 'primary_phone_number', 'company_name', 'city', 'state_province'):
             continue
         if val is not None and str(val).strip() != '':
             label = " ".join([w.capitalize() for w in col.split("_")])
@@ -5330,7 +5823,8 @@ def history_view():
 
 def suggest_column_mapping(columns, cursor):
     master_cols = [
-        ("full_name", "Full Name"),
+        ("first_name", "First Name"),
+        ("last_name", "Last Name"),
         ("email_address", "Email Address"),
         ("primary_phone_number", "Primary Phone Number"),
         ("alternate_phone_number", "Alternate Phone Number"),
@@ -5397,6 +5891,380 @@ def suggest_column_mapping(columns, cursor):
         suggestions[col] = "create_new"
         
     return suggestions
+
+@app.route('/api/v1/records/ingest', methods=['POST'])
+@basic_auth_required()
+def api_records_ingest():
+    if session.get("role") not in ROLE_PERMISSIONS:
+        return jsonify({"error": "Unauthorized Access. Your role lacks ingest permission."}), 403
+
+    if 'file' not in request.files:
+        return jsonify({"error": "No file uploaded"}), 400
+        
+    files = request.files.getlist('file')
+    if not files or all(f.filename == '' for f in files):
+        return jsonify({"error": "No file selected"}), 400
+
+    mapping_str = request.form.get('mapping')
+    mapping_config = None
+    if mapping_str:
+        try:
+            mapping_config = json.loads(mapping_str)
+        except Exception as e:
+            return jsonify({"error": f"Invalid JSON format for mapping parameter: {str(e)}"}), 400
+
+    try:
+        import uuid
+        from werkzeug.utils import secure_filename
+        from helpers import ingest_uploaded_file_with_mapping
+        
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute("SELECT username FROM users WHERE id = %s", (session["user_id"],))
+        u_row = cursor.fetchone()
+        username = u_row["username"] if u_row else "unknown"
+        conn.close()
+
+        total_rows_all = 0
+        rows_imported_all = 0
+        rows_rejected_all = 0
+        file_ids = []
+        sheets_processed_details = []
+
+        upload_dir = "Generated_Files/Uploaded"
+        os.makedirs(upload_dir, exist_ok=True)
+
+        for file in files:
+            if not file or file.filename == '':
+                continue
+                
+            orig_name = file.filename
+            safe_name = secure_filename(orig_name)
+            ext = os.path.splitext(safe_name)[1].lower()
+            if ext not in ('.xlsx', '.xls', '.csv'):
+                continue
+
+            unique_filename = f"{uuid.uuid4().hex}_{safe_name}"
+            file_path = os.path.join(upload_dir, unique_filename)
+            file.save(file_path)
+
+            sheets_to_process = {}
+            if ext == '.csv':
+                try:
+                    df = pd.read_csv(file_path)
+                    sheets_to_process["CSV"] = df
+                except Exception:
+                    df = pd.read_csv(file_path, sep=None, engine='python')
+                    sheets_to_process["CSV"] = df
+            else:
+                try:
+                    sheet_dict = pd.read_excel(file_path, sheet_name=None)
+                    for sheet_name, df in sheet_dict.items():
+                        if df.empty or len(df.columns) == 0:
+                            continue
+                        sheets_to_process[sheet_name] = df
+                except Exception as e:
+                    return jsonify({"error": f"Failed to parse Excel file {orig_name}: {str(e)}"}), 400
+
+            for sheet_name, df in sheets_to_process.items():
+                row_count = len(df)
+                total_rows_all += row_count
+                
+                sheet_prefix = uuid.uuid4().hex[:8]
+                sheet_filename = f"temp_sheet_api_{session['user_id']}_{sheet_prefix}{ext}"
+                sheet_file_path = os.path.join(upload_dir, sheet_filename)
+                
+                if ext == '.csv':
+                    df.to_csv(sheet_file_path, index=False)
+                else:
+                    df.to_excel(sheet_file_path, index=False)
+
+                conn = get_db_connection()
+                cursor = conn.cursor(dictionary=True)
+                cursor.execute(
+                    "INSERT INTO uploaded_files (user_id, filename, original_filename, total_rows, status, uploaded_at) VALUES (%s, %s, %s, %s, %s, %s)",
+                    (session['user_id'], sheet_filename, f"{orig_name} [{sheet_name}]", row_count, 'processing', datetime.utcnow())
+                )
+                file_id = cursor.lastrowid
+                conn.commit()
+
+                columns = df.columns.tolist()
+                sheet_mapping = mapping_config
+                if not sheet_mapping:
+                    sheet_mapping = suggest_column_mapping(columns, cursor)
+                conn.close()
+
+                ingest_uploaded_file_with_mapping(file_id, sheet_file_path, username, sheet_mapping)
+
+                conn = get_db_connection()
+                cursor = conn.cursor(dictionary=True)
+                cursor.execute(
+                    "SELECT total_rows, rows_imported, rows_rejected, status FROM uploaded_files WHERE id = %s",
+                    (file_id,)
+                )
+                file_stats = cursor.fetchone()
+                conn.close()
+
+                imported = file_stats["rows_imported"] if file_stats else 0
+                rejected = file_stats["rows_rejected"] if file_stats else 0
+                status = file_stats["status"] if file_stats else "completed"
+
+                rows_imported_all += imported
+                rows_rejected_all += rejected
+                file_ids.append(file_id)
+                
+                sheets_processed_details.append({
+                    "original_filename": orig_name,
+                    "sheet_name": sheet_name,
+                    "file_id": file_id,
+                    "total_rows": row_count,
+                    "rows_imported": imported,
+                    "rows_rejected": rejected,
+                    "status": status,
+                    "mapped_columns": sheet_mapping
+                })
+
+        return jsonify({
+            "success": True,
+            "message": f"Successfully ingested {len(sheets_processed_details)} sheet(s) from uploaded files.",
+            "file_ids": file_ids,
+            "total_rows": total_rows_all,
+            "rows_imported": rows_imported_all,
+            "rows_rejected": rows_rejected_all,
+            "details": sheets_processed_details
+        }), 200
+        
+    except Exception as e:
+        return jsonify({"error": f"Failed to ingest files: {str(e)}"}), 500
+
+@app.route('/api/v1/records/clean', methods=['POST'])
+@basic_auth_required()
+def api_records_clean():
+    if session.get("role") not in ROLE_PERMISSIONS:
+        return jsonify({"error": "Unauthorized Access. Your role lacks permission."}), 403
+
+    data = request.get_json() or {}
+    contacts = data.get("contacts")
+    rules = data.get("rules")
+    column_types = data.get("column_types") or {}
+
+    if not contacts or not isinstance(contacts, list):
+        return jsonify({"error": "Missing or invalid contacts parameter. It must be an array of contact objects."}), 400
+
+    try:
+        df = pd.DataFrame(contacts)
+        if df.empty:
+            return jsonify({"success": True, "contacts": [], "validation_errors": [], "summary": {}}), 200
+
+        # Normalise casing for emails and names
+        for col, ctype in column_types.items():
+            if col in df.columns:
+                if ctype == "email":
+                    df[col] = df[col].astype(str).str.lower().str.replace(r"\s+", "", regex=True)
+                elif ctype == "text" and col in ("first_name", "last_name", "full_name"):
+                    def title_case(v):
+                        if pd.isna(v) or str(v).strip() == "":
+                            return v
+                        return str(v).strip().title()
+                    df[col] = df[col].apply(title_case)
+
+        if not rules:
+            rules = []
+            for col, ctype in column_types.items():
+                if col in df.columns:
+                    rules.append(("trim_whitespace", col))
+                    if ctype == "numeric":
+                        rules.append(("normalize_currency", col))
+                        rules.append(("validate_numeric", col))
+                    elif ctype == "email":
+                        rules.append(("clean_special_chars", col))
+                        rules.append(("validate_email", col))
+                    elif ctype == "phone":
+                        rules.append(("clean_special_chars", col))
+                        rules.append(("validate_phone", col))
+                    elif ctype == "url":
+                        rules.append(("clean_special_chars", col))
+                        rules.append(("validate_url", col))
+
+        from cleaning.engine import run_cleaning_pipeline
+        
+        formatted_rules = []
+        for r in rules:
+            if isinstance(r, (list, tuple)) and len(r) >= 2:
+                formatted_rules.append((r[0], r[1]))
+
+        cleaned_df, invalid_df, removed_duplicates, detailed_errors, incompatibility_errors, summary = run_cleaning_pipeline(
+            df,
+            formatted_rules,
+            type_overrides=column_types
+        )
+
+        cleaned_df = cleaned_df.fillna("")
+        cleaned_contacts = cleaned_df.to_dict(orient='records')
+
+        return jsonify({
+            "success": True,
+            "contacts": cleaned_contacts,
+            "validation_errors": detailed_errors,
+            "summary": summary
+        }), 200
+
+    except Exception as e:
+        return jsonify({"error": f"Failed to process cleaning: {str(e)}"}), 500
+
+@app.route('/api/v1/records/clean-db', methods=['POST'])
+@basic_auth_required()
+def api_records_clean_db():
+    if session.get("role") not in ROLE_PERMISSIONS:
+        return jsonify({"error": "Unauthorized Access. Your role lacks permission."}), 403
+
+    data = request.get_json() or {}
+    rules = data.get("rules")
+
+    if not rules or not isinstance(rules, list):
+        return jsonify({"error": "Missing or invalid rules parameter. It must be an array of rule arrays."}), 400
+
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute("SELECT * FROM master_records")
+        rows = cursor.fetchall()
+        conn.close()
+
+        if not rows:
+            return jsonify({
+                "success": True,
+                "message": "No database records found to clean.",
+                "records_updated": 0,
+                "validation_errors": [],
+                "summary": {}
+            }), 200
+
+        # Construct virtual full_name column from first_name and last_name
+        for row in rows:
+            row["full_name"] = f"{row.get('first_name') or ''} {row.get('last_name') or ''}".strip()
+
+        df = pd.DataFrame(rows)
+
+        # Resolve generic column name aliases
+        ALIAS_MAP = {
+            "name": "full_name",
+            "email": "email_address",
+            "revenue": "annual_revenue",
+            "phone": "primary_phone_number"
+        }
+
+        formatted_rules = []
+        for r in rules:
+            if isinstance(r, (list, tuple)) and len(r) >= 2:
+                rule_name, col = r[0], r[1]
+                resolved_col = ALIAS_MAP.get(col.lower().strip(), col)
+                formatted_rules.append((rule_name, resolved_col))
+
+        column_types = {
+            "full_name": "text",
+            "first_name": "text",
+            "last_name": "text",
+            "email_address": "email",
+            "primary_phone_number": "phone",
+            "alternate_phone_number": "phone",
+            "annual_revenue": "numeric",
+            "website_url": "url"
+        }
+
+        # Apply Title Case and lower casing normalizations in-memory
+        for rule_name, col in formatted_rules:
+            if col in df.columns:
+                ctype = column_types.get(col)
+                if ctype == "email":
+                    df[col] = df[col].astype(str).str.lower().str.replace(r"\s+", "", regex=True)
+                elif ctype == "text" and col in ("first_name", "last_name", "full_name"):
+                    def title_case(v):
+                        if pd.isna(v) or str(v).strip() == "":
+                            return v
+                        return str(v).strip().title()
+                    df[col] = df[col].apply(title_case)
+
+        from cleaning.engine import run_cleaning_pipeline
+
+        cleaned_df, invalid_df, removed_duplicates, detailed_errors, incompatibility_errors, summary = run_cleaning_pipeline(
+            df,
+            formatted_rules,
+            type_overrides=column_types
+        )
+
+        # Commit updates back to database for rows that changed
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        update_count = 0
+
+        for _, r in cleaned_df.iterrows():
+            rid = r.get("id")
+            if not rid:
+                continue
+
+            orig_row = next((item for item in rows if item["id"] == rid), None)
+            if not orig_row:
+                continue
+
+            row_updates = {}
+
+            for rule_name, col in formatted_rules:
+                if col == "full_name":
+                    new_full_name = r.get("full_name")
+                    if pd.isna(new_full_name):
+                        new_full_name = ""
+                    else:
+                        new_full_name = str(new_full_name).strip()
+
+                    orig_full_name = f"{orig_row.get('first_name') or ''} {orig_row.get('last_name') or ''}".strip()
+
+                    if new_full_name != orig_full_name:
+                        parts = new_full_name.split(None, 1)
+                        new_first = parts[0] if len(parts) > 0 else ""
+                        new_last = parts[1] if len(parts) > 1 else ""
+
+                        orig_first = orig_row.get('first_name') or ""
+                        orig_last = orig_row.get('last_name') or ""
+
+                        if new_first != orig_first:
+                            row_updates["first_name"] = new_first if new_first else None
+                        if new_last != orig_last:
+                            row_updates["last_name"] = new_last if new_last else None
+                else:
+                    if col in r and col in orig_row:
+                        new_val = r[col]
+                        if pd.isna(new_val) or str(new_val).strip().lower() in ('nan', 'nat', 'null'):
+                            new_val = None
+                        else:
+                            new_val = str(new_val).strip()
+
+                        orig_val = orig_row[col]
+                        if orig_val is not None:
+                            orig_val = str(orig_val).strip()
+
+                        if new_val != orig_val:
+                            row_updates[col] = new_val
+
+            if row_updates:
+                set_parts = [f"{col} = %s" for col in row_updates.keys()]
+                params = list(row_updates.values())
+                params.append(rid)
+                cursor.execute(f"UPDATE master_records SET {', '.join(set_parts)} WHERE id = %s", tuple(params))
+                update_count += 1
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({
+            "success": True,
+            "message": f"Database records cleaning completed. {update_count} row(s) updated.",
+            "records_updated": update_count,
+            "summary": summary
+        }), 200
+
+    except Exception as e:
+        return jsonify({"error": f"Failed to clean database: {str(e)}"}), 500
 
 @app.route('/api/upload-draft', methods=['POST'])
 @login_required()

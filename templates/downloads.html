@@ -604,13 +604,27 @@
             <div class="card shadow-sm">
               <div class="card-header d-flex justify-content-between align-items-center py-2">
                 <span><i class="bi bi-database me-2 text-danger"></i>Master Records</span>
-                <button type="button" class="btn btn-success btn-sm fw-semibold" id="exportFilteredBtn">Export Filtered Records</button>
+                <div class="d-flex align-items-center gap-2">
+                  <button type="button" class="btn btn-outline-primary btn-sm fw-semibold d-none" id="bulkEnrichBtn">
+                    <img src="https://assets.apollo.io/logo.png" style="height: 14px; width: 14px; margin-right: 6px; object-fit: contain; vertical-align: middle;" onerror="this.src='https://cdn-icons-png.flaticon.com/512/3222/3222681.png'">
+                    Bulk Enrich
+                  </button>
+                  <button type="button" class="btn btn-success btn-sm fw-semibold" id="exportFilteredBtn">Export Filtered Records</button>
+                </div>
               </div>
               <div class="card-body p-0">
+                <!-- Select All Pages Banner -->
+                <div id="selectAllPagesBanner" class="alert alert-info py-2 px-4 mb-0 rounded-0 border-0 border-bottom d-none text-center" style="font-size: 0.82rem;">
+                  <span id="selectAllPagesBannerText">All 15 records on this page are selected.</span>
+                  <button type="button" class="btn btn-link p-0 ms-2 fw-bold text-decoration-none text-primary" id="selectAllPagesActionBtn">Select all matching records</button>
+                </div>
                 <div class="table-responsive">
                   <table class="table table-hover align-middle mb-0" id="recordsTable">
                     <thead>
                       <tr>
+                        <th width="40" class="text-center">
+                          <input type="checkbox" id="selectAllRecordsCheckbox" class="form-check-input">
+                        </th>
                         <th>ID</th>
                         <th>Name</th>
                         <th>Email</th>
@@ -623,7 +637,7 @@
                     </thead>
                     <tbody id="recordsTableBody">
                       <tr>
-                        <td colspan="8" class="text-center py-5">
+                        <td colspan="9" class="text-center py-5">
                           <div class="spinner-border text-danger" role="status">
                             <span class="visually-hidden">Loading...</span>
                           </div>
@@ -895,7 +909,155 @@
           <!-- Populated dynamically via AJAX -->
         </div>
         <div class="modal-footer">
+          <button type="button" class="btn btn-primary" id="detailsModalEnrichBtn">
+            <i class="bi bi-cpu-fill me-1"></i>Enrich with Apollo
+          </button>
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Apollo Enrichment Modal -->
+  <div class="modal fade" id="enrichModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content">
+        <div class="modal-header bg-primary text-white py-2">
+          <h5 class="modal-title fs-6"><i class="bi bi-rocket-takeoff-fill me-2"></i>Apollo Data Enrichment</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body p-4">
+          
+          <!-- Dynamic API Key prompt -->
+          <div id="apolloApiKeySection" class="alert alert-warning border-warning-subtle d-none mb-3 py-3">
+            <h6 class="fw-bold mb-1"><i class="bi bi-key-fill me-2 text-warning fs-5"></i>Apollo API Key Required</h6>
+            <p class="small text-muted mb-3">No global Apollo API Key is configured on the server. Please enter your Apollo API Key below to proceed (this key is stored locally in your browser session).</p>
+            <div class="input-group input-group-sm">
+              <span class="input-group-text bg-white"><i class="bi bi-shield-lock-fill text-muted"></i></span>
+              <input type="password" class="form-control" id="apolloApiKeyInput" placeholder="Enter Apollo API Key...">
+              <button class="btn btn-warning fw-semibold px-3" type="button" id="saveApolloKeyBtn">Save Key</button>
+            </div>
+          </div>
+
+          <!-- Loading state -->
+          <div id="enrichLoadingSection" class="text-center py-5 d-none">
+            <div class="spinner-border text-primary mb-3" style="width: 2.5rem; height: 2.5rem;" role="status">
+              <span class="visually-hidden">Loading...</span>
+            </div>
+            <h6 class="fw-semibold text-muted mb-1">Calling Apollo Matching API...</h6>
+            <p class="small text-muted mb-0">Searching Apollo's global database for a contact profile match.</p>
+          </div>
+
+          <!-- Error Message Section -->
+          <div id="enrichErrorSection" class="alert alert-danger d-none py-3">
+            <div class="d-flex align-items-center">
+              <i class="bi bi-exclamation-octagon-fill me-3 fs-4"></i>
+              <div>
+                <h6 class="fw-bold mb-0">Enrichment Failed</h6>
+                <span class="small" id="enrichErrorMsg">An error occurred during enrichment.</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Enrich Results Section -->
+          <div id="enrichResultSection" class="d-none">
+            <div class="alert alert-info py-2 px-3 mb-3 d-flex align-items-center justify-content-between">
+              <span class="small"><i class="bi bi-info-circle-fill me-2 text-info"></i>Select the enriched values you wish to save into the database.</span>
+              <button class="btn btn-sm btn-link text-decoration-none p-0 fw-bold" id="enrichSelectAllBtn" style="font-size:0.75rem;">Select All</button>
+            </div>
+            
+            <div class="table-responsive border rounded" style="max-height: 380px;">
+              <table class="table table-hover align-middle small mb-0" id="enrichComparisonTable">
+                <thead class="table-light">
+                  <tr>
+                    <th width="40" class="text-center">Save</th>
+                    <th>Field</th>
+                    <th>Existing Database Value</th>
+                    <th>Apollo Enriched Value</th>
+                  </tr>
+                </thead>
+                <tbody id="enrichComparisonBody">
+                  <!-- Dynamic rows injected here -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+        </div>
+        <div class="modal-footer py-2">
+          <button type="button" class="btn btn-secondary btn-sm px-3" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-primary btn-sm px-4 fw-semibold" id="saveEnrichmentBtn" disabled>
+            <i class="bi bi-check-circle-fill me-1"></i>Save Enriched Data
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Apollo Bulk Enrichment Modal -->
+  <div class="modal fade" id="bulkEnrichModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header bg-primary text-white py-2">
+          <h5 class="modal-title fs-6"><i class="bi bi-rocket-takeoff-fill me-2"></i>Apollo Bulk Enrichment</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body p-4 text-center">
+          
+          <!-- Key Prompt Fallback -->
+          <div id="bulkApolloApiKeySection" class="alert alert-warning border-warning-subtle text-start d-none py-3 mb-3">
+            <h6 class="fw-bold mb-1"><i class="bi bi-key-fill me-2 text-warning fs-5"></i>Apollo API Key Required</h6>
+            <p class="small text-muted mb-3">No global Apollo API Key is configured on the server. Please enter your Apollo API Key to run bulk enrichment.</p>
+            <div class="input-group input-group-sm">
+              <span class="input-group-text bg-white"><i class="bi bi-shield-lock-fill text-muted"></i></span>
+              <input type="password" class="form-control" id="bulkApolloApiKeyInput" placeholder="Enter Apollo API Key...">
+              <button class="btn btn-warning fw-semibold px-3" type="button" id="saveBulkApolloKeyBtn">Save Key</button>
+            </div>
+          </div>
+
+          <!-- Loading Progress State -->
+          <div id="bulkEnrichProgressSection" class="py-3">
+            <div class="spinner-border text-primary mb-3" style="width: 2.5rem; height: 2.5rem;" role="status">
+              <span class="visually-hidden">Running Bulk Enrichment...</span>
+            </div>
+            <h6 class="fw-semibold text-muted mb-1" id="bulkEnrichProgressTitle">Running Bulk Enrichment...</h6>
+            <p class="small text-muted mb-3" id="bulkEnrichProgressSubtitle">Enriching missing data fields for selected profiles.</p>
+            
+            <div class="progress mb-2" style="height: 10px;">
+              <div class="progress-bar progress-bar-striped progress-bar-animated bg-primary" role="progressbar" id="bulkEnrichProgressBar" style="width: 0%;"></div>
+            </div>
+            <span class="small fw-semibold text-muted" id="bulkEnrichProgressText">0 / 0 Profiles Processed</span>
+          </div>
+
+          <!-- Bulk Enrichment Results Report -->
+          <div id="bulkEnrichReportSection" class="text-start d-none">
+            <div class="alert alert-success py-2 px-3 mb-3 d-flex align-items-center">
+              <i class="bi bi-check-circle-fill me-2 text-success fs-5"></i>
+              <span class="small fw-semibold">Bulk enrichment job completed successfully!</span>
+            </div>
+            <ul class="list-group list-group-flush mb-0">
+              <li class="list-group-item d-flex justify-content-between align-items-center px-0 py-2">
+                <span class="text-muted">Total Profiles Selected:</span>
+                <span class="fw-bold" id="bulkReportTotal">0</span>
+              </li>
+              <li class="list-group-item d-flex justify-content-between align-items-center px-0 py-2">
+                <span class="text-muted text-success">Profiles Successfully Enriched:</span>
+                <span class="badge bg-success-subtle text-success fs-6" id="bulkReportEnriched">0</span>
+              </li>
+              <li class="list-group-item d-flex justify-content-between align-items-center px-0 py-2">
+                <span class="text-muted text-warning">Profiles with No Apollo Match:</span>
+                <span class="badge bg-warning-subtle text-warning fs-6" id="bulkReportNoMatch">0</span>
+              </li>
+              <li class="list-group-item d-flex justify-content-between align-items-center px-0 py-2">
+                <span class="text-muted text-danger">Profiles Failed (Errors):</span>
+                <span class="badge bg-danger-subtle text-danger fs-6" id="bulkReportFailed">0</span>
+              </li>
+            </ul>
+          </div>
+
+        </div>
+        <div class="modal-footer py-2">
+          <button type="button" class="btn btn-secondary btn-sm px-3" data-bs-dismiss="modal" id="closeBulkEnrichBtn">Close</button>
         </div>
       </div>
     </div>
@@ -1334,6 +1496,7 @@
             return res.json();
           })
           .then(data => {
+            window.currentFilteredTotal = data.total || 0;
             renderTable(data.records);
             renderPagination(data.total, data.page, data.pages);
             renderMissingStats(data.missing_stats);
@@ -1342,7 +1505,7 @@
             console.error(err);
             recordsTableBody.innerHTML = `
               <tr>
-                  <td colspan="8" class="text-center py-5 text-danger">
+                  <td colspan="9" class="text-center py-5 text-danger">
                       <i class="bi bi-exclamation-triangle-fill fs-3 mb-2 d-block"></i>
                       An error occurred while fetching database records. Please try again.
                   </td>
@@ -1352,10 +1515,20 @@
       }
 
       function renderTable(records) {
+        window.currentRenderedCount = records ? records.length : 0;
+        
+        const banner = document.getElementById("selectAllPagesBanner");
+        if (banner) banner.classList.add("d-none");
+        window.selectAllPagesMode = false;
+
+        const selectAllCB = document.getElementById("selectAllRecordsCheckbox");
+        if (selectAllCB) selectAllCB.checked = false;
+        updateBulkEnrichBtnState();
+
         if (!records || records.length === 0) {
           recordsTableBody.innerHTML = `
             <tr>
-                <td colspan="8" class="text-center py-5 text-muted">
+                <td colspan="9" class="text-center py-5 text-muted">
                     <i class="bi bi-folder2-open fs-2 mb-3 d-block"></i>
                     No matching records found. Try adjusting your query parameters.
                 </td>
@@ -1370,7 +1543,10 @@
           const location = [r.city, r.state, r.country].filter(Boolean).join(", ") || "--";
 
           html += `
-            <tr>
+            <tr id="record-row-${r.id}">
+                <td class="text-center">
+                    <input type="checkbox" class="form-check-input record-checkbox" data-id="${r.id}">
+                </td>
                 <td><span class="badge bg-secondary">#${r.id}</span></td>
                 <td><strong>${r.name || "--"}</strong></td>
                 <td><span class="text-muted">${r.email || "--"}</span></td>
@@ -1383,9 +1559,13 @@
                       `<span class="text-muted small">none</span>`
                     }
                 </td>
-                <td class="text-center">
+                <td class="text-center" style="white-space: nowrap;">
                     <button class="btn btn-sm btn-danger btn-view-details" data-id="${r.id}">
                         View Details
+                    </button>
+                    <button class="btn btn-sm btn-primary btn-enrich-apollo ms-1" data-id="${r.id}" title="Enrich details using Apollo API">
+                        <img src="https://assets.apollo.io/logo.png" style="height: 12px; width: 12px; margin-right: 4px; object-fit: contain; vertical-align: middle;" onerror="this.style.display='none'">
+                        Enrich
                     </button>
                 </td>
             </tr>
@@ -1397,6 +1577,28 @@
           btn.addEventListener("click", function () {
             const recordId = this.getAttribute("data-id");
             showRecordDetails(recordId);
+          });
+        });
+
+        document.querySelectorAll(".btn-enrich-apollo").forEach(btn => {
+          btn.addEventListener("click", function () {
+            const recordId = this.getAttribute("data-id");
+            showApolloEnrichment(recordId);
+          });
+        });
+
+        // Toggle bulk enrich button based on row checkbox selection state
+        document.querySelectorAll(".record-checkbox").forEach(cb => {
+          cb.addEventListener("change", function () {
+            window.selectAllPagesMode = false;
+            const banner = document.getElementById("selectAllPagesBanner");
+            if (banner) banner.classList.add("d-none");
+            
+            const allChecked = document.querySelectorAll(".record-checkbox:checked").length === window.currentRenderedCount;
+            const selectAllCB = document.getElementById("selectAllRecordsCheckbox");
+            if (selectAllCB) selectAllCB.checked = allChecked;
+            
+            updateBulkEnrichBtnState();
           });
         });
       }
@@ -1506,6 +1708,7 @@
 
       function showRecordDetails(id) {
         if (!detailsModal || !detailsModalTitle || !detailsModalBody) return;
+        window.currentViewingRecordId = id;
         detailsModalTitle.innerText = `Record Details (ID: #${id})`;
         detailsModalBody.innerHTML = `
           <div class="text-center py-4">
@@ -1551,6 +1754,16 @@
               </div>
             `;
           });
+      }
+
+      const detailsModalEnrichBtn = document.getElementById("detailsModalEnrichBtn");
+      if (detailsModalEnrichBtn) {
+        detailsModalEnrichBtn.addEventListener("click", function () {
+          if (window.currentViewingRecordId) {
+            if (detailsModal) detailsModal.hide();
+            showApolloEnrichment(window.currentViewingRecordId);
+          }
+        });
       }
 
       // ── Data Quality & Completeness Widget ──────────────────────────────────
@@ -1654,6 +1867,518 @@
       // Load initial records list on Downloads page
       if (recordsTableBody) {
         fetchRecords(1);
+      }
+
+      // ── Apollo Data Enrichment Logic ──────────────────────────────────────
+      const enrichModalEl = document.getElementById("enrichModal");
+      const enrichModal = enrichModalEl ? new bootstrap.Modal(enrichModalEl) : null;
+
+      const apolloApiKeySection = document.getElementById("apolloApiKeySection");
+      const apolloApiKeyInput = document.getElementById("apolloApiKeyInput");
+      const saveApolloKeyBtn = document.getElementById("saveApolloKeyBtn");
+
+      const enrichLoadingSection = document.getElementById("enrichLoadingSection");
+      const enrichErrorSection = document.getElementById("enrichErrorSection");
+      const enrichErrorMsg = document.getElementById("enrichErrorMsg");
+      const enrichResultSection = document.getElementById("enrichResultSection");
+      const enrichComparisonBody = document.getElementById("enrichComparisonBody");
+      const enrichSelectAllBtn = document.getElementById("enrichSelectAllBtn");
+      const saveEnrichmentBtn = document.getElementById("saveEnrichmentBtn");
+
+      let currentEnrichRecordId = null;
+      let enrichedDataObj = null;
+
+      const LOCAL_APOLLO_KEY = "excel_cleaner_local_apollo_key";
+      if (apolloApiKeyInput) {
+        apolloApiKeyInput.value = localStorage.getItem(LOCAL_APOLLO_KEY) || "";
+      }
+
+      if (saveApolloKeyBtn) {
+        saveApolloKeyBtn.addEventListener("click", function () {
+          const key = apolloApiKeyInput.value.trim();
+          localStorage.setItem(LOCAL_APOLLO_KEY, key);
+          if (currentEnrichRecordId) {
+            runApolloEnrichment(currentEnrichRecordId);
+          }
+        });
+      }
+
+      window.showApolloEnrichment = function (recordId) {
+        currentEnrichRecordId = recordId;
+        enrichedDataObj = null;
+
+        if (apolloApiKeySection) apolloApiKeySection.classList.add("d-none");
+        if (enrichLoadingSection) enrichLoadingSection.classList.add("d-none");
+        if (enrichErrorSection) enrichErrorSection.classList.add("d-none");
+        if (enrichResultSection) enrichResultSection.classList.add("d-none");
+        if (saveEnrichmentBtn) {
+          saveEnrichmentBtn.disabled = true;
+          saveEnrichmentBtn.innerHTML = '<i class="bi bi-check-circle-fill me-1"></i>Save Enriched Data';
+        }
+
+        if (enrichModal) enrichModal.show();
+        runApolloEnrichment(recordId);
+      };
+
+      function runApolloEnrichment(recordId) {
+        if (enrichLoadingSection) enrichLoadingSection.classList.remove("d-none");
+        if (enrichErrorSection) enrichErrorSection.classList.add("d-none");
+        if (enrichResultSection) enrichResultSection.classList.add("d-none");
+
+        const localKey = localStorage.getItem(LOCAL_APOLLO_KEY) || "";
+
+        fetch("/api/enrich/apollo", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            record_id: recordId,
+            api_key: localKey
+          })
+        })
+          .then(async res => {
+            let data;
+            try {
+              data = await res.json();
+            } catch (e) {
+              throw new Error("Server error occurred");
+            }
+            if (!res.ok) {
+              throw new Error(data.error || "Server error occurred");
+            }
+            return data;
+          })
+          .then(data => {
+            if (enrichLoadingSection) enrichLoadingSection.classList.add("d-none");
+
+            if (data.error === "api_key_required" || data.error === "invalid_api_key") {
+              if (apolloApiKeySection) apolloApiKeySection.classList.remove("d-none");
+              if (data.error === "invalid_api_key") {
+                alert("The entered Apollo API Key is invalid. Please check and try again.");
+              }
+              return;
+            }
+
+            if (data.error) {
+              showEnrichmentError(data.error);
+              return;
+            }
+
+            if (apolloApiKeySection) apolloApiKeySection.classList.add("d-none");
+
+            if (!data.match_found) {
+              showEnrichmentError(data.message || "No matching contact profile found in Apollo database.");
+              return;
+            }
+
+            renderEnrichmentComparison(data);
+          })
+          .catch(err => {
+            console.error(err);
+            if (enrichLoadingSection) enrichLoadingSection.classList.add("d-none");
+            showEnrichmentError(err.message || "Failed to communicate with the server endpoint.");
+          });
+      }
+
+      function showEnrichmentError(msg) {
+        if (enrichErrorMsg) enrichErrorMsg.textContent = msg;
+        if (enrichErrorSection) enrichErrorSection.classList.remove("d-none");
+      }
+
+      function renderTitle(col) {
+        return col.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+      }
+
+      function renderEnrichmentComparison(data) {
+        enrichedDataObj = data;
+        if (!enrichComparisonBody) return;
+        enrichComparisonBody.innerHTML = "";
+
+        const existing = data.existing;
+        const enriched = data.enriched;
+
+        let hasFields = false;
+        let html = "";
+
+        for (const [col, enrichedVal] of Object.entries(enriched)) {
+          if (col === "record_status" || col === "lead_source") continue;
+          
+          const existVal = existing[col] || "";
+          if (String(existVal).trim().toLowerCase() === String(enrichedVal).trim().toLowerCase()) {
+            continue;
+          }
+
+          hasFields = true;
+          const isNewFill = !existVal;
+          const label = renderTitle(col);
+          const trClass = isNewFill ? "table-success bg-opacity-25" : "table-warning bg-opacity-25";
+
+          html += `
+            <tr class="${trClass}">
+              <td class="text-center">
+                <input type="checkbox" class="form-check-input enrich-field-checkbox" data-col="${col}" data-val="${enrichedVal}" checked>
+              </td>
+              <td><strong>${label}</strong></td>
+              <td><span class="text-muted">${existVal || "<em>(empty)</em>"}</span></td>
+              <td class="text-primary fw-semibold">${enrichedVal}</td>
+            </tr>
+          `;
+        }
+
+        if (!hasFields) {
+          enrichComparisonBody.innerHTML = `
+            <tr>
+              <td colspan="4" class="text-center py-4 text-muted">
+                <i class="bi bi-info-circle fs-3 d-block mb-2"></i>
+                All Apollo fields already match the values in your database. No enrichment needed!
+              </td>
+            </tr>
+          `;
+          if (saveEnrichmentBtn) saveEnrichmentBtn.disabled = true;
+        } else {
+          enrichComparisonBody.innerHTML = html;
+          if (saveEnrichmentBtn) {
+            saveEnrichmentBtn.disabled = false;
+          }
+
+          document.querySelectorAll(".enrich-field-checkbox").forEach(cb => {
+            cb.addEventListener("change", updateSaveEnrichmentBtnState);
+          });
+        }
+
+        if (enrichResultSection) enrichResultSection.classList.remove("d-none");
+      }
+
+      function updateSaveEnrichmentBtnState() {
+        if (!saveEnrichmentBtn) return;
+        const checked = document.querySelectorAll(".enrich-field-checkbox:checked");
+        saveEnrichmentBtn.disabled = checked.length === 0;
+      }
+
+      let allSelected = true;
+      if (enrichSelectAllBtn) {
+        enrichSelectAllBtn.addEventListener("click", function (e) {
+          e.preventDefault();
+          allSelected = !allSelected;
+          document.querySelectorAll(".enrich-field-checkbox").forEach(cb => {
+            cb.checked = allSelected;
+          });
+          enrichSelectAllBtn.textContent = allSelected ? "Deselect All" : "Select All";
+          updateSaveEnrichmentBtnState();
+        });
+      }
+
+      if (saveEnrichmentBtn) {
+        saveEnrichmentBtn.addEventListener("click", function () {
+          const checked = document.querySelectorAll(".enrich-field-checkbox:checked");
+          if (checked.length === 0) return;
+
+          const fieldsToUpdate = {};
+          checked.forEach(cb => {
+            const col = cb.getAttribute("data-col");
+            const val = cb.getAttribute("data-val");
+            fieldsToUpdate[col] = val;
+          });
+
+          fieldsToUpdate["record_status"] = "Enriched";
+          fieldsToUpdate["lead_source"] = "Apollo Enrichment";
+
+          saveEnrichmentBtn.disabled = true;
+          saveEnrichmentBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Saving...';
+
+          fetch("/api/enrich/save", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              record_id: currentEnrichRecordId,
+              fields: fieldsToUpdate
+            })
+          })
+            .then(res => {
+              if (!res.ok) throw new Error("Failed to save enrichment");
+              return res.json();
+            })
+            .then(data => {
+              if (data.success) {
+                alert("Contact successfully enriched!");
+                if (enrichModal) enrichModal.hide();
+                fetchRecords(currentPage);
+              } else {
+                alert("Enrichment save failed: " + (data.error || "unknown error"));
+                saveEnrichmentBtn.disabled = false;
+                saveEnrichmentBtn.innerHTML = '<i class="bi bi-check-circle-fill me-1"></i>Save Enriched Data';
+              }
+            })
+            .catch(err => {
+              console.error(err);
+              alert("A server error occurred while saving enriched data.");
+              saveEnrichmentBtn.disabled = false;
+              saveEnrichmentBtn.innerHTML = '<i class="bi bi-check-circle-fill me-1"></i>Save Enriched Data';
+            });
+        });
+      }
+
+      // ── Bulk Select & Bulk Apollo Enrichment Logic ─────────────────────────
+      const selectAllRecordsCheckbox = document.getElementById("selectAllRecordsCheckbox");
+      const bulkEnrichBtn = document.getElementById("bulkEnrichBtn");
+      
+      const bulkEnrichModalEl = document.getElementById("bulkEnrichModal");
+      const bulkEnrichModal = bulkEnrichModalEl ? new bootstrap.Modal(bulkEnrichModalEl) : null;
+      
+      const bulkApolloApiKeySection = document.getElementById("bulkApolloApiKeySection");
+      const bulkApolloApiKeyInput = document.getElementById("bulkApolloApiKeyInput");
+      const saveBulkApolloKeyBtn = document.getElementById("saveBulkApolloKeyBtn");
+      
+      const bulkEnrichProgressSection = document.getElementById("bulkEnrichProgressSection");
+      const bulkEnrichProgressBar = document.getElementById("bulkEnrichProgressBar");
+      const bulkEnrichProgressText = document.getElementById("bulkEnrichProgressText");
+      const bulkEnrichProgressTitle = document.getElementById("bulkEnrichProgressTitle");
+      const bulkEnrichProgressSubtitle = document.getElementById("bulkEnrichProgressSubtitle");
+      
+      const bulkEnrichReportSection = document.getElementById("bulkEnrichReportSection");
+      const bulkReportTotal = document.getElementById("bulkReportTotal");
+      const bulkReportEnriched = document.getElementById("bulkReportEnriched");
+      const bulkReportNoMatch = document.getElementById("bulkReportNoMatch");
+      const bulkReportFailed = document.getElementById("bulkReportFailed");
+      const closeBulkEnrichBtn = document.getElementById("closeBulkEnrichBtn");
+
+      if (bulkApolloApiKeyInput) {
+        bulkApolloApiKeyInput.value = localStorage.getItem(LOCAL_APOLLO_KEY) || "";
+      }
+
+      if (saveBulkApolloKeyBtn) {
+        saveBulkApolloKeyBtn.addEventListener("click", function () {
+          const key = bulkApolloApiKeyInput.value.trim();
+          localStorage.setItem(LOCAL_APOLLO_KEY, key);
+          
+          if (apolloApiKeyInput) apolloApiKeyInput.value = key;
+          
+          startBulkEnrichmentJob();
+        });
+      }
+
+      if (selectAllRecordsCheckbox) {
+        selectAllRecordsCheckbox.addEventListener("change", function () {
+          const checked = this.checked;
+          document.querySelectorAll(".record-checkbox").forEach(cb => {
+            cb.checked = checked;
+          });
+
+          const banner = document.getElementById("selectAllPagesBanner");
+          const bannerText = document.getElementById("selectAllPagesBannerText");
+          const actionBtn = document.getElementById("selectAllPagesActionBtn");
+
+          if (checked && window.currentFilteredTotal > window.currentRenderedCount) {
+            if (banner) banner.classList.remove("d-none");
+            if (bannerText) bannerText.textContent = `All ${window.currentRenderedCount} records on this page are selected.`;
+            if (actionBtn) {
+              actionBtn.textContent = `Select all ${window.currentFilteredTotal.toLocaleString()} records matching this query.`;
+              actionBtn.classList.remove("d-none");
+            }
+            window.selectAllPagesMode = false;
+          } else {
+            if (banner) banner.classList.add("d-none");
+            window.selectAllPagesMode = false;
+          }
+          updateBulkEnrichBtnState();
+        });
+      }
+
+      const selectAllPagesActionBtn = document.getElementById("selectAllPagesActionBtn");
+      if (selectAllPagesActionBtn) {
+        selectAllPagesActionBtn.addEventListener("click", function (e) {
+          e.preventDefault();
+          const bannerText = document.getElementById("selectAllPagesBannerText");
+
+          if (!window.selectAllPagesMode) {
+            window.selectAllPagesMode = true;
+            if (bannerText) bannerText.textContent = `All ${window.currentFilteredTotal.toLocaleString()} records matching this query are selected.`;
+            this.textContent = "Clear selection";
+          } else {
+            window.selectAllPagesMode = false;
+            if (selectAllRecordsCheckbox) selectAllRecordsCheckbox.checked = false;
+            document.querySelectorAll(".record-checkbox").forEach(cb => cb.checked = false);
+            const banner = document.getElementById("selectAllPagesBanner");
+            if (banner) banner.classList.add("d-none");
+          }
+          updateBulkEnrichBtnState();
+        });
+      }
+
+      window.updateBulkEnrichBtnState = function () {
+        if (!bulkEnrichBtn) return;
+        const checked = document.querySelectorAll(".record-checkbox:checked");
+        const count = window.selectAllPagesMode ? window.currentFilteredTotal : checked.length;
+        if (count > 0) {
+          bulkEnrichBtn.classList.remove("d-none");
+          bulkEnrichBtn.innerHTML = `
+            <img src="https://assets.apollo.io/logo.png" style="height: 14px; width: 14px; margin-right: 6px; object-fit: contain; vertical-align: middle;" onerror="this.src='https://cdn-icons-png.flaticon.com/512/3222/3222681.png'">
+            Bulk Enrich (${count.toLocaleString()})
+          `;
+        } else {
+          bulkEnrichBtn.classList.add("d-none");
+        }
+      };
+
+      if (bulkEnrichBtn) {
+        bulkEnrichBtn.addEventListener("click", function () {
+          const checked = document.querySelectorAll(".record-checkbox:checked");
+          if (checked.length === 0 && !window.selectAllPagesMode) return;
+
+          if (bulkEnrichModal) bulkEnrichModal.show();
+          startBulkEnrichmentJob();
+        });
+      }
+
+      function startBulkEnrichmentJob() {
+        const checked = document.querySelectorAll(".record-checkbox:checked");
+        const recordIds = Array.from(checked).map(cb => parseInt(cb.getAttribute("data-id")));
+
+        if (bulkApolloApiKeySection) bulkApolloApiKeySection.classList.add("d-none");
+        if (bulkEnrichProgressSection) bulkEnrichProgressSection.classList.remove("d-none");
+        if (bulkEnrichReportSection) bulkEnrichReportSection.classList.add("d-none");
+        if (closeBulkEnrichBtn) {
+          closeBulkEnrichBtn.disabled = true;
+          closeBulkEnrichBtn.textContent = "Processing...";
+        }
+
+        const localKey = localStorage.getItem(LOCAL_APOLLO_KEY) || "";
+
+        const totalToEnrich = window.selectAllPagesMode ? window.currentFilteredTotal : recordIds.length;
+        if (bulkEnrichProgressBar) bulkEnrichProgressBar.style.width = "5%";
+        if (bulkEnrichProgressText) bulkEnrichProgressText.textContent = `Initializing bulk job for ${totalToEnrich} profiles...`;
+
+        const payload = {
+          api_key: localKey
+        };
+
+        if (window.selectAllPagesMode) {
+          const customFilters = [];
+          document.querySelectorAll(".custom-filter-row").forEach(row => {
+            const fid = row.querySelector(".custom-filter-field").value;
+            const val = row.querySelector(".custom-filter-val").value.trim();
+            if (fid && val) {
+              customFilters.push({ id: fid, val: val });
+            }
+          });
+
+          const filtersObj = {
+            name: document.getElementById("filterName").value.trim(),
+            email: document.getElementById("filterEmail").value.trim(),
+            phone: document.getElementById("filterPhone").value.trim(),
+            company: document.getElementById("filterCompany").value.trim(),
+            custom_filters: JSON.stringify(customFilters)
+          };
+
+          const moreFields = [
+            { id: "filterAlternatePhone", param: "alternate_phone_number" },
+            { id: "filterJobTitle", param: "job_title" },
+            { id: "filterDepartment", param: "department" },
+            { id: "filterWebsiteUrl", param: "website_url" },
+            { id: "filterAddress1", param: "address_line_1" },
+            { id: "filterAddress2", param: "address_line_2" },
+            { id: "filterCity", param: "city" },
+            { id: "filterStateProvince", param: "state_province" },
+            { id: "filterPostalZip", param: "postal_zip_code" },
+            { id: "filterCountry", param: "country" },
+            { id: "filterLinkedIn", param: "linkedin_profile_url" },
+            { id: "filterIndustry", param: "industry" },
+            { id: "filterLeadSource", param: "lead_source" },
+            { id: "filterRecordStatus", param: "record_status" },
+            { id: "filterDOB", param: "date_of_birth" },
+            { id: "filterGender", param: "gender" },
+            { id: "filterCompanySize", param: "company_size" },
+            { id: "filterAnnualRevenue", param: "annual_revenue" }
+          ];
+
+          moreFields.forEach(f => {
+            const el = document.getElementById(f.id);
+            if (el) {
+              const val = el.value.trim();
+              if (val) {
+                filtersObj[f.param] = val;
+              }
+            }
+          });
+
+          if (window.selectedMissingField) {
+            filtersObj["missing_field"] = window.selectedMissingField;
+          }
+
+          payload.filters = filtersObj;
+        } else {
+          payload.record_ids = recordIds;
+        }
+
+        fetch("/api/enrich/apollo/bulk", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        })
+          .then(async res => {
+            let data;
+            try {
+              data = await res.json();
+            } catch (e) {
+              throw new Error("Bulk match request failed");
+            }
+            if (!res.ok) {
+              throw new Error(data.error || "Bulk match request failed");
+            }
+            return data;
+          })
+          .then(data => {
+            if (data.error === "api_key_required" || data.error === "invalid_api_key") {
+              if (bulkEnrichProgressSection) bulkEnrichProgressSection.classList.add("d-none");
+              if (bulkApolloApiKeySection) bulkApolloApiKeySection.classList.remove("d-none");
+              if (closeBulkEnrichBtn) {
+                closeBulkEnrichBtn.disabled = false;
+                closeBulkEnrichBtn.textContent = "Close";
+              }
+              if (data.error === "invalid_api_key") {
+                alert("The entered Apollo API Key is invalid. Please check and try again.");
+              }
+              return;
+            }
+
+            if (data.error) {
+              alert("Bulk enrichment failed: " + data.error);
+              if (bulkEnrichProgressSection) bulkEnrichProgressSection.classList.add("d-none");
+              if (closeBulkEnrichBtn) {
+                closeBulkEnrichBtn.disabled = false;
+                closeBulkEnrichBtn.textContent = "Close";
+              }
+              return;
+            }
+
+            if (bulkEnrichProgressBar) bulkEnrichProgressBar.style.width = "100%";
+            if (bulkEnrichProgressText) bulkEnrichProgressText.textContent = `Completed!`;
+
+            setTimeout(() => {
+              if (bulkEnrichProgressSection) bulkEnrichProgressSection.classList.add("d-none");
+
+              if (bulkReportTotal) bulkReportTotal.textContent = data.total;
+              if (bulkReportEnriched) bulkReportEnriched.textContent = data.enriched;
+              if (bulkReportNoMatch) bulkReportNoMatch.textContent = data.no_match;
+              if (bulkReportFailed) bulkReportFailed.textContent = data.failed;
+
+              if (bulkEnrichReportSection) bulkEnrichReportSection.classList.remove("d-none");
+              if (closeBulkEnrichBtn) {
+                closeBulkEnrichBtn.disabled = false;
+                closeBulkEnrichBtn.textContent = "Close";
+              }
+
+              fetchRecords(currentPage);
+            }, 800);
+          })
+          .catch(err => {
+            console.error(err);
+            alert("Bulk enrichment failed: " + (err.message || "An error occurred during bulk enrichment processing."));
+            if (bulkEnrichProgressSection) bulkEnrichProgressSection.classList.add("d-none");
+            if (closeBulkEnrichBtn) {
+              closeBulkEnrichBtn.disabled = false;
+              closeBulkEnrichBtn.textContent = "Close";
+            }
+          });
       }
     });
   </script>
