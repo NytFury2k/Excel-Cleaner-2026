@@ -18,6 +18,25 @@
       --surface: #f9fafb;
     }
 
+    [data-theme="dark"] {
+      --red-accent: #ef4444;
+      --red-hover: #dc2626;
+      --red-light: #451a1a;
+      --red: var(--red-accent);
+      --border: #2d2d34;
+      --surface: #18181c;
+    }
+
+    .btn-danger, .bg-danger {
+      background-color: var(--red-accent) !important;
+      border-color: var(--red-accent) !important;
+    }
+
+    .btn-danger:hover {
+      background-color: var(--red-hover) !important;
+      border-color: var(--red-hover) !important;
+    }
+
     body {
       background: #f4f5f7;
       font-family: system-ui, -apple-system, sans-serif;
@@ -73,6 +92,21 @@
       margin: 0;
     }
 
+    .pag-wrap {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 18px;
+    }
+
+    .pag-info {
+      color: #6b7280;
+      font-size: 0.9rem;
+      white-space: nowrap;
+    }
+
     .app-layout {
       display: flex;
       min-height: 100vh;
@@ -91,14 +125,21 @@
     {% include '_sidebar.html' %}
     <main class="content-area">
       <div class="container">
-        <div class="page-hdr mb-4 d-flex justify-content-between align-items-center">
+        <div class="page-hdr mb-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
           <div>
             <h2>Field Registry</h2>
             <p class="text-muted">Manage dynamic schema definitions and track usage frequency across worksheets</p>
           </div>
-          <div>
+          <div class="d-flex flex-wrap align-items-center gap-2">
+            <form method="get" action="{{ url_for('registry') }}" class="d-flex align-items-center gap-2">
+              <input type="text" name="search" value="{{ search }}" class="form-control form-control-sm"
+                placeholder="Search display name, normalized name, data type"
+                style="min-width:280px; border-radius:0.6rem;" aria-label="Search registry">
+              <button type="submit" class="btn btn-sm btn-outline-secondary"
+                style="border-radius:0.6rem; padding:0.45rem 0.85rem;"><i class="bi bi-search"></i></button>
+            </form>
             <button class="btn btn-success"
-              style="padding: 6px 10px; font-size: 0.8rem; margin-right: 20px; margin-top: 10px;"
+              style="padding: 6px 10px; font-size: 0.8rem; margin-top: 10px;"
               onclick="window.location.href='/api/registry/export';">Export Registry</button>
           </div>
         </div>
@@ -155,7 +196,11 @@
                   <tr>
                     <td colspan="9" class="text-center py-5 text-muted">
                       <i class="bi bi-file-earmark-bar-graph fs-2 mb-3 d-block text-secondary"></i>
-                      No custom fields registered yet. Upload an Excel sheet to automatically populate this registry.
+                      {% if search %}
+                        No registry fields match your search.
+                      {% else %}
+                        No custom fields registered yet. Upload an Excel sheet to automatically populate this registry.
+                      {% endif %}
                     </td>
                   </tr>
                   {% endif %}
@@ -164,6 +209,49 @@
             </div>
           </div>
         </div>
+
+        {% if total_pages > 1 %}
+        <div class="pag-wrap">
+          <div class="pag-info">Showing {{ start + 1 if total_filtered else 0 }}–{{ end }} of {{ total_filtered }} records · Page {{ page }} of {{ total_pages }}</div>
+
+          <nav aria-label="Registry pagination">
+            <ul class="pagination mb-0">
+              <li class="page-item {% if page <= 1 %}disabled{% endif %}">
+                <a class="page-link" href="{{ pagination_url(1) }}"><i class="bi bi-chevron-double-left"></i></a>
+              </li>
+              <li class="page-item {% if page <= 1 %}disabled{% endif %}">
+                <a class="page-link" href="{{ pagination_url(page-1) }}"><i class="bi bi-chevron-left"></i></a>
+              </li>
+              {% set ns = namespace(last=0) %}
+              {% for p in range(1, total_pages + 1) %}
+                {% if p == 1 or p == total_pages or (p >= page-2 and p <= page+2) %}
+                  {% if ns.last > 0 and p - ns.last > 1 %}
+                    <li class="page-item disabled"><span class="page-link">…</span></li>
+                  {% endif %}
+                  <li class="page-item {% if p == page %}active{% endif %}">
+                    <a class="page-link" href="{{ pagination_url(p) }}">{{ p }}</a>
+                  </li>
+                  {% set ns.last = p %}
+                {% endif %}
+              {% endfor %}
+              <li class="page-item {% if page >= total_pages %}disabled{% endif %}">
+                <a class="page-link" href="{{ pagination_url(page+1) }}"><i class="bi bi-chevron-right"></i></a>
+              </li>
+              <li class="page-item {% if page >= total_pages %}disabled{% endif %}">
+                <a class="page-link" href="{{ pagination_url(total_pages) }}"><i class="bi bi-chevron-double-right"></i></a>
+              </li>
+            </ul>
+          </nav>
+
+          <form method="get" action="{{ url_for('registry') }}" class="d-flex align-items-center gap-2">
+            <input type="hidden" name="search" value="{{ search }}">
+            <label class="mb-0 text-muted" for="registryPageJumpInput" style="white-space:nowrap; font-size:0.85rem;">Go to page</label>
+            <input id="registryPageJumpInput" type="number" name="page" min="1" max="{{ total_pages }}" value="{{ page }}"
+              class="form-control form-control-sm" style="width:90px; border-radius:7px;" aria-label="Jump to page">
+            <button type="submit" class="btn btn-sm btn-outline-danger" style="border-radius:7px; font-size:0.82rem;">Go</button>
+          </form>
+        </div>
+        {% endif %}
       </div>
       <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
       <script>

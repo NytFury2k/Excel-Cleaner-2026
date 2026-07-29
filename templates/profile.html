@@ -25,7 +25,7 @@
     }
 
     .profile-hero {
-      background: linear-gradient(135deg, #b91c1c 0%, #7f1d1d 100%);
+      background: linear-gradient(135deg, var(--red-accent) 0%, var(--red-hover) 100%);
       border-radius: 20px;
       padding: 36px 32px;
       color: #fff;
@@ -64,6 +64,7 @@
       font-size: 1.65rem;
       font-weight: 800;
       margin: 0;
+      color: #fff !important;
     }
 
     .profile-hero .role-badge {
@@ -145,9 +146,12 @@
     }
 
     .profile-nav-tabs {
-      display: flex;
-      align-items: right;
-      justify-content: right;
+      display: inline-flex;
+      flex-direction: row !important;
+      flex-wrap: nowrap !important;
+      align-items: center;
+      width: fit-content;
+      margin: 0 0 0 auto !important;
       background: var(--bg-primary);
       border-radius: 10px;
       padding: 4px;
@@ -265,7 +269,7 @@
     .btn-save {
       width: 100%;
       padding: 12px;
-      background: linear-gradient(135deg, #b91c1c, #dc2626);
+      background: linear-gradient(135deg, var(--red-accent), var(--red-hover));
       border: none;
       border-radius: 10px;
       color: #fff;
@@ -564,7 +568,7 @@
                 </li>
                 <li class="nav-item">
                   <button class="profile-nav-link" id="pw-tab" data-bs-toggle="tab" data-bs-target="#pw-pane"
-                    type="button" role="tab" Password</button>
+                    type="button" role="tab">Password</button>
                 </li>
               </ul>
             </div>

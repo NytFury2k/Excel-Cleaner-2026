@@ -18,11 +18,14 @@
     body {
       background: #f4f5f7;
       font-family: system-ui, -apple-system, sans-serif;
+      color: var(--text-main, #111827);
     }
 
     .card {
       border: 1px solid var(--border);
       border-radius: 10px;
+      background: var(--bg-card, #ffffff);
+      color: var(--text-main, #111827);
     }
 
     .card-header {
@@ -40,18 +43,22 @@
       border-radius: 7px;
       border-color: var(--border);
       font-size: 0.88rem;
+      background-color: var(--input-bg, #ffffff);
+      color: var(--input-text, #111827);
     }
 
     .form-control:focus,
     .form-select:focus {
       border-color: #fca5a5;
       box-shadow: 0 0 0 3px rgba(185, 28, 28, 0.1);
+      background-color: var(--input-bg, #ffffff);
+      color: var(--input-text, #111827);
     }
 
     .form-label {
       font-size: 0.8rem;
       font-weight: 600;
-      color: #374151;
+      color: var(--text-main, #374151);
       margin-bottom: 4px;
     }
 
@@ -83,8 +90,8 @@
 
     /* Column cards */
     .col-card {
-      background: #fff;
-      border: 1px solid var(--border);
+      background: var(--bg-card, #ffffff);
+      border: 1px solid var(--border-color, var(--border));
       border-radius: 10px;
       margin-bottom: 14px;
       overflow: hidden;
@@ -97,7 +104,7 @@
 
     .col-card-header {
       background: var(--surface);
-      border-bottom: 1px solid var(--border);
+      border-bottom: 1px solid var(--border-color, var(--border));
       padding: 11px 18px;
       display: flex;
       align-items: center;
@@ -108,6 +115,7 @@
       font-size: 0.92rem;
       font-weight: 600;
       margin: 0;
+      color: var(--text-main, #111827);
       display: flex;
       align-items: center;
       gap: 8px;
@@ -186,8 +194,8 @@
       display: flex;
       align-items: center;
       gap: 7px;
-      background: #f9fafb;
-      border: 1px solid var(--border);
+      background: var(--bg-primary, #f9fafb);
+      border: 1px solid var(--border-color, var(--border));
       border-radius: 7px;
       padding: 7px 11px;
       cursor: pointer;
@@ -196,17 +204,17 @@
 
     .rule-check-wrap:hover {
       border-color: #fca5a5;
-      background: #fef2f2;
+      background: var(--hover-bg, #fef2f2);
     }
 
     .rule-check-wrap input:checked+.rule-label {
-      color: #b91c1c;
+      color: var(--red-accent, #b91c1c);
       font-weight: 600;
     }
 
     .rule-label {
       font-size: 0.82rem;
-      color: #374151;
+      color: var(--text-main, #374151);
       user-select: none;
       cursor: pointer;
     }
@@ -221,6 +229,10 @@
       border-color: #fca5a5;
     }
 
+    .form-check-label {
+      color: var(--text-muted, #6b7280);
+    }
+
     /* Strategy dropdown */
     .strategy-row {
       display: none;
@@ -228,7 +240,7 @@
       gap: 12px;
       margin-top: 12px;
       padding-top: 12px;
-      border-top: 1px solid var(--border);
+      border-top: 1px solid var(--border-color, var(--border));
     }
 
     .strategy-row.visible {
@@ -237,8 +249,8 @@
 
     /* Preset bar */
     .preset-bar {
-      background: #fff;
-      border: 1px solid var(--border);
+      background: var(--bg-card, #ffffff);
+      border: 1px solid var(--border-color, var(--border));
       border-radius: 10px;
       padding: 16px 18px;
       margin-bottom: 20px;
@@ -253,8 +265,8 @@
 
     /* Submit bar */
     .submit-bar {
-      background: #fff;
-      border: 1px solid var(--border);
+      background: var(--bg-card, #ffffff);
+      border: 1px solid var(--border-color, var(--border));
       border-radius: 10px;
       padding: 18px 24px;
       display: flex;
@@ -338,7 +350,7 @@
       height: 42px;
       object-fit: contain;
     }
-    
+
     /* Loading Overlay */
     #loadingOverlay {
       position: fixed;
@@ -353,11 +365,244 @@
       align-items: center;
       justify-content: center;
     }
+
     .spinner-border {
       width: 3rem;
       height: 3rem;
       color: var(--red);
     }
+
+    /* ── Dark Mode Overrides ─────────────────────────────────────── */
+    [data-theme="dark"] body {
+      background: var(--bg-primary);
+    }
+
+    [data-theme="dark"] .card {
+      background: var(--bg-card);
+      border-color: var(--border-color);
+      color: var(--text-main);
+    }
+
+    [data-theme="dark"] .card-header {
+      background: var(--bg-card);
+      border-color: var(--border-color);
+      color: var(--text-main);
+    }
+
+    [data-theme="dark"] .card-body {
+      color: var(--text-main);
+    }
+
+    /* Inline hardcoded h2/p title text */
+    [data-theme="dark"] h2,
+    [data-theme="dark"] h5.fw-bold,
+    [data-theme="dark"] .content-area h2,
+    [data-theme="dark"] .content-area h5 {
+      color: var(--text-main) !important;
+    }
+
+    [data-theme="dark"] p[style*="color:#6b7280"],
+    [data-theme="dark"] p[style*="color: #6b7280"] {
+      color: var(--text-muted) !important;
+    }
+
+    [data-theme="dark"] strong[style*="color:#374151"],
+    [data-theme="dark"] strong[style*="color: #374151"] {
+      color: var(--text-main) !important;
+    }
+
+    [data-theme="dark"] .text-dark {
+      color: var(--text-main) !important;
+    }
+
+    [data-theme="dark"] .text-muted {
+      color: var(--text-muted) !important;
+    }
+
+    /* Column cards */
+    [data-theme="dark"] .col-card {
+      background: var(--bg-card);
+      border-color: var(--border-color);
+    }
+
+    [data-theme="dark"] .col-card-header {
+      background: var(--bg-card);
+      border-color: var(--border-color);
+    }
+
+    [data-theme="dark"] .col-card-header h6 {
+      color: var(--text-main);
+    }
+
+    /* Preset bar */
+    [data-theme="dark"] .preset-bar {
+      background: var(--bg-card);
+      border-color: var(--border-color);
+    }
+
+    /* Submit bar */
+    [data-theme="dark"] .submit-bar {
+      background: var(--bg-card);
+      border-color: var(--border-color);
+    }
+
+    /* Rule checkboxes */
+    [data-theme="dark"] .rule-check-wrap {
+      background: var(--bg-primary);
+      border-color: var(--border-color);
+    }
+
+    [data-theme="dark"] .rule-check-wrap:hover {
+      background: var(--hover-bg);
+      border-color: #ef4444;
+    }
+
+    [data-theme="dark"] .rule-label {
+      color: var(--text-main);
+    }
+
+    [data-theme="dark"] .rule-check-wrap input:checked+.rule-label {
+      color: var(--red-accent);
+    }
+
+    [data-theme="dark"] .form-check-label {
+      color: var(--text-muted);
+    }
+
+    /* Form controls */
+    [data-theme="dark"] .form-control,
+    [data-theme="dark"] .form-select {
+      background-color: var(--input-bg);
+      color: var(--input-text);
+      border-color: var(--border-color);
+    }
+
+    [data-theme="dark"] .form-control:focus,
+    [data-theme="dark"] .form-select:focus {
+      background-color: var(--input-bg);
+      color: var(--input-text);
+      border-color: #ef4444;
+    }
+
+    [data-theme="dark"] .form-label {
+      color: var(--text-main);
+    }
+
+    /* Strategy row */
+    [data-theme="dark"] .strategy-row {
+      border-top-color: var(--border-color);
+    }
+
+    /* Reset button — white outline in dark mode */
+    [data-theme="dark"] #resetBtn {
+      color: #f3f4f6;
+      border-color: #f3f4f6;
+    }
+
+    [data-theme="dark"] #resetBtn:hover {
+      background: #f3f4f6;
+      color: #111827;
+    }
+
+    /* Back button dark mode */
+    [data-theme="dark"] .btn-outline-secondary {
+      color: var(--text-muted);
+      border-color: var(--border-color);
+    }
+
+    [data-theme="dark"] .btn-outline-secondary:hover {
+      background: var(--border-color);
+      color: var(--text-main);
+    }
+
+    /* vr divider */
+    [data-theme="dark"] .vr {
+      background-color: var(--border-color);
+    }
+
+    /* Sheet card header expanded state */
+    .sheet-card-header {
+      color: var(--text-muted, #6b7280) !important;
+      transition: background-color 0.2s ease, color 0.2s ease;
+    }
+    
+    .sheet-card-header[aria-expanded="true"] {
+      background-color: #f8d7da !important;
+      color: #b91c1c !important;
+    }
+
+    [data-theme="dark"] .sheet-card-header {
+      color: var(--text-muted, #9ca3af) !important;
+    }
+
+    [data-theme="dark"] .sheet-card-header[aria-expanded="true"] {
+      background-color: #2d1515 !important;
+      color: #f87171 !important;
+    }
+
+    /* Type badges in dark mode */
+    [data-theme="dark"] .badge-email {
+      background: #1e3a5f;
+      color: #93c5fd;
+      border-color: #1d4ed8;
+    }
+
+    [data-theme="dark"] .badge-phone {
+      background: #0e3340;
+      color: #67e8f9;
+      border-color: #0891b2;
+    }
+
+    [data-theme="dark"] .badge-url {
+      background: #14302a;
+      color: #6ee7b7;
+      border-color: #15803d;
+    }
+
+    [data-theme="dark"] .badge-numeric {
+      background: #2d2010;
+      color: #fde68a;
+      border-color: #a16207;
+    }
+
+    [data-theme="dark"] .badge-date {
+      background: #2a1d4a;
+      color: #c4b5fd;
+      border-color: #6d28d9;
+    }
+
+    [data-theme="dark"] .badge-name,
+    [data-theme="dark"] .badge-company,
+    [data-theme="dark"] .badge-text {
+      background: #222227;
+      color: #9ca3af;
+      border-color: #2d2d34;
+    }
+
+    [data-theme="dark"] .badge-id {
+      background: #1e2430;
+      color: #94a3b8;
+      border-color: #475569;
+    }
+
+    /* small text */
+    [data-theme="dark"] small.text-muted {
+      color: var(--text-muted) !important;
+    }
+
+    /* ── Sheet card collapse chevron ──────────────────────────────── */
+    .sheet-collapse-chevron {
+      font-size: 0.85rem;
+      color: inherit;
+      transition: color 0.2s ease, transform 0.25s ease;
+      flex-shrink: 0;
+    }
+
+    /* Rotate chevron when the card-header toggles the body closed */
+    .card-header[aria-expanded="false"] .sheet-collapse-chevron {
+      transform: rotate(180deg);
+    }
+
   </style>
 </head>
 
@@ -370,7 +615,8 @@
     <h4 class="mt-3" style="color: #111827; font-weight: 600;">Processing...</h4>
     <p class="text-muted">Please wait while your data is being handled.</p>
   </div>
-  <div id="chooseRulesData" data-custom-fields='{{ (custom_fields_registry|default({}))|tojson }}' data-saved-custom-rules='{{ session.get("custom_rules_saved", {})|tojson }}' style="display:none;"></div>
+  <div id="chooseRulesData" data-custom-fields='{{ (custom_fields_registry|default({}))|tojson }}'
+    data-saved-custom-rules='{{ session.get("custom_rules_saved", {})|tojson }}' style="display:none;"></div>
   <div class="app-layout">
 
     {% include '_sidebar.html' %}
@@ -399,11 +645,14 @@
               <button type="button" class="btn btn-primary" data-toggle="email" onclick="toggleEmail()">Email</button>
               <button type="button" class="btn btn-info" data-toggle="phone" onclick="togglePhone()">Phone</button>
               <button type="button" class="btn btn-success" data-toggle="url" onclick="toggleUrl()">URL</button>
-              <button type="button" class="btn btn-warning" data-toggle="numeric" onclick="toggleNumeric()">Numeric</button>
-              <button type="button" class="btn btn-danger" data-toggle="duplicates" onclick="toggleDuplicates()">Dupes</button>
+              <button type="button" class="btn btn-warning" data-toggle="numeric"
+                onclick="toggleNumeric()">Numeric</button>
+              <button type="button" class="btn btn-danger" data-toggle="duplicates"
+                onclick="toggleDuplicates()">Dupes</button>
               <button type="button" class="btn btn-dark" data-toggle="date" onclick="toggleDate()">Date</button>
             </div>
-            <button type="button" class="btn btn-sm btn-outline-dark" onclick="clearAll()" style="border-radius:6px;">
+            <button type="button" id="resetBtn" class="btn btn-sm btn-outline-dark" onclick="clearAll()"
+              style="border-radius:6px;">
               <i class="bi bi-arrow-counterclockwise me-1"></i>Reset
             </button>
           </div>
@@ -419,17 +668,16 @@
 
         <!-- Presets bar -->
         <div class="preset-bar">
-          <div class="d-flex align-items-end gap-3 flex-wrap">
+          <div class="d-flex align-items-end justify-content-between gap-4 flex-wrap">
             <!-- Save preset -->
             <form id="savePresetForm" method="POST" action="{{ url_for('save_preset') }}"
-              class="d-flex gap-2 align-items-end">
+              class="d-flex gap-2 align-items-end flex-fill">
               <input type="hidden" name="rules_json" id="rulesJsonInput">
-              <div>
+              <div class="flex-fill">
                 <label class="form-label">Save current rules as preset</label>
                 <div class="d-flex gap-2">
-                  <input type="text" name="preset_name" class="form-control form-control-sm" placeholder="Preset name…"
-                    style="width:180px;" required>
-                  <button type="submit" class="btn btn-sm btn-success" onclick="return serializeRules()">
+                  <input type="text" name="preset_name" class="form-control form-control-sm flex-fill" placeholder="Preset name…" required>
+                  <button type="submit" class="btn btn-sm btn-success flex-shrink-0" onclick="return serializeRules()">
                     <i class="bi bi-floppy me-1"></i>Save
                   </button>
                 </div>
@@ -437,33 +685,34 @@
             </form>
 
             {% if presets %}
-            <div class="vr d-none d-md-block"></div>
+            <div class="vr d-none d-md-block align-self-stretch"></div>
             <!-- Load preset -->
-            <div>
+            <div class="flex-fill">
               <label class="form-label">Load preset</label>
               <div class="d-flex gap-2">
-                <select id="presetLoadSelect" class="form-select form-select-sm" style="width:200px;">
+                <select id="presetLoadSelect" class="form-select form-select-sm flex-fill">
                   <option value="">Choose preset…</option>
                   {% for p in presets %}
                   <option value="{{ url_for('load_preset', preset_id=p.id) }}">{{ p.name }}</option>
                   {% endfor %}
                 </select>
-                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="loadPreset()">
+                <button type="button" class="btn btn-sm btn-secondary flex-shrink-0" onclick="loadPreset()">
                   <i class="bi bi-upload me-1"></i>Load
                 </button>
               </div>
             </div>
+            <div class="vr d-none d-md-block align-self-stretch"></div>
             <!-- Delete preset -->
-            <div>
+            <div class="flex-fill">
               <label class="form-label">Delete preset</label>
               <form id="deletePresetForm" method="POST" action="" class="d-flex gap-2">
-                <select id="presetDeleteSelect" class="form-select form-select-sm" style="width:200px;">
+                <select id="presetDeleteSelect" class="form-select form-select-sm flex-fill">
                   <option value="">Choose preset…</option>
                   {% for p in presets %}
                   <option value="{{ url_for('delete_preset', preset_id=p.id) }}">{{ p.name }}</option>
                   {% endfor %}
                 </select>
-                <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirmDelete()">
+                <button type="submit" class="btn btn-sm btn-danger flex-shrink-0" onclick="return confirmDelete()">
                   <i class="bi bi-trash me-1"></i>Delete
                 </button>
               </form>
@@ -476,45 +725,62 @@
         <form method="POST" action="{{ url_for('clean_data') }}" id="cleanForm">
           <!-- 1. Column Alignment -->
           <h5 class="fw-bold mb-3 text-dark"><i class="bi bi-shuffle me-2 text-danger"></i>1. Match Spreadsheet Columns to System Schema</h5>
-          
+
           {% for sheet in sheet_data %}
+          {% set sheet_idx = loop.index %}
           <div class="card shadow-sm mb-4">
-            <div class="card-header bg-danger-subtle text-danger fw-bold py-2 d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div
+              class="card-header sheet-card-header fw-bold py-2 d-flex justify-content-between align-items-center flex-wrap gap-2"
+              style="cursor:pointer;"
+              data-bs-toggle="collapse"
+              data-bs-target="#sheetBody_{{ sheet_idx }}"
+              aria-expanded="true"
+              aria-controls="sheetBody_{{ sheet_idx }}">
               <div>
-                <i class="bi bi-file-earmark-spreadsheet-fill me-2"></i>File: <strong>{{ sheet.original_filename }}</strong> 
+                <i class="bi bi-file-earmark-spreadsheet-fill me-2"></i>File: <strong>{{ sheet.original_filename }}</strong>
                 {% if sheet.sheet_name and sheet.sheet_name != 'CSV' %}
                 &nbsp;|&nbsp; Sheet: <strong>{{ sheet.sheet_name }}</strong>
                 {% endif %}
               </div>
-              <span class="badge bg-danger" style="font-size:0.75rem;">{{ sheet.columns|length }} columns</span>
+              <div class="d-flex align-items-center gap-2">
+                <span class="badge bg-danger" style="font-size:0.75rem;">{{ sheet.columns|length }} columns</span>
+                <i class="bi bi-chevron-up sheet-collapse-chevron" style="font-size:0.85rem; transition: transform 0.25s ease;"></i>
+              </div>
             </div>
-            <div class="card-body">
-              <p class="text-muted small">Align each column in this sheet to either a Master column or a Custom field to apply its cleaning rules.</p>
-              <div class="row g-3">
-                {% for col in sheet.columns %}
-                <div class="col-md-4">
-                  <label class="form-label small fw-bold text-truncate d-block" title="{{ col }}">{{ col }}</label>
-                  <select class="form-select form-select-sm" name="map_col_{{ sheet.sheet_id }}_{{ col|replace(' ', '_') }}">
-                    <option value="ignore">[Ignore / Keep As Is]</option>
-                    <optgroup label="Master Columns">
-                      {% for m in master_fields %}
-                      <option value="master:{{ m.identifier }}" {% if sheet.suggestions[col] == 'master:' ~ m.identifier %}selected{% endif %}>{{ m.name }}</option>
-                      {% endfor %}
-                    </optgroup>
-                    <optgroup label="Custom Fields">
-                      {% for c in custom_fields_registry %}
-                      <option value="custom:{{ c.id }}" {% if sheet.suggestions[col] == 'custom:' ~ c.id %}selected{% endif %}>{{ c.field_name }}</option>
-                      {% endfor %}
-                    </optgroup>
-                  </select>
+            <div class="collapse show" id="sheetBody_{{ sheet_idx }}">
+              <div class="card-body">
+                <p class="text-muted small">Align each column in this sheet to either a Master column or a Custom field to
+                  apply its cleaning rules.</p>
+                <div class="row g-3">
+                  {% for col in sheet.columns %}
+                  <div class="col-md-4">
+                    <label class="form-label small fw-bold text-truncate d-block" title="{{ col }}">{{ col }}</label>
+                    <select class="form-select form-select-sm"
+                      name="map_col_{{ sheet.sheet_id }}_{{ col|replace(' ', '_') }}">
+                      <option value="ignore">[Ignore / Keep As Is]</option>
+                      <optgroup label="Master Columns">
+                        {% for m in master_fields %}
+                        <option value="master:{{ m.identifier }}" {% if sheet.suggestions[col]=='master:' ~ m.identifier
+                          %}selected{% endif %}>{{ m.name }}</option>
+                        {% endfor %}
+                      </optgroup>
+                      <optgroup label="Custom Fields">
+                        {% for c in custom_fields_registry %}
+                        <option value="custom:{{ c.id }}" {% if sheet.suggestions[col]=='custom:' ~ c.id %}selected{%
+                          endif %}>{{ c.field_name }}</option>
+                        {% endfor %}
+                      </optgroup>
+                    </select>
+                  </div>
+                  {% endfor %}
                 </div>
-                {% endfor %}
               </div>
             </div>
           </div>
           {% endfor %}
 
-          <h5 class="fw-bold mb-3 text-dark mt-4"><i class="bi bi-shield-check me-2 text-danger"></i>2. Configure Master Column Rules</h5>
+          <h5 class="fw-bold mb-3 text-dark mt-4"><i class="bi bi-shield-check me-2 text-danger"></i>2. Configure Master
+            Column Rules</h5>
 
           <!-- 2. Master columns rule list -->
           {% for m in master_fields %}
@@ -526,8 +792,10 @@
                 <span class="type-badge badge-{{ m.type }}">{{ m.type }}</span>
               </h6>
               <div class="form-check mb-0 d-flex align-items-center gap-2">
-                <input type="checkbox" class="form-check-input select-all-col" data-col="master_{{ m.identifier }}" id="selectall_master_{{ m.identifier }}">
-                <label class="form-check-label" style="font-size:0.78rem;color:#6b7280;cursor:pointer;" for="selectall_master_{{ m.identifier }}">Select all</label>
+                <input type="checkbox" class="form-check-input select-all-col" data-col="master_{{ m.identifier }}"
+                  id="selectall_master_{{ m.identifier }}">
+                <label class="form-check-label" style="font-size:0.78rem;color:#6b7280;cursor:pointer;"
+                  for="selectall_master_{{ m.identifier }}">Select all</label>
               </div>
             </div>
 
@@ -538,11 +806,13 @@
                 {% set allowed = rule_meta.get('allowed_types', []) %}
                 {% set match_type = m.type if m.type != 'company' and m.type != 'name' else 'text' %}
                 <div class="col-md-3 col-sm-4 rule-option" id="ruleoption_master_{{ m.identifier }}_{{ rule_key }}"
-                  data-col="master_{{ m.identifier }}" data-allowed="{{ allowed|join(',') }}" 
-                  {% if match_type not in allowed %}style="display:none;"{% endif %}>
+                  data-col="master_{{ m.identifier }}" data-allowed="{{ allowed|join(',') }}" {% if match_type not in
+                  allowed %}style="display:none;" {% endif %}>
                   <label class="rule-check-wrap" style="width:100%;">
-                    <input type="checkbox" class="form-check-input" name="rules_master_{{ m.identifier }}[]" value="{{ rule_key }}"
-                      id="{{ rule_key }}_master_{{ m.identifier }}" {% if 'master_' ~ m.identifier in column_rule_map and rule_key in column_rule_map['master_' ~ m.identifier] %}checked{% endif %}>
+                    <input type="checkbox" class="form-check-input" name="rules_master_{{ m.identifier }}[]"
+                      value="{{ rule_key }}" id="{{ rule_key }}_master_{{ m.identifier }}" {% if 'master_' ~
+                      m.identifier in column_rule_map and rule_key in column_rule_map['master_' ~ m.identifier]
+                      %}checked{% endif %}>
                     <span class="rule-label">{{ rule_meta["label"] }}</span>
                   </label>
                 </div>
@@ -550,7 +820,8 @@
               </div>
 
               <!-- Strategy dropdown for handle_missing -->
-              {% set is_checked = 'master_' ~ m.identifier in column_rule_map and "handle_missing" in column_rule_map['master_' ~ m.identifier] %}
+              {% set is_checked = 'master_' ~ m.identifier in column_rule_map and "handle_missing" in
+              column_rule_map['master_' ~ m.identifier] %}
               {% set saved_strategy = selected_strategy_map.get('master_' ~ m.identifier, "") %}
               <div class="strategy-row" id="strategy_wrapper_master_{{ m.identifier }}"
                 data-initially-visible="{{ 'true' if is_checked else 'false' }}" data-col-type="{{ m.type }}">
@@ -559,11 +830,15 @@
                 </small>
                 <select class="form-select form-select-sm" style="width:auto;min-width:210px;"
                   name="strategy_master_{{ m.identifier }}" id="strategy_select_master_{{ m.identifier }}">
-                  <option value="flag" {% if saved_strategy in ("flag","") %}selected{% endif %}>Flag as invalid (default)</option>
+                  <option value="flag" {% if saved_strategy in ("flag","") %}selected{% endif %}>Flag as invalid
+                    (default)</option>
                   <option value="drop" {% if saved_strategy=="drop" %}selected{% endif %}>Drop row</option>
-                  <option value="mean" {% if saved_strategy=="mean" %}selected{% endif %}>Fill with mean (numeric)</option>
-                  <option value="median" {% if saved_strategy=="median" %}selected{% endif %}>Fill with median (numeric)</option>
-                  <option value="placeholder" {% if saved_strategy=="placeholder" %}selected{% endif %}>Fill with "Unknown" (text)</option>
+                  <option value="mean" {% if saved_strategy=="mean" %}selected{% endif %}>Fill with mean (numeric)
+                  </option>
+                  <option value="median" {% if saved_strategy=="median" %}selected{% endif %}>Fill with median (numeric)
+                  </option>
+                  <option value="placeholder" {% if saved_strategy=="placeholder" %}selected{% endif %}>Fill with
+                    "Unknown" (text)</option>
                 </select>
               </div>
             </div>
@@ -572,7 +847,8 @@
 
           <!-- 3. Custom Fields Rules Config Section -->
           <div class="d-flex justify-content-between align-items-center mb-3 mt-5">
-            <h5 class="fw-bold mb-0 text-dark"><i class="bi bi-tags me-2 text-danger"></i>3. Custom Fields Cleaning Rules</h5>
+            <h5 class="fw-bold mb-0 text-dark"><i class="bi bi-tags me-2 text-danger"></i>3. Custom Fields Cleaning
+              Rules</h5>
             <button type="button" class="btn btn-sm btn-outline-danger" id="addCustomRuleCardBtn">
               <i class="bi bi-plus-circle me-1"></i>Add Custom Field Rule
             </button>
@@ -581,32 +857,14 @@
             <!-- Dynamically populated custom field rule cards -->
           </div>
 
-          <!-- Hidden flag: set by JS when clicking either clean button -->
-          <input type="hidden" name="store_in_db" id="storeInDbInput" value="0">
-
-          <!-- Submit bar — two flat buttons -->
-          <div class="submit-bar d-flex align-items-center gap-3 flex-wrap">
-
-            <!-- Option 1: Clean Only -->
-            <button type="submit" id="btnCleanOnly"
-              onclick="document.getElementById('storeInDbInput').value='0';"
-              class="btn btn-danger px-4 py-2 d-flex align-items-center gap-2"
-              style="border-radius:9px;font-size:0.95rem;font-weight:600;">
-              <i class="bi bi-magic"></i>
-              <span>Clean Only</span>
+          <!-- Submit bar -->
+          <div class="submit-bar">
+            <button type="submit" class="btn btn-danger px-5 py-2"
+              style="border-radius:8px;font-size:0.95rem;font-weight:600;">
+              <i class="bi bi-magic me-2"></i>Clean Data
             </button>
-
-            <!-- Option 2: Clean & Store in DB -->
-            <button type="submit" id="btnCleanAndStore"
-              onclick="document.getElementById('storeInDbInput').value='1';"
-              class="btn btn-outline-danger px-4 py-2 d-flex align-items-center gap-2"
-              style="border-radius:9px;font-size:0.95rem;font-weight:600;">
-              <i class="bi bi-cloud-upload-fill"></i>
-              <span>Clean &amp; Store in Database</span>
-            </button>
-
-            <a href="{{ url_for('upload') }}" class="btn btn-outline-secondary px-4 py-2"
-              style="border-radius:9px;font-size:0.95rem;">
+            <a href="{{ url_for('upload') }}" class="btn btn-outline-secondary px-5 py-2"
+              style="border-radius:8px;font-size:0.95rem;">
               <i class="bi bi-arrow-left me-1"></i>Back
             </a>
           </div>
@@ -652,30 +910,30 @@
           const chooseRulesData = document.getElementById("chooseRulesData");
           const customFieldsRegistry = JSON.parse(chooseRulesData.getAttribute("data-custom-fields") || "[]");
           const savedCustomRules = JSON.parse(chooseRulesData.getAttribute("data-saved-custom-rules") || "{}");
-          
+
           let customCardIndex = 0;
-          
-          window.addCustomRuleCard = function(selectedFieldId = "", activeRules = [], selectedStrategy = "flag") {
-              const wrapper = document.getElementById("customRulesCardsWrapper");
-              const index = customCardIndex++;
-              
-              let optionsHtml = '<option value="">-- Choose Custom Attribute --</option>';
-              customFieldsRegistry.forEach(cf => {
-                  const selected = String(cf.id) === String(selectedFieldId) ? "selected" : "";
-                  optionsHtml += `<option value="${cf.id}" ${selected}>${cf.field_name}</option>`;
-              });
-              
-              const rulesToRender = [
-                  { key: "trim_whitespace", label: "Trim Whitespace" },
-                  { key: "clean_special_chars", label: "Clean Special Chars" },
-                  { key: "validate_not_empty", label: "Validate Not Empty" },
-                  { key: "handle_missing", label: "Handle Missing Values" }
-              ];
-              
-              let checkboxesHtml = "";
-              rulesToRender.forEach(r => {
-                  const checked = activeRules.includes(r.key) ? "checked" : "";
-                  checkboxesHtml += `
+
+          window.addCustomRuleCard = function (selectedFieldId = "", activeRules = [], selectedStrategy = "flag") {
+            const wrapper = document.getElementById("customRulesCardsWrapper");
+            const index = customCardIndex++;
+
+            let optionsHtml = '<option value="">-- Choose Custom Attribute --</option>';
+            customFieldsRegistry.forEach(cf => {
+              const selected = String(cf.id) === String(selectedFieldId) ? "selected" : "";
+              optionsHtml += `<option value="${cf.id}" ${selected}>${cf.field_name}</option>`;
+            });
+
+            const rulesToRender = [
+              { key: "trim_whitespace", label: "Trim Whitespace" },
+              { key: "clean_special_chars", label: "Clean Special Chars" },
+              { key: "validate_not_empty", label: "Validate Not Empty" },
+              { key: "handle_missing", label: "Handle Missing Values" }
+            ];
+
+            let checkboxesHtml = "";
+            rulesToRender.forEach(r => {
+              const checked = activeRules.includes(r.key) ? "checked" : "";
+              checkboxesHtml += `
                       <div class="col-md-3 col-sm-4">
                           <label class="rule-check-wrap" style="width:100%;">
                               <input type="checkbox" class="form-check-input custom-rule-checkbox" data-index="${index}" data-rule="${r.key}" name="rules_custom_${index}[]" value="${r.key}" ${checked}>
@@ -683,12 +941,12 @@
                           </label>
                       </div>
                   `;
-              });
-              
-              const cardDiv = document.createElement("div");
-              cardDiv.className = "col-card custom-rule-card";
-              cardDiv.id = `custom_rule_card_${index}`;
-              cardDiv.innerHTML = `
+            });
+
+            const cardDiv = document.createElement("div");
+            cardDiv.className = "col-card custom-rule-card";
+            cardDiv.id = `custom_rule_card_${index}`;
+            cardDiv.innerHTML = `
                   <div class="col-card-header d-flex justify-content-between align-items-center">
                       <div class="d-flex align-items-center gap-2">
                           <select class="form-select form-select-sm" name="custom_field_target_${index}" style="min-width: 220px;" required>
@@ -716,46 +974,46 @@
                       </div>
                   </div>
               `;
-              
-              wrapper.appendChild(cardDiv);
-              
-              // Attach delete handler
-              cardDiv.querySelector(".btn-remove-custom-card").addEventListener("click", function() {
-                  cardDiv.remove();
+
+            wrapper.appendChild(cardDiv);
+
+            // Attach delete handler
+            cardDiv.querySelector(".btn-remove-custom-card").addEventListener("click", function () {
+              cardDiv.remove();
+            });
+
+            // Attach checkbox handler to show/hide missing strategy dropdown
+            cardDiv.querySelectorAll(".custom-rule-checkbox").forEach(cb => {
+              cb.addEventListener("change", function () {
+                if (this.dataset.rule === "handle_missing") {
+                  const stratWrapper = document.getElementById(`strategy_wrapper_custom_${index}`);
+                  if (stratWrapper) {
+                    stratWrapper.style.display = this.checked ? "flex" : "none";
+                  }
+                }
               });
-              
-              // Attach checkbox handler to show/hide missing strategy dropdown
-              cardDiv.querySelectorAll(".custom-rule-checkbox").forEach(cb => {
-                  cb.addEventListener("change", function() {
-                      if (this.dataset.rule === "handle_missing") {
-                          const stratWrapper = document.getElementById(`strategy_wrapper_custom_${index}`);
-                          if (stratWrapper) {
-                              stratWrapper.style.display = this.checked ? "flex" : "none";
-                          }
-                      }
-                  });
-              });
+            });
           };
 
           // Attach add card button listener
           const addBtn = document.getElementById("addCustomRuleCardBtn");
           if (addBtn) {
-              addBtn.addEventListener("click", function() {
-                  window.addCustomRuleCard();
-              });
+            addBtn.addEventListener("click", function () {
+              window.addCustomRuleCard();
+            });
           }
 
           // Restore saved custom rules if any
           if (savedCustomRules) {
-              Object.entries(savedCustomRules).forEach(([fieldId, data]) => {
-                  window.addCustomRuleCard(fieldId, data.rules || [], data.strategy || "flag");
-              });
+            Object.entries(savedCustomRules).forEach(([fieldId, data]) => {
+              window.addCustomRuleCard(fieldId, data.rules || [], data.strategy || "flag");
+            });
           }
-          
+
           // Show loading overlay on clean form submit
           const cleanForm = document.getElementById("cleanForm");
           if (cleanForm) {
-            cleanForm.addEventListener("submit", function() {
+            cleanForm.addEventListener("submit", function () {
               document.getElementById("loadingOverlay").style.display = "flex";
             });
           }
@@ -943,32 +1201,32 @@
         // Presets
         function serializeRules() {
           var result = {};
-          
+
           // 1. Gather master rules
           document.querySelectorAll('input[name^="rules_master_"]:checked').forEach(function (cb) {
             var col = cb.name.replace("[]", "");
             if (!result[col]) result[col] = [];
             result[col].push(cb.value);
           });
-          
+
           // 2. Gather custom rules
           document.querySelectorAll('.custom-rule-card').forEach(function (card) {
             var selectEl = card.querySelector('select[name^="custom_field_target_"]');
             if (selectEl && selectEl.value) {
-                var indexMatch = selectEl.name.match(/\d+/);
-                if (indexMatch) {
-                    var idx = indexMatch[0];
-                    var targetFid = selectEl.value;
-                    var colKey = "rules_custom_" + targetFid;
-                    
-                    var checkedCheckboxes = card.querySelectorAll(".custom-rule-checkbox[data-index='" + idx + "']:checked");
-                    if (checkedCheckboxes.length > 0) {
-                        result[colKey] = Array.from(checkedCheckboxes).map(function (c) { return c.value; });
-                    }
+              var indexMatch = selectEl.name.match(/\d+/);
+              if (indexMatch) {
+                var idx = indexMatch[0];
+                var targetFid = selectEl.value;
+                var colKey = "rules_custom_" + targetFid;
+
+                var checkedCheckboxes = card.querySelectorAll(".custom-rule-checkbox[data-index='" + idx + "']:checked");
+                if (checkedCheckboxes.length > 0) {
+                  result[colKey] = Array.from(checkedCheckboxes).map(function (c) { return c.value; });
                 }
+              }
             }
           });
-          
+
           document.getElementById("rulesJsonInput").value = JSON.stringify(result);
           if (Object.keys(result).length === 0) {
             alert("No rules selected — please select at least one rule before saving.");
@@ -995,17 +1253,19 @@
       <div id="cleaningLoaderOverlay" class="loader-overlay" style="display: none;">
         <div class="loader-card">
           <div class="loader-spinner-container mb-3">
-            <div class="spinner-border text-danger" role="status" style="width: 3.5rem; height: 3.5rem; border-width: 0.3em;">
+            <div class="spinner-border text-danger" role="status"
+              style="width: 3.5rem; height: 3.5rem; border-width: 0.3em;">
               <span class="visually-hidden">Loading...</span>
             </div>
           </div>
           <h4 class="loader-title">Cleaning Spreadsheet</h4>
           <p class="loader-subtitle text-muted">Please wait while the validation & cleaning engines run...</p>
-          
+
           <div class="progress loader-progress mb-3">
-            <div id="loaderProgressBar" class="progress-bar progress-bar-striped progress-bar-animated bg-danger" role="progressbar" style="width: 0%;"></div>
+            <div id="loaderProgressBar" class="progress-bar progress-bar-striped progress-bar-animated bg-danger"
+              role="progressbar" style="width: 0%;"></div>
           </div>
-          
+
           <div id="loaderTicker" class="loader-ticker">Initializing cleaning pipeline...</div>
         </div>
       </div>
@@ -1079,31 +1339,20 @@
       </style>
 
       <script>
-        document.addEventListener("DOMContentLoaded", function() {
+        document.addEventListener("DOMContentLoaded", function () {
           var cleanForm = document.querySelector("form[action*='clean_data']");
           if (cleanForm) {
-            cleanForm.addEventListener("submit", function(e) {
-              var storeInDb = document.getElementById("storeInDbInput").value === "1";
-
+            cleanForm.addEventListener("submit", function (e) {
               // Show overlay
               var overlay = document.getElementById("cleaningLoaderOverlay");
-              var loaderTitle = overlay ? overlay.querySelector(".loader-title") : null;
-              var loaderSub   = overlay ? overlay.querySelector(".loader-subtitle") : null;
               if (overlay) {
                 overlay.style.display = "flex";
-                if (storeInDb) {
-                  if (loaderTitle) loaderTitle.textContent = "Cleaning & Storing to Database";
-                  if (loaderSub)   loaderSub.textContent   = "Please wait while the engine cleans your data and saves it to master records...";
-                } else {
-                  if (loaderTitle) loaderTitle.textContent = "Cleaning Spreadsheet";
-                  if (loaderSub)   loaderSub.textContent   = "Please wait while the validation & cleaning engines run...";
-                }
               }
 
               // Progress bar animation (asymptotic slow down)
               var bar = document.getElementById("loaderProgressBar");
               var width = 0;
-              var progressInterval = setInterval(function() {
+              var progressInterval = setInterval(function () {
                 if (width >= 95) {
                   clearInterval(progressInterval);
                 } else {
@@ -1114,26 +1363,19 @@
 
               // Ticker message cycler
               var ticker = document.getElementById("loaderTicker");
-              var messages = storeInDb ? [
+              var messages = [
                 "Running validation engine...",
                 "Validating email addresses and phone numbers...",
                 "Removing duplicate records...",
-                "Mapping columns to master schema...",
-                "Inserting cleaned rows into database...",
-                "Committing transaction to Supabase...",
-                "Rendering interactive preview table..."
-              ] : [
-                "Running validation engine...",
-                "Validating email addresses and phone numbers...",
-                "Removing duplicate records...",
+                "Ingesting records to Supabase...",
                 "Resolving schema column mappings...",
                 "Rendering interactive preview table..."
               ];
               var msgIdx = 0;
-              var tickerInterval = setInterval(function() {
+              var tickerInterval = setInterval(function () {
                 if (ticker) {
                   ticker.style.opacity = 0;
-                  setTimeout(function() {
+                  setTimeout(function () {
                     ticker.textContent = messages[msgIdx % messages.length];
                     ticker.style.opacity = 1;
                     msgIdx++;

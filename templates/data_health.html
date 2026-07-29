@@ -21,6 +21,14 @@
       --input-bg: #ffffff;
       --hover-bg: #fef2f2;
       --muted: #6b7280;
+      --primary: #ef4444;
+      --primary-l: #fee2e2;
+      --orange: #f59e0b;
+      --orange-l: #fef3c7;
+      --blue: #3b82f6;
+      --blue-l: #dbeafe;
+      --teal: #14b8a6;
+      --teal-l: #ccfbf1;
     }
 
     body {
@@ -40,11 +48,40 @@
     }
 
     .metric-card {
+      position: relative;
+      overflow: hidden;
       background: #fff;
       border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 10px 14px;
+      border-radius: 12px;
+      padding: 12px 16px;
       box-shadow: 0 1px 2px rgba(17, 24, 39, 0.03);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .metric-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+    }
+
+    .metric-card.c1::before {
+      background: linear-gradient(90deg, #10b981, #6ee7b7);
+    }
+
+    .metric-card.c2::before {
+      background: linear-gradient(90deg, #ef4444, #fca5a5);
+    }
+
+    .metric-card.c3::before {
+      background: linear-gradient(90deg, #3b82f6, #60a5fa);
+    }
+
+    .metric-card.c4::before {
+      background: linear-gradient(90deg, #f59e0b, #fde68a);
     }
 
     .metric-label {
@@ -53,25 +90,114 @@
       font-weight: 600;
       letter-spacing: .08em;
       text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+
+    .metric-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.1rem;
     }
 
     .metric-value {
       font-size: 1.7rem;
       font-weight: 700;
       color: var(--text);
-      margin-top: 6px;
     }
 
     .metric-icon {
-      width: 42px;
-      height: 42px;
-      border-radius: 10px;
-      background: #fef2f2;
-      color: var(--red);
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
       display: flex;
       align-items: center;
       justify-content: center;
       font-size: 1.1rem;
+    }
+
+    .metric-card.c1 .metric-icon {
+      background: var(--green-l);
+      color: var(--green);
+    }
+
+    .metric-card.c2 .metric-icon {
+      background: var(--red-light);
+      color: var(--red);
+    }
+
+    .metric-card.c3 .metric-icon {
+      background: var(--blue-l);
+      color: var(--blue);
+    }
+
+    .metric-card.c4 .metric-icon {
+      background: var(--orange-l);
+      color: var(--orange);
+    }
+
+    [data-theme="dark"] .metric-card.c1 .metric-icon { background: rgba(16, 185, 129, 0.15) !important; color: #34d399 !important; }
+    [data-theme="dark"] .metric-card.c2 .metric-icon { background: rgba(239, 68, 68, 0.15) !important; color: #f87171 !important; }
+    [data-theme="dark"] .metric-card.c3 .metric-icon { background: rgba(59, 130, 246, 0.15) !important; color: #60a5fa !important; }
+    [data-theme="dark"] .metric-card.c4 .metric-icon { background: rgba(245, 158, 11, 0.15) !important; color: #fbbf24 !important; }
+
+    .card-header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 20px;
+      font-weight: 600;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .card-header form {
+      margin: 0;
+    }
+
+    .pag-wrap {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 16px;
+      padding: 0 4px;
+    }
+
+    .pag-info {
+      color: var(--muted);
+      font-size: 0.9rem;
+      white-space: nowrap;
+    }
+
+    .btn-outline-danger {
+      color: var(--red-accent) !important;
+      border-color: var(--red-accent) !important;
+      background-color: transparent !important;
+    }
+
+    .btn-outline-danger:hover,
+    .btn-outline-danger:focus {
+      color: #fff !important;
+      background-color: var(--red-accent) !important;
+      border-color: var(--red-accent) !important;
+    }
+
+    .btn-danger {
+      background-color: var(--red-accent) !important;
+      border-color: var(--red-accent) !important;
+      color: #fff !important;
+    }
+
+    .btn-danger:hover {
+      background-color: var(--red-hover) !important;
+      border-color: var(--red-hover) !important;
     }
 
     .metric-trend {
@@ -176,12 +302,13 @@
 
         <div class="row g-3 mb-4">
           <div class="col-md-3">
-            <div class="metric-card">
+            <div class="metric-card c1">
               <div class="d-flex justify-content-between align-items-start">
                 <div>
                   <div class="metric-label">Overall Score</div>
                   <div class="metric-value">{{ overall_score }}%</div>
                 </div>
+                <div class="metric-icon" style="margin-top:8px;"><i class="bi bi-speedometer2"></i></div>
               </div>
               <div class="metric-trend {{ 'text-warning' if overall_score < target_score else 'text-success' }}">
                 Target: {{ target_score }}%
@@ -190,12 +317,13 @@
           </div>
 
           <div class="col-md-3">
-            <div class="metric-card">
+            <div class="metric-card c2">
               <div class="d-flex justify-content-between align-items-start">
                 <div>
                   <div class="metric-label">Blank Fields</div>
                   <div class="metric-value">{{ blank_required_total }}</div>
                 </div>
+                <div class="metric-icon" style="margin-top:8px;"><i class="bi bi-file-earmark-text"></i></div>
               </div>
               <div class="metric-trend {{ blank_compare.color }}">
                 <i class="bi {{ blank_compare.icon }} fw-bold"></i>
@@ -205,12 +333,13 @@
           </div>
 
           <div class="col-md-3">
-            <div class="metric-card">
+            <div class="metric-card c3">
               <div class="d-flex justify-content-between align-items-start">
                 <div>
                   <div class="metric-label">Duplicates Flagged</div>
                   <div class="metric-value">{{ duplicates_total }}</div>
                 </div>
+                <div class="metric-icon" style="margin-top:8px;"><i class="bi bi-files"></i></div>
               </div>
               <div class="metric-trend {{ duplicates_compare.color }}">
                 <i class="bi {{ duplicates_compare.icon }} fw-bold"></i>
@@ -220,12 +349,13 @@
           </div>
 
           <div class="col-md-3">
-            <div class="metric-card">
+            <div class="metric-card c4">
               <div class="d-flex justify-content-between align-items-start">
                 <div>
                   <div class="metric-label">Format Errors</div>
                   <div class="metric-value">{{ format_error_total }}</div>
                 </div>
+                <div class="metric-icon" style="margin-top:8px;"><i class="bi bi-exclamation-triangle-fill"></i></div>
               </div>
               <div class="metric-trend {{ format_errors_compare.color }}">
                 <i class="bi {{ format_errors_compare.icon }} fw-bold"></i>
@@ -236,7 +366,16 @@
         </div>
 
         <div class="card shadow-sm">
-          <div class="card-header">Processed File Health Overview</div>
+          <div class="card-header">
+            <span>Processed File Health Overview</span>
+            <form method="get" action="{{ url_for('data_health') }}" class="d-flex align-items-center gap-2">
+              <input type="text" name="filename" value="{{ filename }}" class="form-control form-control-sm"
+                placeholder="Search filename" style="min-width:240px; border-radius:0.6rem;" aria-label="Search filename">
+              <button type="submit" class="btn btn-sm btn-danger" style="border-radius:0.35rem; padding:4px 8px">
+                <i class="bi bi-search"></i>
+              </button>
+            </form>
+          </div>
           <div class="card-body p-0">
             <div class="table-responsive">
               <table class="table table-hover align-middle mb-0">
@@ -275,8 +414,13 @@
                   {% endfor %}
                   {% else %}
                   <tr>
-                    <td colspan="7" class="text-center text-muted py-4">No processed files with issue data are available
-                      yet.</td>
+                    <td colspan="7" class="text-center text-muted py-4">
+                      {% if filename %}
+                        No files match the filename filter.
+                      {% else %}
+                        No processed files with issue data are available yet.
+                      {% endif %}
+                    </td>
                   </tr>
                   {% endif %}
                 </tbody>
@@ -286,21 +430,33 @@
         </div>
 
         {% if total_pages > 1 %}
-        <nav aria-label="Data health pagination" class="mt-3">
-          <ul class="pagination justify-content-center">
-            <li class="page-item {% if page <= 1 %}disabled{% endif %}">
-              <a class="page-link" href="{{ pagination_url(page-1) if page > 1 else '#' }}">&lt;</a>
-            </li>
-            {% for p in range(1, total_pages + 1) %}
-            <li class="page-item {% if p == page %}active{% endif %}">
-              <a class="page-link" href="{{ pagination_url(p) }}">{{ p }}</a>
-            </li>
-            {% endfor %}
-            <li class="page-item {% if page >= total_pages %}disabled{% endif %}">
-              <a class="page-link" href="{{ pagination_url(page+1) if page < total_pages else '#' }}">&gt;</a>
-            </li>
-          </ul>
-        </nav>
+        <div class="pag-wrap">
+          <div class="pag-info" style="font-size:smaller;">Showing {{ start + 1 if total_filtered else 0 }}–{{ end }} of {{ total_filtered }} records · Page {{ page }} of {{ total_pages }}</div>
+
+          <nav aria-label="Data health pagination">
+            <ul class="pagination mb-0">
+              <li class="page-item {% if page <= 1 %}disabled{% endif %}">
+                <a class="page-link" href="{{ pagination_url(page-1) if page > 1 else '#' }}"><i class="bi bi-chevron-left"></i></a>
+              </li>
+              {% for p in range(1, total_pages + 1) %}
+              <li class="page-item {% if p == page %}active{% endif %}">
+                <a class="page-link" href="{{ pagination_url(p) }}">{{ p }}</a>
+              </li>
+              {% endfor %}
+              <li class="page-item {% if page >= total_pages %}disabled{% endif %}">
+                <a class="page-link" href="{{ pagination_url(page+1) if page < total_pages else '#' }}"><i class="bi bi-chevron-right"></i></a>
+              </li>
+            </ul>
+          </nav>
+
+          <form method="get" action="{{ url_for('data_health') }}" class="d-flex align-items-center gap-2">
+            <input type="hidden" name="filename" value="{{ filename }}">
+            <label class="mb-0 text-muted" for="dataHealthPageJumpInput" style="white-space:nowrap; font-size:0.85rem;">Go to page</label>
+            <input id="dataHealthPageJumpInput" type="number" name="page" min="1" max="{{ total_pages }}" value="{{ page }}"
+              class="form-control form-control-sm" style="width:90px; border-radius:7px;" aria-label="Jump to page">
+            <button type="submit" class="btn btn-sm btn-outline-danger" style="border-radius:7px; font-size:0.82rem;">Go</button>
+          </form>
+        </div>
         {% endif %}
       </div>
     </main>

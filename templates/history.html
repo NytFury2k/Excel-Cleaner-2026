@@ -18,6 +18,37 @@
       --surface: #f9fafb;
     }
 
+    [data-theme="dark"] {
+      --red-accent: #ef4444;
+      --red-hover: #dc2626;
+      --red-light: #451a1a;
+      --red: var(--red-accent);
+      --border: #2d2d34;
+      --surface: #18181c;
+    }
+
+    .btn-danger {
+      background-color: var(--red-accent) !important;
+      border-color: var(--red-accent) !important;
+      color: #fff !important;
+    }
+
+    .btn-danger:hover {
+      background-color: var(--red-hover) !important;
+      border-color: var(--red-hover) !important;
+    }
+
+    .btn-outline-danger {
+      color: var(--red-accent) !important;
+      border-color: var(--red-accent) !important;
+      background-color: transparent !important;
+    }
+
+    .btn-outline-danger:hover {
+      background-color: var(--red-accent) !important;
+      color: #fff !important;
+    }
+
     body {
       background: #f4f5f7;
       font-family: system-ui, -apple-system, sans-serif;
@@ -211,14 +242,9 @@
                         <i class="bi bi-arrow-repeat fa-spin me-1"></i> Processing
                       </span>
                       {% elif file.status == 'failed' %}
-                      <div class="d-flex flex-column align-items-center gap-1">
-                        <span class="badge bg-danger-subtle text-danger px-3 py-2">
-                          <i class="bi bi-x-circle me-1"></i> Failed
-                        </span>
-                        <a href="{{ url_for('upload') }}" class="btn btn-sm btn-outline-danger py-0 px-2" style="font-size: 0.72rem; border-radius: 4px;">
-                          <i class="bi bi-arrow-up-circle me-1"></i> Re-upload
-                        </a>
-                      </div>
+                      <span class="badge bg-danger-subtle text-danger px-3 py-2">
+                        <i class="bi bi-x-circle me-1"></i> Failed
+                      </span>
                       {% else %}
                       <span class="badge bg-secondary px-3 py-2">
                         <i class="bi bi-clock me-1"></i> Pending

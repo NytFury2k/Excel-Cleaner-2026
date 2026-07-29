@@ -193,13 +193,13 @@
       border: 1px solid #e5e7eb;
       border-radius: 12px;
       padding: 18px;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.02);
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.02);
       transition: transform 0.2s, box-shadow 0.2s;
     }
 
     .metric-card:hover {
       transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
     }
 
     .metric-label {
@@ -322,37 +322,39 @@
       width: 42px;
       height: 42px;
       object-fit: contain;
+    }
+
     /* Master Dataset Completeness Card Styling */
     .field-health-card {
-      background: var(--input-bg, #ffffff);
-      border: 1.5px solid var(--border, #e5e7eb);
-      border-radius: 12px;
-      padding: 14px 16px;
-      transition: all 0.22s ease-in-out;
-      cursor: pointer;
-      position: relative;
-      overflow: hidden;
-    }
+        background: var(--input-bg, #ffffff);
+        border: 1.5px solid var(--border, #e5e7eb);
+        border-radius: 12px;
+        padding: 10px 12px;
+        transition: all 0.22s ease-in-out;
+        cursor: pointer;
+        position: relative;
+        overflow: hidden;
+      }
 
-    .field-health-card:hover {
-      transform: translateY(-3px);
-      box-shadow: 0 10px 24px rgba(0, 0, 0, 0.09);
-      border-color: var(--red-accent, #b91c1c);
-    }
+      .field-health-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 10px 24px rgba(0, 0, 0, 0.09);
+        border-color: var(--red-accent, #b91c1c);
+      }
 
-    .health-progress-bar {
-      height: 6px;
-      border-radius: 999px;
-      background: #e5e7eb;
-      overflow: hidden;
-      margin: 10px 0 6px 0;
-    }
+      .health-progress-bar {
+        height: 6px;
+        border-radius: 999px;
+        background: #e5e7eb;
+        overflow: hidden;
+        margin: 10px 0 6px 0;
+      }
 
-    .health-progress-fill {
-      height: 100%;
-      border-radius: 999px;
-      transition: width 0.6s ease-in-out;
-    }
+      .health-progress-fill {
+        height: 100%;
+        border-radius: 999px;
+        transition: width 0.6s ease-in-out;
+      }
   </style>
 </head>
 
@@ -507,28 +509,36 @@
         <!-- Master Dataset Completeness & Data Quality Widget -->
         <div class="row g-3 mb-4">
           <div class="col-12">
-            <div class="card shadow-sm border-0" style="border-radius: 14px; overflow: hidden; background: var(--surface);">
-              
+            <div class="card shadow-sm border-0"
+              style="border-radius: 14px; overflow: hidden; background: var(--surface);">
+
               <!-- Card Header with Colorful Badges & Summary -->
-              <div class="card-header bg-white border-bottom py-3 px-4 d-flex flex-wrap justify-content-between align-items-center gap-3">
+              <div
+                class="card-header bg-white border-bottom py-3 px-4 d-flex flex-wrap justify-content-between align-items-center gap-3">
                 <div>
                   <h5 class="fw-bold mb-1" style="font-size: 1.12rem; color: var(--text-main);">
                     <i class="bi bi-shield-check me-2 text-danger"></i>Master Dataset Completeness & Health
                   </h5>
                   <p class="text-muted mb-0" style="font-size: 0.82rem;">
-                    Field-by-field completeness breakdown across all master database records. Click any card to filter records in Downloads console.
+                    Field-by-field completeness breakdown across all master database records. Click any card to filter
+                    records in Downloads console.
                   </p>
                 </div>
 
                 <div class="d-flex flex-wrap align-items-center gap-2" id="completenessSummaryPills">
-                  <span class="badge px-3 py-2 fs-6 fw-semibold rounded-pill bg-success-subtle text-success border border-success-subtle">
+                  <span
+                    class="badge px-3 py-2 fs-6 fw-semibold rounded-pill bg-success-subtle text-success border border-success-subtle">
                     <i class="bi bi-heart-pulse-fill me-1"></i><span id="overallScoreText">--% Complete</span>
                   </span>
-                  <span class="badge px-3 py-2 fs-6 fw-semibold rounded-pill bg-primary-subtle text-primary border border-primary-subtle">
+                  <span
+                    class="badge px-3 py-2 fs-6 fw-semibold rounded-pill bg-primary-subtle text-primary border border-primary-subtle">
                     <i class="bi bi-columns-gap me-1"></i><span id="totalFieldsText">-- Fields</span>
                   </span>
-                  <span class="badge px-3 py-2 fs-6 fw-semibold rounded-pill bg-warning-subtle text-warning border border-warning-subtle" id="needsAttentionBadge" style="display:none;">
-                    <i class="bi bi-exclamation-triangle-fill me-1"></i><span id="needsAttentionText">0 Needs Attention</span>
+                  <span
+                    class="badge px-3 py-2 fs-6 fw-semibold rounded-pill bg-warning-subtle text-warning border border-warning-subtle"
+                    id="needsAttentionBadge" style="display:none;">
+                    <i class="bi bi-exclamation-triangle-fill me-1"></i><span id="needsAttentionText">0 Needs
+                      Attention</span>
                   </span>
                 </div>
               </div>
@@ -543,7 +553,8 @@
                 </div>
 
                 <div class="text-center mt-3" id="expandCompletenessBtnWrapper" style="display:none;">
-                  <button type="button" class="btn btn-sm btn-outline-danger px-4 py-2 fw-semibold" id="toggleCompletenessGridBtn" style="border-radius: 999px; font-size: 0.82rem;">
+                  <button type="button" class="btn btn-sm btn-outline-danger px-4 py-2 fw-semibold"
+                    id="toggleCompletenessGridBtn" style="border-radius: 999px; font-size: 0.82rem;">
                     <i class="bi bi-chevron-down me-1"></i>Show All Fields
                   </button>
                 </div>
@@ -813,29 +824,31 @@
 
           html += `
             <div class="col-xl-3 col-lg-4 col-md-6 col-sm-6">
-              <div class="field-health-card" onclick="window.location.href='/downloads?missing_field=${col}'">
+              <div class="field-health-card h-100 d-flex flex-column" onclick="window.location.href='/downloads?missing_field=${col}'">
                 <div class="d-flex justify-content-between align-items-start mb-2">
                   <div class="d-flex align-items-center gap-2">
-                    <div style="width:34px; height:34px; border-radius:9px; background:${iconMeta.bg}; color:${iconMeta.color}; display:flex; align-items:center; justify-content:center; font-size:1rem; flex-shrink:0; box-shadow: 0 2px 6px rgba(0,0,0,0.06);">
+                    <div style="width:28px; height:28px; border-radius:8px; background:${iconMeta.bg}; color:${iconMeta.color}; display:flex; align-items:center; justify-content:center; font-size:0.85rem; flex-shrink:0; box-shadow: 0 2px 6px rgba(0,0,0,0.06);">
                       <i class="bi ${iconMeta.icon}"></i>
                     </div>
-                    <div>
-                      <span class="fw-bold text-truncate d-block" style="font-size:0.85rem; max-width:130px; color:var(--text-main);" title="${label}">${label}</span>
-                      <span class="text-muted" style="font-size:0.72rem;">${filledCnt.toLocaleString()} / ${(filledCnt + missingCnt).toLocaleString()} rows</span>
+                    <div style="min-width: 0;">
+                      <span class="fw-bold text-truncate d-block" style="font-size:0.75rem; color:var(--text-main);" title="${label}">${label}</span>
+                      <div class="d-flex align-items-center gap-2">
+                        <span class="text-muted text-truncate" style="font-size:0.65rem;">${filledCnt.toLocaleString()} / ${(filledCnt + missingCnt).toLocaleString()} rows</span>
+                        <span class="badge px-2 py-1 ${theme.badge} rounded-pill" style="font-size:0.6rem; flex-shrink:0;">
+                          ${missingPct}% miss
+                        </span>
+                      </div>
                     </div>
                   </div>
-                  <span class="badge px-2 py-1 ${theme.badge} rounded-pill" style="font-size:0.7rem;">
-                    ${missingPct}% missing
-                  </span>
                 </div>
 
-                <div class="health-progress-bar">
+                <div class="health-progress-bar" style="margin: 8px 0 4px 0; height: 5px;">
                   <div class="health-progress-fill" style="width: ${completePct}%; background: ${theme.fill};"></div>
                 </div>
 
-                <div class="d-flex justify-content-between align-items-center mt-1" style="font-size: 0.74rem;">
-                  <span class="fw-bold ${theme.textColor}">${completePct}% Complete</span>
-                  <span class="text-muted" style="font-weight: 500;"><i class="bi bi-arrow-right-short"></i>Filter records</span>
+                <div class="d-flex justify-content-between align-items-center mt-auto pt-1" style="font-size: 0.65rem;">
+                  <span class="fw-bold ${theme.textColor}">${completePct}%</span>
+                  <span class="text-muted text-truncate" style="font-weight: 500;"><i class="bi bi-arrow-right-short"></i>Filter</span>
                 </div>
               </div>
             </div>
