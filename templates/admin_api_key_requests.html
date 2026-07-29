@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin API Key Approvals — Paramantra</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <link rel="icon" href="https://paramantra.us/aldius/images/favicon.png" type="image/gif">
+  <style>
+    :root {
+      --red-accent: #b91c1c;
+      --red-hover: #991b1b;
+      --border: #e5e7eb;
+      --surface: #f9fafb;
+    }
+    body {
+      background: #f4f5f7;
+      font-family: system-ui, -apple-system, sans-serif;
+    }
+    .card {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+    }
+    .card-header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 24px;
+      font-weight: 600;
+    }
+    .key-box {
+      font-family: monospace;
+      background: #f3f4f6;
+      padding: 4px 8px;
+      border-radius: 6px;
+      border: 1px solid #e5e7eb;
+      font-size: 0.85rem;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Include standard header/nav -->
+  <div class="container py-4">
+
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="alert alert-{{ category if category != 'error' else 'danger' }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <div>
+        <h3 class="fw-bold mb-1"><i class="bi bi-shield-check text-danger"></i> Client API Key Approvals</h3>
+        <p class="text-muted mb-0">Review, approve, or reject client API Key requests and filter configurations.</p>
+      </div>
+      <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-arrow-left"></i> Back to Dashboard
+      </a>
+    </div>
+
+    <!-- Filter status tabs -->
+    <div class="mb-3">
+      <div class="btn-group">
+        <a href="{{ url_for('admin_api_key_requests', status='pending') }}" class="btn btn-sm {{ 'btn-warning text-dark' if current_status == 'pending' else 'btn-outline-secondary' }}">
+          <i class="bi bi-clock-history"></i> Pending Requests
+        </a>
+        <a href="{{ url_for('admin_api_key_requests', status='approved') }}" class="btn btn-sm {{ 'btn-success' if current_status == 'approved' else 'btn-outline-secondary' }}">
+          <i class="bi bi-check-circle"></i> Approved
+        </a>
+        <a href="{{ url_for('admin_api_key_requests', status='rejected') }}" class="btn btn-sm {{ 'btn-danger' if current_status == 'rejected' else 'btn-outline-secondary' }}">
+          <i class="bi bi-x-circle"></i> Rejected
+        </a>
+        <a href="{{ url_for('admin_api_key_requests', status='all') }}" class="btn btn-sm {{ 'btn-dark' if current_status == 'all' else 'btn-outline-secondary' }}">
+          <i class="bi bi-list"></i> All Requests
+        </a>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-key me-2"></i> Client API Key Requests</span>
+        <span class="badge bg-secondary">{{ requests_list|length }} Records</span>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>ID</th>
+                <th>Client User</th>
+                <th>Key Name</th>
+                <th>Type</th>
+                <th>Configured Filters</th>
+                <th>Status</th>
+                <th>API Key String</th>
+                <th>Requested At</th>
+                <th class="text-end">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% if requests_list %}
+                {% for r in requests_list %}
+                  <tr>
+                    <td>#{{ r.id }}</td>
+                    <td class="fw-bold"><i class="bi bi-person me-1"></i> {{ r.username }}</td>
+                    <td class="fw-semibold">{{ r.key_name }}</td>
+                    <td>
+                      {% if r.key_type == 'export' %}
+                        <span class="badge bg-primary"><i class="bi bi-download"></i> Export</span>
+                      {% else %}
+                        <span class="badge bg-success"><i class="bi bi-upload"></i> Import</span>
+                      {% endif %}
+                    </td>
+                    <td>
+                      {% if r.filters_summary and r.filters_summary != '{}' %}
+                        <small class="font-monospace text-dark">{{ r.filters_summary }}</small>
+                      {% else %}
+                        <span class="text-muted small">None (All Records)</span>
+                      {% endif %}
+                    </td>
+                    <td>
+                      {% if r.status == 'approved' %}
+                        <span class="badge bg-success"><i class="bi bi-check-lg"></i> Approved</span>
+                      {% elif r.status == 'rejected' %}
+                        <span class="badge bg-danger"><i class="bi bi-x-lg"></i> Rejected</span>
+                      {% else %}
+                        <span class="badge bg-warning text-dark"><i class="bi bi-hourglass-split"></i> Pending Approval</span>
+                      {% endif %}
+                    </td>
+                    <td>
+                      <span class="key-box">{{ r.api_key }}</span>
+                    </td>
+                    <td class="text-muted small">{{ r.created_at }}</td>
+                    <td class="text-end">
+                      {% if r.status == 'pending' %}
+                        <form action="{{ url_for('admin_approve_api_key', key_id=r.id) }}" method="POST" class="d-inline">
+                          <button type="submit" class="btn btn-success btn-sm me-1" onclick="return confirm('Approve this API key request?')">
+                            <i class="bi bi-check-lg"></i> Approve
+                          </button>
+                        </form>
+                        <form action="{{ url_for('admin_reject_api_key', key_id=r.id) }}" method="POST" class="d-inline">
+                          <button type="submit" class="btn btn-outline-danger btn-sm" onclick="return confirm('Reject this API key request?')">
+                            <i class="bi bi-x-lg"></i> Reject
+                          </button>
+                        </form>
+                      {% elif r.status == 'approved' %}
+                        <form action="{{ url_for('admin_reject_api_key', key_id=r.id) }}" method="POST" class="d-inline">
+                          <button type="submit" class="btn btn-outline-danger btn-sm" onclick="return confirm('Revoke this approved API key?')">
+                            <i class="bi bi-dash-circle"></i> Revoke
+                          </button>
+                        </form>
+                      {% else %}
+                        <form action="{{ url_for('admin_approve_api_key', key_id=r.id) }}" method="POST" class="d-inline">
+                          <button type="submit" class="btn btn-outline-success btn-sm" onclick="return confirm('Approve this previously rejected API key?')">
+                            <i class="bi bi-check-circle"></i> Approve
+                          </button>
+                        </form>
+                      {% endif %}
+                    </td>
+                  </tr>
+                {% endfor %}
+              {% else %}
+                <tr>
+                  <td colspan="9" class="text-center py-5 text-muted">
+                    <i class="bi bi-inbox fs-1 d-block mb-2 text-secondary"></i>
+                    No API Key requests found for status: <strong>{{ current_status }}</strong>
+                  </td>
+                </tr>
+              {% endif %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

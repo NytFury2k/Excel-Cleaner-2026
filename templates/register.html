@@ -342,6 +342,9 @@
     {% include '_sidebar.html' %}
     <main class="content-area">
       <div style="width:100%;max-width:420px; margin:0 auto;">
+  {% else %}
+  <div style="width:100%;max-width:420px; margin:40px auto; padding:16px;">
+  {% endif %}
         <div class="reg-card">
           <div class="logo-wrap">
             <img src="https://paramantra.com/wp-content/uploads/2022/04/Paramantra-Logo-e1754657963220.webp"
@@ -1619,6 +1622,16 @@
               </div>
             </div>
 
+            {% if not admin_mode %}
+            <div class="mb-3">
+              <label class="form-label">Account Type</label>
+              <select name="role" class="form-select">
+                <option value="client" {{ 'selected' if selected_role == 'client' or not selected_role else '' }}>Client Account (API Keys & REST API Access)</option>
+                <option value="user" {{ 'selected' if selected_role == 'user' else '' }}>Standard User Account</option>
+              </select>
+            </div>
+            {% endif %}
+
             {% if admin_mode %}
             <div class="mb-3">
               <label class="form-label">Role</label>
@@ -1675,10 +1688,9 @@
 
         </div>
       </div>
+      {% if admin_mode %}
     </main>
   </div>
-  {% else %}
-  <div style="display:none;" id="non-admin-placeholder"></div>
   {% endif %}
 
   <script>

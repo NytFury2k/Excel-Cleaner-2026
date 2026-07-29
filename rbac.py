@@ -45,6 +45,10 @@ _ROLE_PERMISSIONS_FALLBACK={
         "view_self", "view_own_logs", "upload_file", "select_rules", "run_cleaning", 
         "download_results", "manage_presets", "change_own_password", "manage_api_tokens",
     },
+
+    "client":{
+        "view_self", "manage_client_api_keys", "change_own_password",
+    },
 }
 
 ROLE_PERMISSIONS = _ROLE_PERMISSIONS_FALLBACK

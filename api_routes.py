@@ -31,6 +31,7 @@ Workflow for external callers (e.g. CRM):
 17. POST /api/presets/save                  – save / overwrite a named preset
 18. POST /api/presets/<id>/delete           – delete a preset
 19. POST /api/users/create                  – create a new user (admin or manager only)
+20. GET  /api/v1/records/query             – filter & query master database (paginated JSON)
 
 SESSION FIX
 -----------
@@ -46,14 +47,17 @@ import json
 import math
 import os
 import secrets
+import logging
 import string
 from collections import defaultdict
 from datetime import datetime
 from io import BytesIO
 
+_logger = logging.getLogger(__name__)
+
 import bcrypt
 import pandas as pd
-from flask import Blueprint, jsonify, request, g
+from flask import Blueprint, jsonify, request, g, send_file
 
 from cleaning.engine import run_cleaning_pipeline
 from cleaning.type_resolver import resolve_column_type
@@ -248,33 +252,52 @@ def api_revoke_token():
 @limiter.limit("30 per hour")
 def api_upload():
     """
-    Upload an Excel or CSV file encoded as base64.
+    Upload an Excel or CSV file.
+    Supports BOTH:
+    1. application/json with Base64 payload: {"file_b64": "...", "filename": "leads.xlsx"}
+    2. multipart/form-data with file upload (form field 'file' or 'file_b64')
     Max file size: 10MB.
     """
-    if not request.is_json:
-        return _bad_request("Content-Type must be application/json")
+    file_bytes = None
+    raw_filename = None
 
-    data = request.get_json()
+    if request.is_json:
+        data = request.get_json()
+        if "file_b64" not in data:
+            return _bad_request("Missing required field: file_b64")
+        try:
+            file_bytes = base64.b64decode(data["file_b64"])
+        except Exception:
+            return _bad_request("file_b64 is not valid base64")
+        raw_filename = data.get("filename", "uploaded_file.xlsx")
+    elif request.files and ("file" in request.files or "file_b64" in request.files):
+        uploaded_file = request.files.get("file") or request.files.get("file_b64")
+        raw_filename = uploaded_file.filename or "uploaded_file.xlsx"
+        file_bytes = uploaded_file.read()
+    elif request.form and "file_b64" in request.form:
+        try:
+            file_bytes = base64.b64decode(request.form["file_b64"])
+        except Exception:
+            return _bad_request("file_b64 form value is not valid base64")
+        raw_filename = request.form.get("filename", "uploaded_file.xlsx")
+    else:
+        return _bad_request("Request must be application/json or multipart/form-data with a file.")
 
-    if "file_b64" not in data:
-        return _bad_request("Missing required field: file_b64")
-
-    try:
-        file_bytes = base64.b64decode(data["file_b64"])
-    except Exception:
-        return _bad_request("file_b64 is not valid base64")
+    if not file_bytes:
+        return _bad_request("Uploaded file content is empty.")
 
     # 1. File size limit check
     if len(file_bytes) > 10 * 1024 * 1024:
         return jsonify({"error": "File too large. Maximum size is 10MB."}), 413
 
     # 2. Filename sanitization and extension check
-    filename = os.path.basename(data.get("filename", "uploaded_file.xlsx"))
+    filename = os.path.basename(raw_filename)
     ext = os.path.splitext(filename)[1].lower()
-    
+
     if not filename or ext not in (".xls", ".xlsx", ".csv"):
         filename = "uploaded_file.xlsx"
         ext = ".xlsx"
+
 
     # 3. Save raw bytes to disk (This ensures we have a physical file for pandas to read)
     temp_path = f"temp_api_{g.api_user_id}{ext}"
@@ -296,10 +319,27 @@ def api_upload():
     except Exception as e:
         return jsonify({"error": f"Could not parse file: {e}"}), 422
 
-    # 5. Store in server-side state
-    set_job_state(g.api_user_id, temp_file=temp_path, uploaded_file=filename)
+    # 5. Generate unique job_id & record in uploaded_files DB table
+    timestamp_str = datetime.now().strftime("%Y%m%d_%H%M%S")
+    job_id = f"job_{timestamp_str}_{secrets.token_hex(4)}"
 
-    log_action(g.api_user_id, f"[API] Uploaded file '{filename}' ({len(df)} rows)")
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    try:
+        cursor.execute("""
+            INSERT INTO uploaded_files (user_id, filename, original_filename, uploaded_at, total_rows, rows_imported, rows_rejected, status)
+            VALUES (%s, %s, %s, NOW(), %s, 0, 0, 'uploaded')
+        """, (g.api_user_id, job_id, filename, len(df)))
+        conn.commit()
+    except Exception as exc:
+        pass
+    finally:
+        conn.close()
+
+    # Store in server-side state
+    set_job_state(g.api_user_id, temp_file=temp_path, uploaded_file=filename, job_id=job_id)
+
+    log_action(g.api_user_id, f"[API] Uploaded file '{filename}' ({len(df)} rows) | job_id={job_id}")
 
     # 6. Metadata detection
     column_types = {col: resolve_column_type(df, col) for col in df.columns}
@@ -307,6 +347,7 @@ def api_upload():
 
     return jsonify({
         "success": True,
+        "job_id": job_id,
         "message": "File uploaded successfully",
         "filename": filename,
         "columns": df.columns.tolist(),
@@ -314,6 +355,7 @@ def api_upload():
         "identifier_columns": identifier_columns,
         "total_rows": len(df),
     }), 200
+
 
 
 # ── 5. GET /api/rules ─────────────────────────────────────────────────────────
@@ -620,6 +662,123 @@ def api_download(file_type, job_id):
     }), 200
 
 
+# ── 8b. GET /api/status/<job_id> ──────────────────────────────────────────────
+
+@api_bp.route("/status/<job_id>", methods=["GET"])
+@api_bp.route("/jobs/<job_id>/status", methods=["GET"])
+@api_login_required
+def api_job_status(job_id):
+    """
+    Check status, summary, inserted rows, rejected rows, and total counts for a job.
+
+    Parameters:
+        job_id (string): Unique job ID returned from /api/upload or /api/clean
+
+    Response 200:
+        {
+          "success": true,
+          "job_id": "job_20260723_151520_a1b2",
+          "status": "completed",
+          "filename": "leads.xlsx",
+          "uploaded_at": "2026-07-23T15:15:20",
+          "summary": {
+            "total_rows": 500,
+            "inserted_rows": 475,
+            "valid_rows": 475,
+            "rejected_rows": 15,
+            "invalid_rows": 15,
+            "removed_rows": 10
+          },
+          "rules_applied": [...],
+          "rule_counts": {...}
+        }
+    """
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    job_data = None
+    log_data = None
+
+    try:
+        if job_id.isdigit():
+            cursor.execute(
+                "SELECT * FROM uploaded_files WHERE (id = %s OR filename = %s) AND user_id = %s",
+                (int(job_id), job_id, g.api_user_id)
+            )
+        else:
+            cursor.execute(
+                "SELECT * FROM uploaded_files WHERE (filename = %s OR filename LIKE %s) AND user_id = %s",
+                (job_id, f"%{job_id}%", g.api_user_id)
+            )
+        job_data = cursor.fetchone()
+
+        cursor.execute(
+            "SELECT * FROM logs WHERE user_id = %s AND (action LIKE %s OR action LIKE %s) ORDER BY id DESC LIMIT 1",
+            (g.api_user_id, f"%{job_id}%", "%[API] %")
+        )
+        log_data = cursor.fetchone()
+
+    except Exception as e:
+        _logger.warning("Error querying job status: %s", e)
+    finally:
+        conn.close()
+
+    state = get_job_state(g.api_user_id)
+    state_job_id = state.get("job_id") or ""
+    state_file = state.get("uploaded_file") or ""
+
+    if not job_data and not log_data and job_id != state_job_id and job_id not in state_file:
+        return _not_found(f"Job ID '{job_id}' not found.")
+
+    filename = (job_data.get("original_filename") if job_data else None) or state_file or "file.xlsx"
+    status = (job_data.get("status") if job_data else None) or "completed"
+
+    if job_data and isinstance(job_data.get("uploaded_at"), datetime):
+        uploaded_at = job_data["uploaded_at"].isoformat()
+    elif log_data and isinstance(log_data.get("created_at"), datetime):
+        uploaded_at = log_data["created_at"].isoformat()
+    else:
+        uploaded_at = datetime.now().isoformat()
+
+    total_rows = (log_data.get("total_rows") if log_data else None) or (job_data.get("total_rows") if job_data else 0)
+    valid_rows = (log_data.get("valid_rows") if log_data else None) or (job_data.get("rows_imported") if job_data else total_rows)
+    invalid_rows = (log_data.get("invalid_rows") if log_data else None) or (job_data.get("rows_rejected") if job_data else 0)
+    removed_rows = (log_data.get("removed_rows") if log_data else None) or 0
+
+    rules_applied = []
+    rule_counts = {}
+    if log_data:
+        if log_data.get("rules_applied"):
+            try:
+                rules_applied = json.loads(log_data["rules_applied"])
+            except Exception:
+                pass
+        if log_data.get("rule_counts"):
+            try:
+                rule_counts = json.loads(log_data["rule_counts"])
+            except Exception:
+                pass
+
+    return jsonify({
+        "success": True,
+        "job_id": job_id,
+        "status": status,
+        "filename": filename,
+        "uploaded_at": uploaded_at,
+        "summary": {
+          "total_rows": total_rows,
+          "inserted_rows": valid_rows,
+          "valid_rows": valid_rows,
+          "rejected_rows": invalid_rows,
+          "invalid_rows": invalid_rows,
+          "removed_rows": removed_rows
+        },
+        "rules_applied": rules_applied,
+        "rule_counts": rule_counts
+    }), 200
+
+
+
 # ═════════════════════════════════════════════════════════════════════════════
 # LOGS & USERS
 # ═════════════════════════════════════════════════════════════════════════════
@@ -801,9 +960,9 @@ def api_change_role(target_id):
     new_role      = data.get("new_role", "").strip()
     
     if g.api_role == "admin":
-        allowed_roles = {"user", "manager", "team_lead", "admin"}
+        allowed_roles = {"user", "manager", "team_lead", "admin", "client"}
     else:
-        allowed_roles = {"user", "team_lead"}
+        allowed_roles = {"user", "team_lead", "client"}
 
     if new_role not in allowed_roles:
         return _bad_request(f"new_role must be one of: {', '.join(sorted(allowed_roles))}")
@@ -1256,9 +1415,9 @@ def api_create_user():
 
     # Role whitelist per caller
     if g.api_role == "admin":
-        allowed_roles = {"user", "team_lead", "manager", "admin"}
+        allowed_roles = {"user", "team_lead", "manager", "admin", "client"}
     else:
-        allowed_roles = {"user", "team_lead"}
+        allowed_roles = {"user", "team_lead", "client"}
 
     if not username:
         return _bad_request("username is required.")
@@ -1358,9 +1517,654 @@ def api_change_email():
     return jsonify({"success": True, "message": "Email updated."}), 200
 
 
+# ── 20. GET /api/v1/records/query ──────────────────────────────────────────────
+
+@api_bp.route("/v1/records/query", methods=["GET"])
+@api_login_required
+@limiter.limit("300 per hour")
+def api_query_master_records():
+    """
+    Pull API — Filter and query the master database with paginated JSON response.
+
+    Query params:
+        Pagination:
+            ?page=1&per_page=20 (or ?limit=20)
+        Sorting:
+            ?sort_by=created_at&sort_order=desc
+        General Search:
+            ?search=john (or ?q=john) -> ILIKE match across key fields
+        Field Filters:
+            ?first_name=John&last_name=Doe&email_address=john@example.com
+            ?company_name=Acme&city=New+York&country=USA&industry=Tech
+            ?record_status=active&imported_by=admin&file_id=1&gender=Male
+            ?phone=1234567890&state=NY&zip=10001
+        Exact Match toggle:
+            ?exact=true (default: false -> uses ILIKE/contains matching for string fields)
+        Date Range Filters:
+            ?created_after=2026-01-01&created_before=2026-12-31
+            ?updated_after=2026-01-01&updated_before=2026-12-31
+
+    Response 200:
+        {
+          "success": true,
+          "page": 1,
+          "per_page": 20,
+          "total_records": 150,
+          "total_pages": 8,
+          "records": [ ... ],
+          "filters_applied": { ... }
+        }
+    """
+    raw_page = request.args.get("page", 1)
+    raw_per_page = request.args.get("per_page") or request.args.get("limit") or 20
+
+    try:
+        page = max(1, int(raw_page))
+    except (ValueError, TypeError):
+        page = 1
+
+    try:
+        per_page = max(1, min(int(raw_per_page), MAX_PAGE_SIZE))
+    except (ValueError, TypeError):
+        per_page = 20
+
+    sort_by = request.args.get("sort_by") or request.args.get("order_by") or "id"
+    sort_order = (request.args.get("sort_order") or request.args.get("order") or "desc").lower()
+
+    allowed_sort_fields = {
+        "id": "id",
+        "file_id": "file_id",
+        "first_name": "first_name",
+        "last_name": "last_name",
+        "email_address": "email_address",
+        "email": "email_address",
+        "company_name": "company_name",
+        "company": "company_name",
+        "job_title": "job_title",
+        "department": "department",
+        "city": "city",
+        "state_province": "state_province",
+        "state": "state_province",
+        "postal_zip_code": "postal_zip_code",
+        "zip": "postal_zip_code",
+        "country": "country",
+        "industry": "industry",
+        "lead_source": "lead_source",
+        "record_status": "record_status",
+        "status": "record_status",
+        "gender": "gender",
+        "created_at": "created_at",
+        "updated_at": "updated_at",
+        "imported_by": "imported_by"
+    }
+
+    db_sort_col = allowed_sort_fields.get(sort_by.lower(), "id")
+    db_sort_dir = "ASC" if sort_order == "asc" else "DESC"
+
+    exact_match = request.args.get("exact", "").lower() in ("true", "1", "yes")
+
+    field_mappings = {
+        "id": ("id", "int"),
+        "file_id": ("file_id", "int"),
+        "first_name": ("first_name", "text"),
+        "last_name": ("last_name", "text"),
+        "email_address": ("email_address", "text"),
+        "email": ("email_address", "text"),
+        "primary_phone_number": ("primary_phone_number", "text"),
+        "phone": ("primary_phone_number", "text"),
+        "alternate_phone_number": ("alternate_phone_number", "text"),
+        "company_name": ("company_name", "text"),
+        "company": ("company_name", "text"),
+        "job_title": ("job_title", "text"),
+        "department": ("department", "text"),
+        "website_url": ("website_url", "text"),
+        "address_line_1": ("address_line_1", "text"),
+        "address_line_2": ("address_line_2", "text"),
+        "city": ("city", "text"),
+        "state_province": ("state_province", "text"),
+        "state": ("state_province", "text"),
+        "postal_zip_code": ("postal_zip_code", "text"),
+        "zip": ("postal_zip_code", "text"),
+        "country": ("country", "text"),
+        "linkedin_profile_url": ("linkedin_profile_url", "text"),
+        "industry": ("industry", "text"),
+        "lead_source": ("lead_source", "text"),
+        "record_status": ("record_status", "text"),
+        "status": ("record_status", "text"),
+        "date_of_birth": ("date_of_birth", "text"),
+        "gender": ("gender", "text"),
+        "company_size": ("company_size", "text"),
+        "annual_revenue": ("annual_revenue", "text"),
+        "imported_by": ("imported_by", "text")
+    }
+
+    where_clauses = []
+    params = []
+    applied_filters = {}
+
+    for param_name, (col_name, col_type) in field_mappings.items():
+        val = request.args.get(param_name, "").strip()
+        if val:
+            applied_filters[param_name] = val
+            if col_type == "int":
+                try:
+                    where_clauses.append(f"{col_name} = %s")
+                    params.append(int(val))
+                except ValueError:
+                    return _bad_request(f"Invalid integer value for parameter '{param_name}': {val}")
+            else:
+                if exact_match:
+                    where_clauses.append(f"LOWER({col_name}) = LOWER(%s)")
+                    params.append(val)
+                else:
+                    where_clauses.append(f"{col_name} ILIKE %s")
+                    params.append(f"%{val}%")
+
+    search_q = (request.args.get("search") or request.args.get("q") or "").strip()
+    if search_q:
+        applied_filters["search"] = search_q
+        search_cols = [
+            "first_name", "last_name", "email_address", "primary_phone_number",
+            "company_name", "job_title", "department", "city", "state_province",
+            "country", "industry", "lead_source", "imported_by"
+        ]
+        search_clauses = [f"{c} ILIKE %s" for c in search_cols]
+        where_clauses.append(f"({' OR '.join(search_clauses)})")
+        params.extend([f"%{search_q}%"] * len(search_cols))
+
+    created_after = request.args.get("created_after") or request.args.get("start_date")
+    if created_after and created_after.strip():
+        val = created_after.strip()
+        applied_filters["created_after"] = val
+        where_clauses.append("created_at >= %s")
+        params.append(val)
+
+    created_before = request.args.get("created_before") or request.args.get("end_date")
+    if created_before and created_before.strip():
+        val = created_before.strip()
+        applied_filters["created_before"] = val
+        where_clauses.append("created_at <= %s")
+        params.append(val)
+
+    updated_after = request.args.get("updated_after")
+    if updated_after and updated_after.strip():
+        val = updated_after.strip()
+        applied_filters["updated_after"] = val
+        where_clauses.append("updated_at >= %s")
+        params.append(val)
+
+    updated_before = request.args.get("updated_before")
+    if updated_before and updated_before.strip():
+        val = updated_before.strip()
+        applied_filters["updated_before"] = val
+        where_clauses.append("updated_at <= %s")
+        params.append(val)
+
+    applied_filters["exact"] = exact_match
+    applied_filters["sort_by"] = db_sort_col
+    applied_filters["sort_order"] = db_sort_dir.lower()
+
+    where_sql = f" WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
+
+    output_format = (request.args.get("format") or request.args.get("export") or "json").lower()
+    applied_filters["format"] = output_format
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    try:
+        # Load field_registry mapping to replace integer field IDs (e.g., '65') with human readable attribute names
+        cursor.execute("SELECT id, field_name FROM field_registry")
+        field_reg_rows = cursor.fetchall() or []
+        field_name_map = {str(r["id"]): r["field_name"] for r in field_reg_rows}
+
+        def resolve_custom_fields(cf_raw):
+            if not cf_raw:
+                return {}
+            if isinstance(cf_raw, str):
+                try:
+                    cf_raw = json.loads(cf_raw)
+                except Exception:
+                    return {}
+            if isinstance(cf_raw, dict):
+                resolved = {}
+                for key, val in cf_raw.items():
+                    str_key = str(key)
+                    if str_key in field_name_map:
+                        resolved[field_name_map[str_key]] = val
+                    else:
+                        resolved[key] = val
+                return resolved
+            return {}
+
+        count_sql = f"SELECT COUNT(*) AS total FROM master_records{where_sql}"
+        cursor.execute(count_sql, params)
+        count_res = cursor.fetchone()
+        total_records = count_res["total"] if count_res else 0
+
+        # Handle Excel / CSV / Base64 file export requests
+        if output_format in ("excel", "xlsx", "csv", "base64", "b64", "excel_b64"):
+            export_limit = min(total_records, 50000)
+            query_sql = (
+                f"SELECT * FROM master_records{where_sql} "
+                f"ORDER BY {db_sort_col} {db_sort_dir} "
+                f"LIMIT %s"
+            )
+            cursor.execute(query_sql, list(params) + [export_limit])
+            export_rows = cursor.fetchall()
+
+            clean_rows = []
+            for r in export_rows:
+                row_dict = dict(r)
+                if isinstance(row_dict.get("created_at"), datetime):
+                    row_dict["created_at"] = row_dict["created_at"].strftime("%Y-%m-%d %H:%M:%S")
+                if isinstance(row_dict.get("updated_at"), datetime):
+                    row_dict["updated_at"] = row_dict["updated_at"].strftime("%Y-%m-%d %H:%M:%S")
+
+                resolved_cf = resolve_custom_fields(row_dict.get("custom_fields"))
+                row_dict["custom_fields"] = json.dumps(resolved_cf) if resolved_cf else None
+                clean_rows.append(row_dict)
+
+            df = pd.DataFrame(clean_rows) if clean_rows else pd.DataFrame()
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+            log_action(
+                g.api_user_id,
+                f"[API] '{g.api_username}' exported master_records as {output_format}: count={len(clean_rows)}"
+            )
+
+            if output_format in ("base64", "b64", "excel_b64"):
+                out_bytes = BytesIO()
+                with pd.ExcelWriter(out_bytes, engine="openpyxl") as writer:
+                    df.to_excel(writer, index=False, sheet_name="Filtered Records")
+                out_bytes.seek(0)
+                encoded = base64.b64encode(out_bytes.read()).decode("utf-8")
+                filename = f"filtered_master_records_{timestamp}.xlsx"
+                return jsonify({
+                    "success": True,
+                    "filename": filename,
+                    "total_records": len(clean_rows),
+                    "file_b64": encoded
+                }), 200
+
+            elif output_format in ("excel", "xlsx"):
+                out_bytes = BytesIO()
+                with pd.ExcelWriter(out_bytes, engine="openpyxl") as writer:
+                    df.to_excel(writer, index=False, sheet_name="Filtered Records")
+                out_bytes.seek(0)
+                filename = f"filtered_master_records_{timestamp}.xlsx"
+                return send_file(
+                    out_bytes,
+                    mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    as_attachment=True,
+                    download_name=filename
+                )
+            elif output_format == "csv":
+                out_bytes = BytesIO()
+                df.to_csv(out_bytes, index=False, encoding="utf-8-sig")
+                out_bytes.seek(0)
+                filename = f"filtered_master_records_{timestamp}.csv"
+                return send_file(
+                    out_bytes,
+                    mimetype="text/csv",
+                    as_attachment=True,
+                    download_name=filename
+                )
+
+        offset = (page - 1) * per_page
+        total_pages = max(1, math.ceil(total_records / per_page)) if total_records > 0 else 0
+
+        query_sql = (
+            f"SELECT * FROM master_records{where_sql} "
+            f"ORDER BY {db_sort_col} {db_sort_dir} "
+            f"LIMIT %s OFFSET %s"
+        )
+        query_params = list(params) + [per_page, offset]
+        cursor.execute(query_sql, query_params)
+        rows = cursor.fetchall()
+
+        serialised = []
+        for row in rows:
+            r = dict(row)
+            if isinstance(r.get("created_at"), datetime):
+                r["created_at"] = r["created_at"].isoformat()
+            if isinstance(r.get("updated_at"), datetime):
+                r["updated_at"] = r["updated_at"].isoformat()
+
+            r["custom_fields"] = resolve_custom_fields(r.get("custom_fields"))
+            serialised.append(r)
+
+        log_action(
+            g.api_user_id,
+            f"[API] '{g.api_username}' queried master_records: page={page}, total={total_records}"
+        )
+
+        return jsonify({
+            "success": True,
+            "page": page,
+            "per_page": per_page,
+            "total_records": total_records,
+            "total_pages": total_pages,
+            "records": serialised,
+            "filters_applied": applied_filters
+        }), 200
+
+
+    except Exception as e:
+        return jsonify({"error": f"Database query error: {str(e)}"}), 500
+    finally:
+        conn.close()
+
+
+
+# ── 21. GET /api/v1/client/export ──────────────────────────────────────────────
+
+def _validate_client_api_key(required_type):
+    """
+    Helper function to validate client API keys passed via:
+      - Header 'X-API-Key'
+      - Header 'Authorization: Bearer <key>'
+      - Query param '?api_key=...'
+    """
+    key_str = request.headers.get("X-API-Key", "").strip()
+    if not key_str and request.headers.get("Authorization", "").startswith("Bearer "):
+        key_str = request.headers.get("Authorization", "").split(" ", 1)[1].strip()
+    if not key_str:
+        key_str = request.args.get("api_key", "").strip()
+
+    if not key_str:
+        return None, _unauthorised("Missing API Key. Provide X-API-Key header or api_key parameter.")
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    try:
+        cursor.execute("SELECT k.*, u.username FROM client_api_keys k JOIN users u ON k.user_id = u.id WHERE k.api_key = %s", (key_str,))
+        key_row = cursor.fetchone()
+    finally:
+        conn.close()
+
+    if not key_row:
+        return None, _unauthorised("Invalid API key.")
+    if key_row.get("status") == "pending":
+        return None, _forbidden("This API Key request is pending admin approval.")
+    if key_row.get("status") == "rejected":
+        return None, _forbidden("This API Key request was rejected by admin.")
+    if not key_row.get("is_active"):
+        return None, _forbidden("This API key is deactivated.")
+    if key_row.get("key_type") != required_type:
+        return None, _forbidden(f"This API key is configured for {key_row.get('key_type').upper()} operations, not {required_type.upper()}.")
+
+    if key_row.get("expires_at"):
+        exp_at = key_row["expires_at"]
+        if isinstance(exp_at, str):
+            try:
+                exp_at = datetime.fromisoformat(exp_at)
+            except Exception:
+                exp_at = None
+        if exp_at and datetime.now() > exp_at:
+            exp_str = exp_at.strftime('%Y-%m-%d')
+            return None, _forbidden(f"This API key has expired on {exp_str}.")
+
+    return key_row, None
+
+
+
+
+@api_bp.route("/v1/client/export", methods=["GET"])
+@limiter.limit("300 per hour")
+def api_client_export():
+    """
+    Export master database records using an approved Client Export API Key.
+    Applies the admin-approved filters pre-configured for this key.
+    """
+    key_row, err_resp = _validate_client_api_key("export")
+    if err_resp:
+        return err_resp
+
+    approved_filters = {}
+    if key_row.get("filters_json"):
+        try:
+            approved_filters = json.loads(key_row["filters_json"])
+        except Exception:
+            approved_filters = {}
+
+    params = dict(approved_filters)
+    for k, v in request.args.items():
+        if k not in ("api_key",):
+            params[k] = v
+
+    where_clauses = []
+    sql_params = []
+
+    field_mappings = {
+        "country": "country",
+        "industry": "industry",
+        "status": "record_status",
+        "company": "company_name",
+        "city": "city",
+        "state": "state_province",
+        "imported_by": "imported_by"
+    }
+
+    for param, col in field_mappings.items():
+        val = params.get(param)
+        if val:
+            where_clauses.append(f"{col} ILIKE %s")
+            sql_params.append(f"%{val}%")
+
+    if params.get("created_after"):
+        where_clauses.append("created_at >= %s")
+        sql_params.append(params["created_after"])
+    if params.get("created_before"):
+        where_clauses.append("created_at <= %s")
+        sql_params.append(params["created_before"])
+
+    if params.get("search") or params.get("q"):
+        sq = params.get("search") or params.get("q")
+        search_cols = ["first_name", "last_name", "email_address", "company_name", "city", "country", "industry"]
+        search_clauses = [f"{c} ILIKE %s" for c in search_cols]
+        where_clauses.append(f"({' OR '.join(search_clauses)})")
+        sql_params.extend([f"%{sq}%"] * len(search_cols))
+
+    where_sql = f" WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
+
+    sort_col = params.get("sort_by", "id")
+    sort_dir = "ASC" if str(params.get("sort_order", "desc")).lower() == "asc" else "DESC"
+
+    output_format = (params.get("format") or params.get("export") or "json").lower()
+    page = max(1, int(params.get("page", 1)))
+    approved_max = key_row.get("max_rows_limit") or MAX_PAGE_SIZE
+    per_page = max(1, min(int(params.get("per_page", approved_max)), approved_max))
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    try:
+        cursor.execute("SELECT id, field_name FROM field_registry")
+        reg_rows = cursor.fetchall() or []
+        field_name_map = {str(r["id"]): r["field_name"] for r in reg_rows}
+
+        def resolve_cf(raw_cf):
+            if not raw_cf:
+                return {}
+            if isinstance(raw_cf, str):
+                try:
+                    raw_cf = json.loads(raw_cf)
+                except Exception:
+                    return {}
+            if isinstance(raw_cf, dict):
+                return {field_name_map.get(str(k), str(k)): v for k, v in raw_cf.items()}
+            return {}
+
+        count_sql = f"SELECT COUNT(*) AS total FROM master_records{where_sql}"
+        cursor.execute(count_sql, sql_params)
+        total_records = cursor.fetchone()["total"]
+
+        if output_format in ("excel", "xlsx", "csv"):
+            query_sql = f"SELECT * FROM master_records{where_sql} ORDER BY {sort_col} {sort_dir} LIMIT 50000"
+            cursor.execute(query_sql, sql_params)
+            rows = cursor.fetchall()
+
+            clean_rows = []
+            for r in rows:
+                row_dict = dict(r)
+                if isinstance(row_dict.get("created_at"), datetime):
+                    row_dict["created_at"] = row_dict["created_at"].strftime("%Y-%m-%d %H:%M:%S")
+                if isinstance(row_dict.get("updated_at"), datetime):
+                    row_dict["updated_at"] = row_dict["updated_at"].strftime("%Y-%m-%d %H:%M:%S")
+                rcf = resolve_cf(row_dict.get("custom_fields"))
+                row_dict["custom_fields"] = json.dumps(rcf) if rcf else None
+                clean_rows.append(row_dict)
+
+            df = pd.DataFrame(clean_rows) if clean_rows else pd.DataFrame()
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+            log_action(key_row["user_id"], f"[API KEY] Client '{key_row['username']}' exported records via API Key '{key_row['key_name']}'")
+
+            if output_format in ("excel", "xlsx"):
+                out_bytes = BytesIO()
+                with pd.ExcelWriter(out_bytes, engine="openpyxl") as writer:
+                    df.to_excel(writer, index=False, sheet_name="Filtered Export")
+                out_bytes.seek(0)
+                return send_file(out_bytes, mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", as_attachment=True, download_name=f"client_export_{timestamp}.xlsx")
+            else:
+                out_bytes = BytesIO()
+                df.to_csv(out_bytes, index=False, encoding="utf-8-sig")
+                out_bytes.seek(0)
+                return send_file(out_bytes, mimetype="text/csv", as_attachment=True, download_name=f"client_export_{timestamp}.csv")
+
+        offset = (page - 1) * per_page
+        total_pages = max(1, math.ceil(total_records / per_page)) if total_records > 0 else 0
+
+        query_sql = f"SELECT * FROM master_records{where_sql} ORDER BY {sort_col} {sort_dir} LIMIT %s OFFSET %s"
+        cursor.execute(query_sql, sql_params + [per_page, offset])
+        rows = cursor.fetchall()
+
+        serialised = []
+        for r in rows:
+            row_dict = dict(r)
+            if isinstance(row_dict.get("created_at"), datetime):
+                row_dict["created_at"] = row_dict["created_at"].isoformat()
+            if isinstance(row_dict.get("updated_at"), datetime):
+                row_dict["updated_at"] = row_dict["updated_at"].isoformat()
+            row_dict["custom_fields"] = resolve_cf(row_dict.get("custom_fields"))
+            serialised.append(row_dict)
+
+        log_action(key_row["user_id"], f"[API KEY] Client '{key_row['username']}' queried export via API Key '{key_row['key_name']}' (count={len(rows)})")
+
+        return jsonify({
+            "success": True,
+            "key_name": key_row["key_name"],
+            "page": page,
+            "per_page": per_page,
+            "total_records": total_records,
+            "total_pages": total_pages,
+            "records": serialised,
+            "applied_filters": params
+        }), 200
+
+    except Exception as e:
+        return jsonify({"error": f"Database query error: {str(e)}"}), 500
+    finally:
+        conn.close()
+
+
+# ── 22. POST /api/v1/client/import ─────────────────────────────────────────────
+
+@api_bp.route("/v1/client/import", methods=["POST"])
+@limiter.limit("60 per hour")
+def api_client_import():
+    """
+    Import dataset records using an approved Client Import API Key.
+    Accepts JSON array of objects or file upload.
+    """
+    key_row, err_resp = _validate_client_api_key("import")
+    if err_resp:
+        return err_resp
+
+    records_data = []
+
+    if request.is_json:
+        payload = request.get_json()
+        if isinstance(payload, list):
+            records_data = payload
+        elif isinstance(payload, dict) and "records" in payload:
+            records_data = payload["records"]
+        elif isinstance(payload, dict) and "file_b64" in payload:
+            try:
+                fb = base64.b64decode(payload["file_b64"])
+                df = pd.read_excel(BytesIO(fb)) if payload.get("filename", "").endswith((".xls", ".xlsx")) else pd.read_csv(BytesIO(fb))
+                records_data = df.to_dict(orient="records")
+            except Exception as e:
+                return jsonify({"error": f"Failed to parse Base64 file: {e}"}), 422
+    elif request.files and "file" in request.files:
+        try:
+            up_file = request.files["file"]
+            df = pd.read_excel(up_file) if up_file.filename.endswith((".xls", ".xlsx")) else pd.read_csv(up_file)
+            records_data = df.to_dict(orient="records")
+        except Exception as e:
+            return jsonify({"error": f"Failed to parse uploaded file: {e}"}), 422
+    else:
+        return _bad_request("Provide a JSON array of records or file upload.")
+
+    if not records_data:
+        return _bad_request("No valid records found in payload.")
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    try:
+        cursor.execute("""
+            INSERT INTO uploaded_files (user_id, filename, original_filename, uploaded_at, total_rows, rows_imported, status)
+            VALUES (%s, %s, %s, NOW(), %s, %s, 'completed')
+        """, (key_row["user_id"], f"api_import_{secrets.token_hex(4)}", f"API Import ({key_row['key_name']})", len(records_data), len(records_data)))
+        conn.commit()
+        file_id = cursor.lastrowid
+
+        inserted_count = 0
+        for rec in records_data:
+            cursor.execute("""
+                INSERT INTO master_records (file_id, first_name, last_name, email_address, primary_phone_number, company_name, job_title, department, city, state_province, country, industry, record_status, imported_by)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """, (
+                file_id,
+                rec.get("first_name") or rec.get("First Name"),
+                rec.get("last_name") or rec.get("Last Name"),
+                rec.get("email_address") or rec.get("email") or rec.get("Email"),
+                rec.get("primary_phone_number") or rec.get("phone") or rec.get("Phone"),
+                rec.get("company_name") or rec.get("company") or rec.get("Company"),
+                rec.get("job_title") or rec.get("Job Title"),
+                rec.get("department"),
+                rec.get("city") or rec.get("City"),
+                rec.get("state_province") or rec.get("state"),
+                rec.get("country") or rec.get("Country"),
+                rec.get("industry") or rec.get("Industry"),
+                rec.get("record_status") or rec.get("status") or "active",
+                key_row["username"]
+            ))
+            inserted_count += 1
+
+        conn.commit()
+        log_action(key_row["user_id"], f"[API KEY] Client '{key_row['username']}' imported {inserted_count} records via API Key '{key_row['key_name']}'")
+
+        return jsonify({
+            "success": True,
+            "message": f"Successfully imported {inserted_count} records via API Key.",
+            "file_id": file_id,
+            "rows_imported": inserted_count,
+            "status": "completed"
+        }), 200
+
+    except Exception as e:
+        conn.rollback()
+        return jsonify({"error": f"Import failed: {str(e)}"}), 500
+    finally:
+        conn.close()
+
 
 # ── GET /api/health  (no auth required) ───────────────────────────────────────
 @api_bp.route("/health", methods=["GET"])
 def api_health():
     """Simple liveness check. No auth required. Returns 200 if the API is up."""
     return jsonify({"status": "ok"}), 200
+

@@ -844,21 +844,26 @@ def get_job_state(user_id):
 
 def set_job_state(user_id, **fields):
     """
-    Upsert job state for this user. Pass keyboard args for any fields to update.
-    Valid fields: temp_file, uploaded_file, cleaned_file, invalid_file, removed_file, rules_json
+    Upsert job state for this user. Pass keyword args for any fields to update.
+    Valid fields: temp_file, uploaded_file, cleaned_file, invalid_file, removed_file, rules_json, job_id
     """
-
     import json as _json
 
-    #Serialise any list/dict values
+    valid_cols = {"temp_file", "uploaded_file", "cleaned_file", "invalid_file", "removed_file", "rules_json", "job_id"}
+    fields = {k: v for k, v in fields.items() if k in valid_cols}
+
+    if not fields:
+        return
+
+    # Serialise any list/dict values
     for k, v in fields.items():
         if isinstance(v, (list, dict)):
             fields[k] = _json.dumps(v)
 
     col_names = ", ".join(fields.keys())
-    placeholders = ", ".join(["%s"]*len(fields))
+    placeholders = ", ".join(["%s"] * len(fields))
     updates = ", ".join(f"{k} = EXCLUDED.{k}" for k in fields.keys())
-    values =  list(fields.values())
+    values = list(fields.values())
 
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -870,6 +875,7 @@ def set_job_state(user_id, **fields):
     )
     conn.commit()
     conn.close()
+
 
 
 def clear_job_files(user_id):

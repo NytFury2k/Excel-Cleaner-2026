@@ -1000,28 +1000,31 @@ def user_calendar_export(user_id):
 
 # --- ROUTES ---
 
-#register route (public self-registration — always creates a plain 'user')
+#register route (public self-registration — allows 'client' or 'user')
 @app.route("/register", methods=["GET", "POST"])
 def register():
+    req_role = request.args.get("role", "client").strip().lower()
+
     if request.method == "POST":
         username         = request.form["username"].strip()
         password         = request.form["password"]
         confirm_password = request.form["confirm_password"]
-        role             = "user"  # prevent escalation; public registration is always 'user'
-        email = request.form.get("email", "").strip() or None
+        form_role        = request.form.get("role", req_role).strip().lower()
+        role             = form_role if form_role in ("client", "user") else "client"
+        email            = request.form.get("email", "").strip() or None
 
         if email and _email_already_exists(email):
             flash("That email address is already registered to another account.","danger")
-            return render_template("register.html", username=username, email=email, public=True)
+            return render_template("register.html", username=username, email=email, selected_role=role, public=True)
 
         if password != confirm_password:
             flash("Passwords do not match.", "danger")
-            return render_template("register.html", username=username, email=email, public=True)
+            return render_template("register.html", username=username, email=email, selected_role=role, public=True)
 
         errors = validate_password(password)
         if errors:
             flash("• " + "<br>• ".join(errors), "danger")
-            return render_template("register.html", username=username, email=email, public=True)
+            return render_template("register.html", username=username, email=email, selected_role=role, public=True)
 
         hashed = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
@@ -1029,14 +1032,12 @@ def register():
             conn   = get_db_connection()
             cursor = conn.cursor(dictionary=True)
 
-            # Public self-registration: no creator, no manager assignment
             cursor.execute(
                 "INSERT INTO users (username, password, role, email, manager_id, created_by) VALUES (%s, %s, %s, %s, NULL, NULL)",
                 (username, hashed, role, email)
             )
             new_user_id = cursor.lastrowid
 
-            # Set role_id
             cursor.execute("SELECT id FROM roles WHERE name = %s", (role,))
             role_row = cursor.fetchone()
             if role_row:
@@ -1045,11 +1046,11 @@ def register():
             conn.commit()
 
             try:
-                log_action(new_user_id, "Self registered")
+                log_action(new_user_id, f"Self registered with role '{role}'")
             except Exception as e:
                 app.logger.warning(f"Logging failed after self-registration: {e}")
 
-            flash("Account created successfully! Please log in.", "success")
+            flash(f"{role.capitalize()} account created successfully! Please log in.", "success")
             return redirect(url_for("login"))
 
         except IntegrityError as e:
@@ -1066,11 +1067,11 @@ def register():
             if 'cursor' in locals(): cursor.close()
             if 'conn'   in locals(): conn.close()
 
-    # GET or fallthrough from failed POST
     saved_username = request.form.get("username", "").strip() if request.method == "POST" else ""
     saved_email    = request.form.get("email", "").strip()    if request.method == "POST" else ""
-    return render_template("register.html", public=True,
+    return render_template("register.html", public=True, selected_role=req_role,
                            username=saved_username, email=saved_email)
+
 
 
 
@@ -1352,9 +1353,12 @@ def login():
             flash("Your password was reset. Please set a new password immediately for security.", "warning")
 
         flash("Login successful", "success")
-        if user["role"] in ["team_lead", "user"]:
+        if user["role"] == "client":
+            return redirect(url_for("client_api_keys"))
+        elif user["role"] in ["team_lead", "user"]:
             return redirect(url_for("upload"))
         return redirect(url_for("dashboard"))
+
     
     else:
         # Password Failure
@@ -3767,7 +3771,7 @@ def change_role(user_id):
         abort(403)
 
     new_role = request.form.get("new_role", "").strip()
-    allowed_roles = ["user", "team_lead", "manager", "admin"] if caller_role == "admin" else ["user", "team_lead"]
+    allowed_roles = ["user", "team_lead", "manager", "admin", "client"] if caller_role == "admin" else ["user", "team_lead", "client"]
 
     if new_role not in allowed_roles:
         flash("Invalid role selected.", "danger")
@@ -4238,12 +4242,24 @@ def inbox():
     """, (session["user_id"],))
     notifications_raw = cursor.fetchall()
 
+    # 3. Fetch pending API key requests (for Admin view)
+    api_key_requests_raw = []
+    if role == "admin":
+        cursor.execute("""
+            SELECT k.*, u.username AS client_username, u.email AS client_email
+            FROM public.client_api_keys k
+            JOIN public.users u ON k.user_id = u.id
+            WHERE k.status = 'pending'
+            ORDER BY k.created_at DESC
+        """)
+        api_key_requests_raw = cursor.fetchall()
+
     conn.close()
 
     # Combine into a single feed
     feed = []
     
-    # Process requests
+    # Process profile requests
     for r in requests_raw:
         feed.append({
             "type": "request",
@@ -4267,6 +4283,40 @@ def inbox():
             "reviewed_at": r["reviewed_at"],
             "rejection_reason": r["rejection_reason"]
         })
+
+    # Process API key requests
+    for k in api_key_requests_raw:
+        filters_dict = {}
+        if k.get("filters_json"):
+            try:
+                filters_dict = json.loads(k["filters_json"])
+                filters_dict = {key: val for key, val in filters_dict.items() if val}
+            except Exception:
+                filters_dict = {}
+
+        exp_str = ""
+        if k.get("requested_expiry_date"):
+            exp_str = str(k["requested_expiry_date"])
+        elif k.get("expires_at"):
+            exp_str = str(k["expires_at"]).split()[0]
+        else:
+            exp_str = ""
+
+        feed.append({
+            "type": "api_key_request",
+            "id": k["id"],
+            "user_id": k["user_id"],
+            "client_username": k["client_username"],
+            "client_email": k["client_email"],
+            "key_name": k["key_name"],
+            "key_type": k["key_type"],
+            "filters_dict": filters_dict,
+            "requested_rows_limit": k.get("requested_rows_limit") or 5000,
+            "max_rows_limit": k.get("max_rows_limit") or 5000,
+            "requested_expiry_date": exp_str,
+            "timestamp": k["created_at"],
+            "status": k["status"]
+        })
         
     # Process notifications
     for n in notifications_raw:
@@ -4281,8 +4331,21 @@ def inbox():
             "user_role": n["user_role"]
         })
         
-    # Sort feed descending by timestamp
-    feed.sort(key=lambda x: x["timestamp"], reverse=True)
+    def _sort_key(x):
+        ts = x.get("timestamp")
+        if not ts:
+            return datetime.min.replace(tzinfo=None)
+        if isinstance(ts, str):
+            try:
+                ts = datetime.fromisoformat(ts)
+            except Exception:
+                return datetime.min.replace(tzinfo=None)
+        if hasattr(ts, "tzinfo") and ts.tzinfo is not None:
+            return ts.replace(tzinfo=None)
+        return ts
+
+    # Sort feed descending by timestamp safely without tzinfo mismatch
+    feed.sort(key=_sort_key, reverse=True)
 
     return render_template("inbox.html", feed=feed)
 
@@ -4383,6 +4446,121 @@ def reject_request(req_id):
     log_action(session["user_id"], f"Rejected profile update request #{req_id} for user #{req['user_id']} Reason: {reason}")
 
     return jsonify({"ok": True})
+
+
+# Approve API Key request directly from Admin Inbox
+@app.route("/inbox/api-key/<int:key_id>/approve", methods=["POST"])
+@login_required()
+def inbox_approve_api_key(key_id):
+    """Admin approves an API Key request directly from the Inbox Feed with optional overrides."""
+    if session.get("role") not in ("admin", "manager"):
+        return jsonify({"ok": False, "error": "Unauthorized"}), 403
+
+    override_limit = request.form.get("override_rows_limit", "").strip()
+    override_expiry = request.form.get("override_expiry_date", "").strip()
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    try:
+        cursor.execute("SELECT k.*, u.username FROM public.client_api_keys k JOIN public.users u ON k.user_id = u.id WHERE k.id = %s", (key_id,))
+        key_row = cursor.fetchone()
+
+        if not key_row:
+            conn.close()
+            return jsonify({"ok": False, "error": "API Key request not found."}), 404
+
+        final_limit = int(override_limit) if override_limit.isdigit() else (key_row.get("requested_rows_limit") or 5000)
+
+        from datetime import timedelta
+        if override_expiry:
+            final_expires_at = f"{override_expiry} 23:59:59"
+        elif key_row.get("expires_at"):
+            final_expires_at = str(key_row["expires_at"])
+        else:
+            exp_dt = (datetime.now() + timedelta(days=90)).date()
+            final_expires_at = f"{exp_dt} 23:59:59"
+
+        cursor.execute("""
+            UPDATE public.client_api_keys
+            SET status = 'approved', is_active = 1, max_rows_limit = %s, expires_at = %s, approved_by = %s, approved_at = NOW()
+            WHERE id = %s
+        """, (final_limit, final_expires_at, session["user_id"], key_id))
+        conn.commit()
+
+        exp_display = final_expires_at.split()[0]
+        client_msg = (
+            f"Your {key_row['key_type'].upper()} API Key '{key_row['key_name']}' has been APPROVED by Admin!\n"
+            f"API Key: {key_row['api_key']}\n"
+            f"Max Export Limit: {final_limit:,} rows | Expiry Date: {exp_display}"
+        )
+
+        cursor.execute("""
+            INSERT INTO public.user_notifications (recipient_id, sender_id, message, action_type)
+            VALUES (%s, %s, %s, 'api_key_approval')
+        """, (key_row["user_id"], session["user_id"], client_msg))
+        conn.commit()
+
+        log_action(session["user_id"], f"[ADMIN INBOX] Approved API Key '{key_row['key_name']}' (Key={key_row['api_key']}, Limit={final_limit}) for user '{key_row['username']}'")
+
+        return jsonify({
+            "ok": True,
+            "message": "API Key approved successfully!",
+            "api_key": key_row["api_key"]
+        }), 200
+
+    except Exception as e:
+        conn.rollback()
+        return jsonify({"ok": False, "error": str(e)}), 500
+    finally:
+        conn.close()
+
+
+# Reject API Key request directly from Admin Inbox
+@app.route("/inbox/api-key/<int:key_id>/reject", methods=["POST"])
+@login_required()
+def inbox_reject_api_key(key_id):
+    """Admin rejects an API Key request directly from the Inbox Feed."""
+    if session.get("role") not in ("admin", "manager"):
+        return jsonify({"ok": False, "error": "Unauthorized"}), 403
+
+    reason = request.form.get("reason", "Request rejected by admin.").strip()
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    try:
+        cursor.execute("SELECT k.*, u.username FROM public.client_api_keys k JOIN public.users u ON k.user_id = u.id WHERE k.id = %s", (key_id,))
+        key_row = cursor.fetchone()
+
+        if not key_row:
+            conn.close()
+            return jsonify({"ok": False, "error": "API Key request not found."}), 404
+
+        cursor.execute("""
+            UPDATE client_api_keys
+            SET status = 'rejected', is_active = 0, approved_by = %s, approved_at = NOW()
+            WHERE id = %s
+        """, (session["user_id"], key_id))
+        conn.commit()
+
+        client_msg = f"Your API Key request '{key_row['key_name']}' was REJECTED by Admin. Reason: {reason}"
+
+        cursor.execute("""
+            INSERT INTO user_notifications (recipient_id, sender_id, message, action_type)
+            VALUES (%s, %s, %s, 'api_key_rejection')
+        """, (key_row["user_id"], session["user_id"], client_msg))
+        conn.commit()
+
+        log_action(session["user_id"], f"[ADMIN INBOX] Rejected API Key '{key_row['key_name']}' for user '{key_row['username']}' | Reason: {reason}")
+
+        return jsonify({"ok": True, "message": "API Key request rejected."}), 200
+
+    except Exception as e:
+        conn.rollback()
+        return jsonify({"ok": False, "error": str(e)}), 500
+    finally:
+        conn.close()
 
 
 #Change password
@@ -6613,6 +6791,268 @@ def api_convert_to_master(field_id):
             conn.rollback()
             conn.close()
         return jsonify({"error": f"Migration failed: {str(e)}"}), 500
+
+
+# ── CLIENT & ADMIN API KEY MANAGEMENT ROUTES ──────────────────────────────────
+
+@app.route("/client/api-keys", methods=["GET"])
+@login_required()
+def client_api_keys():
+    """Client API key section: View requested API keys and their approval status."""
+    from datetime import datetime as _datetime
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    try:
+        cursor.execute(
+            "SELECT * FROM client_api_keys WHERE user_id = %s ORDER BY created_at DESC",
+            (session["user_id"],)
+        )
+        keys = cursor.fetchall()
+        
+        for k in keys:
+            if k.get("filters_json"):
+                try:
+                    f_dict = json.loads(k["filters_json"])
+                    f_dict = {key: val for key, val in f_dict.items() if val}
+                    k["filters_summary"] = json.dumps(f_dict) if f_dict else "None (All Records)"
+                except Exception:
+                    k["filters_summary"] = "None"
+            else:
+                k["filters_summary"] = "None (All Records)"
+            
+            if k.get("created_at") and hasattr(k["created_at"], "strftime"):
+                k["created_at"] = k["created_at"].strftime("%Y-%m-%d %H:%M:%S")
+
+    finally:
+        conn.close()
+
+    return render_template("client_api_keys.html", api_keys=keys)
+
+
+@app.route("/client/api-keys/create", methods=["POST"])
+@login_required()
+def client_create_api_key():
+    """Client submits a request for a new import or export API key."""
+    key_name = request.form.get("key_name", "").strip()
+    key_type = request.form.get("key_type", "export").strip().lower()
+
+    if not key_name:
+        flash("API Key Name is required.", "danger")
+        return redirect(url_for("client_api_keys"))
+
+    if key_type not in ("import", "export"):
+        key_type = "export"
+
+    filters = {}
+    if key_type == "export":
+        filter_fields = [
+            "country", "industry", "status", "company", "city",
+            "state", "created_after", "created_before", "sort_by", "sort_order"
+        ]
+        for field in filter_fields:
+            val = request.form.get(f"filter_{field}", "").strip()
+            if val:
+                filters[field] = val
+
+    req_rows_str = request.form.get("requested_rows_limit", "5000").strip()
+    try:
+        requested_rows_limit = int(req_rows_str) if req_rows_str else 5000
+    except ValueError:
+        requested_rows_limit = 5000
+
+    req_exp_str = request.form.get("requested_expiry_date", "").strip()
+    from datetime import timedelta
+    if req_exp_str:
+        requested_expiry_date = req_exp_str
+        expires_at = f"{req_exp_str} 23:59:59"
+    else:
+        exp_dt = (datetime.now() + timedelta(days=90)).date()
+        requested_expiry_date = str(exp_dt)
+        expires_at = f"{str(exp_dt)} 23:59:59"
+
+    filters_json = json.dumps(filters) if filters else None
+    api_key_str = f"ak_live_{secrets.token_hex(20)}"
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    try:
+        cursor.execute("""
+            INSERT INTO client_api_keys (user_id, key_name, key_type, api_key, filters_json, requested_rows_limit, max_rows_limit, requested_expiry_date, expires_at, status, is_active)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 'pending', 0)
+        """, (session["user_id"], key_name, key_type, api_key_str, filters_json, requested_rows_limit, requested_rows_limit, requested_expiry_date, expires_at))
+        conn.commit()
+
+        # Send notification to all Admin users
+        cursor.execute("SELECT id FROM users WHERE role = 'admin'")
+        admins = cursor.fetchall()
+        for admin in admins:
+            cursor.execute("""
+                INSERT INTO user_notifications (recipient_id, sender_id, message, action_type)
+                VALUES (%s, %s, %s, 'api_key_request')
+            """, (
+                admin["id"],
+                session["user_id"],
+                f"Client '{session['username']}' requested a new {key_type.upper()} API Key '{key_name}' (Pending Approval)"
+            ))
+        conn.commit()
+
+        log_action(session["user_id"], f"[CLIENT] Submitted API key request '{key_name}' ({key_type.upper()}) | Pending Admin Approval")
+        flash("API Key request submitted successfully! Status: Pending Admin Approval.", "success")
+
+    except Exception as e:
+        conn.rollback()
+        app.logger.error(f"Error creating API key request: {e}")
+        flash("Error submitting API key request. Please try again.", "danger")
+    finally:
+        conn.close()
+
+    return redirect(url_for("client_api_keys"))
+
+
+@app.route("/admin/api-key-requests", methods=["GET"])
+@login_required()
+def admin_api_key_requests():
+    """Admin page to review, approve, or reject client API key requests."""
+    if session.get("role") not in ("admin", "manager"):
+        flash("Access denied.", "danger")
+        return redirect(url_for("dashboard"))
+
+    status_filter = request.args.get("status", "pending").strip().lower()
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    try:
+        sql = """
+            SELECT k.*, u.username, u.email
+            FROM client_api_keys k
+            JOIN users u ON k.user_id = u.id
+        """
+        params = []
+        if status_filter in ("pending", "approved", "rejected"):
+            sql += " WHERE k.status = %s"
+            params.append(status_filter)
+
+        sql += " ORDER BY k.created_at DESC"
+        cursor.execute(sql, params)
+        requests_list = cursor.fetchall()
+
+        for r in requests_list:
+            if r.get("filters_json"):
+                try:
+                    f_dict = json.loads(r["filters_json"])
+                    f_dict = {key: val for key, val in f_dict.items() if val}
+                    r["filters_summary"] = json.dumps(f_dict) if f_dict else "None (All Records)"
+                except Exception:
+                    r["filters_summary"] = "None"
+            else:
+                r["filters_summary"] = "None (All Records)"
+
+            if r.get("created_at") and hasattr(r["created_at"], "strftime"):
+                r["created_at"] = r["created_at"].strftime("%Y-%m-%d %H:%M:%S")
+
+    finally:
+        conn.close()
+
+    return render_template("admin_api_key_requests.html", requests_list=requests_list, current_status=status_filter)
+
+
+@app.route("/admin/api-key-requests/<int:key_id>/approve", methods=["POST"])
+@login_required()
+def admin_approve_api_key(key_id):
+    """Admin approves a client API key request."""
+    if session.get("role") not in ("admin", "manager"):
+        flash("Access denied.", "danger")
+        return redirect(url_for("dashboard"))
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    try:
+        cursor.execute("SELECT k.*, u.username FROM client_api_keys k JOIN users u ON k.user_id = u.id WHERE k.id = %s", (key_id,))
+        key_row = cursor.fetchone()
+
+        if not key_row:
+            flash("API Key request not found.", "danger")
+            return redirect(url_for("admin_api_key_requests"))
+
+        cursor.execute("""
+            UPDATE client_api_keys
+            SET status = 'approved', is_active = 1, approved_by = %s, approved_at = NOW()
+            WHERE id = %s
+        """, (session["user_id"], key_id))
+        conn.commit()
+
+        cursor.execute("""
+            INSERT INTO user_notifications (recipient_id, sender_id, message, action_type)
+            VALUES (%s, %s, %s, 'api_key_approval')
+        """, (
+            key_row["user_id"],
+            session["user_id"],
+            f"Your API Key request '{key_row['key_name']}' has been APPROVED by Admin!"
+        ))
+        conn.commit()
+
+        log_action(session["user_id"], f"[ADMIN] Approved API Key '{key_row['key_name']}' (id={key_id}) for user '{key_row['username']}'")
+        flash(f"API Key '{key_row['key_name']}' has been APPROVED!", "success")
+
+    except Exception as e:
+        conn.rollback()
+        flash(f"Error approving API Key: {e}", "danger")
+    finally:
+        conn.close()
+
+    return redirect(url_for("admin_api_key_requests"))
+
+
+@app.route("/admin/api-key-requests/<int:key_id>/reject", methods=["POST"])
+@login_required()
+def admin_reject_api_key(key_id):
+    """Admin rejects a client API key request."""
+    if session.get("role") not in ("admin", "manager"):
+        flash("Access denied.", "danger")
+        return redirect(url_for("dashboard"))
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    try:
+        cursor.execute("SELECT k.*, u.username FROM client_api_keys k JOIN users u ON k.user_id = u.id WHERE k.id = %s", (key_id,))
+        key_row = cursor.fetchone()
+
+        if not key_row:
+            flash("API Key request not found.", "danger")
+            return redirect(url_for("admin_api_key_requests"))
+
+        cursor.execute("""
+            UPDATE client_api_keys
+            SET status = 'rejected', is_active = 0, approved_by = %s, approved_at = NOW()
+            WHERE id = %s
+        """, (session["user_id"], key_id))
+        conn.commit()
+
+        cursor.execute("""
+            INSERT INTO user_notifications (recipient_id, sender_id, message, action_type)
+            VALUES (%s, %s, %s, 'api_key_rejection')
+        """, (
+            key_row["user_id"],
+            session["user_id"],
+            f"Your API Key request '{key_row['key_name']}' was REJECTED by Admin."
+        ))
+        conn.commit()
+
+        log_action(session["user_id"], f"[ADMIN] Rejected API Key '{key_row['key_name']}' (id={key_id}) for user '{key_row['username']}'")
+        flash(f"API Key '{key_row['key_name']}' rejected.", "warning")
+
+    except Exception as e:
+        conn.rollback()
+        flash(f"Error rejecting API Key: {e}", "danger")
+    finally:
+        conn.close()
+
+    return redirect(url_for("admin_api_key_requests"))
+
 
 if __name__ == "__main__":
     app.run(debug=True)
