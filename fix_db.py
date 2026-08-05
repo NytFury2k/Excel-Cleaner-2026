@@ -6,11 +6,11 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-HOST = os.environ.get("SUPABASE_DB_HOST", "127.0.0.1")
-USER = os.environ.get("SUPABASE_DB_USER", "postgres")
-PASSWORD = os.environ.get("SUPABASE_DB_PASSWORD", "")
-DATABASE = os.environ.get("SUPABASE_DB_NAME", "postgres")
-PORT = os.environ.get("SUPABASE_DB_PORT", "5432")
+HOST = os.environ.get("POSTGRES_DB_HOST") or os.environ.get("SUPABASE_DB_HOST") or os.environ.get("DB_HOST", "127.0.0.1")
+USER = os.environ.get("POSTGRES_DB_USER") or os.environ.get("SUPABASE_DB_USER") or os.environ.get("DB_USER", "postgres")
+PASSWORD = os.environ.get("POSTGRES_DB_PASSWORD") or os.environ.get("SUPABASE_DB_PASSWORD") or os.environ.get("DB_PASSWORD", "")
+DATABASE = os.environ.get("POSTGRES_DB_NAME") or os.environ.get("SUPABASE_DB_NAME") or os.environ.get("DB_NAME", "excel_cleaner_db")
+PORT = os.environ.get("POSTGRES_DB_PORT") or os.environ.get("SUPABASE_DB_PORT") or os.environ.get("DB_PORT", "5432")
 
 sql_statements = [
     """
@@ -26,7 +26,10 @@ sql_statements = [
         created_by INT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         status VARCHAR(50) DEFAULT 'active',
-        deactivated_at TIMESTAMP NULL
+        deactivated_at TIMESTAMP NULL,
+        phone_number VARCHAR(100) NULL,
+        address TEXT NULL,
+        export_limit INT DEFAULT 50000
     )
     """,
     """
@@ -103,27 +106,6 @@ sql_statements = [
         file_id INT NOT NULL REFERENCES uploaded_files(id) ON DELETE CASCADE,
         first_name VARCHAR(255) NULL,
         last_name VARCHAR(255) NULL,
-        email_address VARCHAR(255) NULL,
-        primary_phone_number VARCHAR(100) NULL,
-        alternate_phone_number VARCHAR(100) NULL,
-        company_name VARCHAR(255) NULL,
-        job_title VARCHAR(255) NULL,
-        department VARCHAR(255) NULL,
-        website_url VARCHAR(255) NULL,
-        address_line_1 VARCHAR(255) NULL,
-        address_line_2 VARCHAR(255) NULL,
-        city VARCHAR(255) NULL,
-        state_province VARCHAR(255) NULL,
-        postal_zip_code VARCHAR(100) NULL,
-        country VARCHAR(255) NULL,
-        linkedin_profile_url VARCHAR(255) NULL,
-        industry VARCHAR(255) NULL,
-        lead_source VARCHAR(255) NULL,
-        record_status VARCHAR(100) NULL,
-        date_of_birth VARCHAR(100) NULL,
-        gender VARCHAR(50) NULL,
-        company_size VARCHAR(100) NULL,
-        annual_revenue VARCHAR(100) NULL,
         custom_fields JSONB NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -191,6 +173,64 @@ sql_statements = [
         permission_id INT NOT NULL REFERENCES permissions(id) ON DELETE CASCADE,
         UNIQUE (role_id, permission_id)
     )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS user_change_requests (
+        id SERIAL PRIMARY KEY,
+        user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        username VARCHAR(255) NULL,
+        email VARCHAR(255) NULL,
+        phone_number VARCHAR(100) NULL,
+        address TEXT NULL,
+        status VARCHAR(50) DEFAULT 'pending',
+        requested_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        approved_by INT NULL,
+        approved_at TIMESTAMP NULL
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS user_notifications (
+        id SERIAL PRIMARY KEY,
+        recipient_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        sender_id INT NULL REFERENCES users(id) ON DELETE SET NULL,
+        message TEXT NOT NULL,
+        action_type VARCHAR(100) NULL,
+        is_read BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS role_export_limits (
+        role_name VARCHAR(50) PRIMARY KEY,
+        default_limit INT NOT NULL
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS user_daily_exports (
+        user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        export_date DATE NOT NULL,
+        rows_count INT NOT NULL,
+        PRIMARY KEY (user_id, export_date)
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS client_api_keys (
+        id SERIAL PRIMARY KEY,
+        user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        key_name VARCHAR(255) NOT NULL,
+        key_type VARCHAR(100) NULL,
+        api_key VARCHAR(255) NOT NULL UNIQUE,
+        filters_json TEXT NULL,
+        requested_rows_limit INT NULL,
+        max_rows_limit INT NULL,
+        requested_expiry_date DATE NULL,
+        expires_at TIMESTAMP NULL,
+        status VARCHAR(50) DEFAULT 'pending',
+        is_active SMALLINT DEFAULT 1,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        approved_by INT NULL,
+        approved_at TIMESTAMP NULL
+    )
     """
 ]
 
@@ -198,10 +238,6 @@ sql_statements = [
 sql_statements.extend([
     "CREATE INDEX IF NOT EXISTS idx_first_name ON master_records(first_name)",
     "CREATE INDEX IF NOT EXISTS idx_last_name ON master_records(last_name)",
-    "CREATE INDEX IF NOT EXISTS idx_email ON master_records(email_address)",
-    "CREATE INDEX IF NOT EXISTS idx_phone ON master_records(primary_phone_number)",
-    "CREATE INDEX IF NOT EXISTS idx_company ON master_records(company_name)",
-    "CREATE INDEX IF NOT EXISTS idx_city ON master_records(city)",
     "CREATE INDEX IF NOT EXISTS idx_login_username_time ON login_attempts(username, attempted_at)",
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS role_id INT NULL REFERENCES roles(id) ON DELETE SET NULL",
     # Trigger function for auto-updating updated_at columns
@@ -254,6 +290,11 @@ try:
         cur.execute("DROP TABLE IF EXISTS login_attempts CASCADE")
         cur.execute("DROP TABLE IF EXISTS cleaning_jobs CASCADE")
         cur.execute("DROP TABLE IF EXISTS search_logs CASCADE")
+        cur.execute("DROP TABLE IF EXISTS user_change_requests CASCADE")
+        cur.execute("DROP TABLE IF EXISTS user_notifications CASCADE")
+        cur.execute("DROP TABLE IF EXISTS role_export_limits CASCADE")
+        cur.execute("DROP TABLE IF EXISTS user_daily_exports CASCADE")
+        cur.execute("DROP TABLE IF EXISTS client_api_keys CASCADE")
         cur.execute("DROP TABLE IF EXISTS users CASCADE")
         conn.commit()
     except Exception:
@@ -271,12 +312,24 @@ try:
             ('admin', '$2b$12$UOQzAAufKsipUFuIlH8JHu2RZHYQ7rL6Xe9fHC27F6SYn1iOTZvRi', 'admin')
         )
 
-    # Seed Default Custom Fields in Registry
-    default_fields = [
-        {"name": "Passport Number", "norm": "passport_number", "type": "VARCHAR"},
-        {"name": "Blood Group", "norm": "blood_group", "type": "VARCHAR"},
-        {"name": "National ID", "norm": "national_id", "type": "VARCHAR"}
+    # Seed default role export limits
+    default_limits = [
+        ('admin', 50000),
+        ('manager', 50000),
+        ('team_lead', 50000),
+        ('user', 50000),
+        ('client', 50000)
     ]
+    for role, limit in default_limits:
+        cur.execute("SELECT COUNT(*) FROM role_export_limits WHERE role_name = %s", (role,))
+        if cur.fetchone()[0] == 0:
+            cur.execute(
+                "INSERT INTO role_export_limits (role_name, default_limit) VALUES (%s, %s)",
+                (role, limit)
+            )
+
+    # Seed Default Custom Fields in Registry (started completely blank)
+    default_fields = []
     
     registered_fields = {}
     for f in default_fields:
@@ -336,10 +389,7 @@ try:
         ("Gender", "master", "gender"),
         ("Company Size", "master", "company_size"),
         ("Annual Revenue", "master", "annual_revenue"),
-        ("Imported By", "master", "imported_by"),
-        ("Passport No", "custom", "passport_number"),
-        ("Passport", "custom", "passport_number"),
-        ("Blood Type", "custom", "blood_group")
+        ("Imported By", "master", "imported_by")
     ]
 
     for alias, t_type, t_id in default_aliases:

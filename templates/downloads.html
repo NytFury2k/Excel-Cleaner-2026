@@ -636,6 +636,9 @@
                       onerror="this.src='https://cdn-icons-png.flaticon.com/512/3222/3222681.png'">
                     Bulk Enrich
                   </button>
+                  <button type="button" class="btn btn-danger btn-sm fw-semibold me-2" id="deleteFilteredBtn">
+                    <i class="bi bi-trash me-1"></i>Delete Filtered Records
+                  </button>
                   <button type="button" class="btn btn-success btn-sm fw-semibold" id="exportFilteredBtn">Export
                     Filtered Records</button>
                 </div>
@@ -1397,13 +1400,22 @@
             });
           }
 
-          const exportFilteredBtn = document.getElementById("exportFilteredBtn");
-          if (exportFilteredBtn) {
-            exportFilteredBtn.addEventListener("click", function () {
-              const name = document.getElementById("filterName").value.trim();
-              const email = document.getElementById("filterEmail").value.trim();
-              const phone = document.getElementById("filterPhone").value.trim();
-              const company = document.getElementById("filterCompany").value.trim();
+
+
+                    // ── Delete Filtered Records Logic ────────────────────────────────────────
+          const deleteFilteredBtn = document.getElementById("deleteFilteredBtn");
+          if (deleteFilteredBtn) {
+            deleteFilteredBtn.addEventListener("click", function () {
+              const confirmMsg = "WARNING: Are you sure you want to delete the filtered records matching the current criteria? This action cannot be undone.";
+              if (!confirm(confirmMsg)) return;
+
+              // Build query params/filters
+              const queryParams = {
+                name: document.getElementById("filterName").value.trim(),
+                email: document.getElementById("filterEmail").value.trim(),
+                phone: document.getElementById("filterPhone").value.trim(),
+                company: document.getElementById("filterCompany").value.trim()
+              };
 
               const customFilters = [];
               document.querySelectorAll(".custom-filter-row").forEach(row => {
@@ -1413,14 +1425,7 @@
                   customFilters.push({ id: fid, val: val });
                 }
               });
-
-              const queryParams = {
-                name: name,
-                email: email,
-                phone: phone,
-                company: company,
-                custom_filters: JSON.stringify(customFilters)
-              };
+              queryParams.custom_filters = JSON.stringify(customFilters);
 
               const moreFields = [
                 { id: "filterAlternatePhone", param: "alternate_phone_number" },
@@ -1457,9 +1462,254 @@
                 queryParams["missing_field"] = window.selectedMissingField;
               }
 
-              const params = new URLSearchParams(queryParams);
-              window.location.href = `/api/records/export?${params.toString()}`;
+              deleteFilteredBtn.disabled = true;
+              deleteFilteredBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Deleting...';
+
+              fetch("/api/records/delete-filtered", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(queryParams)
+              })
+                .then(res => {
+                  if (!res.ok) throw new Error("Delete request failed");
+                  return res.json();
+                })
+                .then(data => {
+                  if (data.success) {
+                    alert(`Successfully deleted ${data.deleted_count} records.`);
+                    fetchRecords(1);
+                  } else {
+                    alert("Failed to delete records: " + (data.error || "Unknown error"));
+                  }
+                })
+                .catch(err => {
+                  console.error(err);
+                  alert("An error occurred while deleting records.");
+                })
+                .finally(() => {
+                  deleteFilteredBtn.disabled = false;
+                  deleteFilteredBtn.innerHTML = '<i class="bi bi-trash me-1"></i>Delete Filtered Records';
+                });
             });
+          }
+
+          // ── Export Filtered Records Modal Logic ──────────────────────────────────
+          const exportFilteredBtn = document.getElementById("exportFilteredBtn");
+          const columnsModalEl = document.getElementById("exportColumnsModal");
+          const columnsModal = columnsModalEl ? new bootstrap.Modal(columnsModalEl) : null;
+          const listContainer = document.getElementById("exportColumnsList");
+          let exportQueryParams = null;
+
+          if (exportFilteredBtn) {
+            exportFilteredBtn.addEventListener("click", function () {
+              // Capture filters
+              exportQueryParams = {
+                name: document.getElementById("filterName").value.trim(),
+                email: document.getElementById("filterEmail").value.trim(),
+                phone: document.getElementById("filterPhone").value.trim(),
+                company: document.getElementById("filterCompany").value.trim()
+              };
+
+              const customFilters = [];
+              document.querySelectorAll(".custom-filter-row").forEach(row => {
+                const fid = row.querySelector(".custom-filter-field").value;
+                const val = row.querySelector(".custom-filter-val").value.trim();
+                if (fid && val) {
+                  customFilters.push({ id: fid, val: val });
+                }
+              });
+              exportQueryParams.custom_filters = JSON.stringify(customFilters);
+
+              const moreFields = [
+                { id: "filterAlternatePhone", param: "alternate_phone_number" },
+                { id: "filterJobTitle", param: "job_title" },
+                { id: "filterDepartment", param: "department" },
+                { id: "filterWebsiteUrl", param: "website_url" },
+                { id: "filterAddress1", param: "address_line_1" },
+                { id: "filterAddress2", param: "address_line_2" },
+                { id: "filterCity", param: "city" },
+                { id: "filterStateProvince", param: "state_province" },
+                { id: "filterPostalZip", param: "postal_zip_code" },
+                { id: "filterCountry", param: "country" },
+                { id: "filterLinkedIn", param: "linkedin_profile_url" },
+                { id: "filterIndustry", param: "industry" },
+                { id: "filterLeadSource", param: "lead_source" },
+                { id: "filterRecordStatus", param: "record_status" },
+                { id: "filterDOB", param: "date_of_birth" },
+                { id: "filterGender", param: "gender" },
+                { id: "filterCompanySize", param: "company_size" },
+                { id: "filterAnnualRevenue", param: "annual_revenue" }
+              ];
+
+              moreFields.forEach(f => {
+                const el = document.getElementById(f.id);
+                if (el) {
+                  const val = el.value.trim();
+                  if (val) {
+                    exportQueryParams[f.param] = val;
+                  }
+                }
+              });
+
+              if (window.selectedMissingField) {
+                exportQueryParams["missing_field"] = window.selectedMissingField;
+              }
+
+              // Show Modal and load columns
+              if (columnsModal) {
+                columnsModal.show();
+                loadColumnsForExport();
+              }
+            });
+          }
+
+          function loadColumnsForExport() {
+            if (!listContainer) return;
+            listContainer.innerHTML = `
+              <div class="text-center py-4">
+                <div class="spinner-border text-success" role="status">
+                  <span class="visually-hidden">Loading columns...</span>
+                </div>
+              </div>
+            `;
+
+            fetch("/api/export/columns")
+              .then(res => {
+                if (!res.ok) throw new Error("Failed to load columns");
+                return res.json();
+              })
+              .then(data => {
+                listContainer.innerHTML = "";
+                
+                // data is a list of objects: { id: "col_name", name: "Column Label" }
+                data.forEach(col => {
+                  const item = document.createElement("div");
+                  item.className = "list-group-item d-flex align-items-center justify-content-between py-2 px-3 column-sort-item cursor-grab";
+                  item.draggable = true;
+                  item.innerHTML = `
+                    <div class="d-flex align-items-center gap-2">
+                      <i class="bi bi-grip-vertical text-muted"></i>
+                      <input type="checkbox" class="form-check-input column-export-checkbox" value="${col.id}" checked id="chk_col_${col.id}">
+                      <label class="form-check-label small fw-medium mb-0" for="chk_col_${col.id}">${col.name}</label>
+                    </div>
+                    <div class="d-flex align-items-center gap-1">
+                      <button type="button" class="btn btn-link btn-sm text-secondary p-0 btn-move-up" title="Move Up" style="text-decoration:none;"><i class="bi bi-chevron-up"></i></button>
+                      <button type="button" class="btn btn-link btn-sm text-secondary p-0 btn-move-down" title="Move Down" style="text-decoration:none;"><i class="bi bi-chevron-down"></i></button>
+                    </div>
+                  `;
+                  listContainer.appendChild(item);
+                });
+                
+                initReorderingLogic(listContainer);
+              })
+              .catch(err => {
+                console.error(err);
+                listContainer.innerHTML = `<div class="p-3 text-danger text-center small">Failed to load columns list.</div>`;
+              });
+          }
+
+          function initReorderingLogic(container) {
+            const items = container.querySelectorAll('.column-sort-item');
+            
+            items.forEach(item => {
+              item.addEventListener('dragstart', () => {
+                setTimeout(() => item.classList.add('dragging'), 0);
+              });
+              
+              item.addEventListener('dragend', () => {
+                item.classList.remove('dragging');
+              });
+              
+              // Move Up/Down button events
+              const upBtn = item.querySelector('.btn-move-up');
+              const downBtn = item.querySelector('.btn-move-down');
+              
+              if (upBtn) {
+                upBtn.addEventListener('click', (e) => {
+                  e.preventDefault();
+                  const prev = item.previousElementSibling;
+                  if (prev) {
+                    container.insertBefore(item, prev);
+                  }
+                });
+              }
+              
+              if (downBtn) {
+                downBtn.addEventListener('click', (e) => {
+                  e.preventDefault();
+                  const next = item.nextElementSibling;
+                  if (next) {
+                    container.insertBefore(next, item);
+                  }
+                });
+              }
+            });
+            
+            container.addEventListener('dragover', (e) => {
+              e.preventDefault();
+              const draggingItem = container.querySelector('.dragging');
+              if (!draggingItem) return;
+              
+              const siblings = [...container.querySelectorAll('.column-sort-item:not(.dragging)')];
+              const nextSibling = siblings.find(sibling => {
+                const box = sibling.getBoundingClientRect();
+                return e.clientY <= box.top + box.height / 2;
+              });
+              
+              container.insertBefore(draggingItem, nextSibling);
+            });
+          }
+
+          function initExportModalButtons() {
+            const btnSelectAll = document.getElementById("btnSelectAllCols");
+            const btnDeselectAll = document.getElementById("btnDeselectAllCols");
+            const btnConfirmExport = document.getElementById("btnConfirmExport");
+            
+            if (btnSelectAll) {
+              btnSelectAll.addEventListener("click", function() {
+                document.querySelectorAll(".column-export-checkbox").forEach(chk => chk.checked = true);
+              });
+            }
+            
+            if (btnDeselectAll) {
+              btnDeselectAll.addEventListener("click", function() {
+                document.querySelectorAll(".column-export-checkbox").forEach(chk => chk.checked = false);
+              });
+            }
+            
+            if (btnConfirmExport) {
+              btnConfirmExport.addEventListener("click", function() {
+                const selectedCols = [];
+                document.querySelectorAll(".column-sort-item").forEach(item => {
+                  const chk = item.querySelector(".column-export-checkbox");
+                  if (chk && chk.checked) {
+                    selectedCols.push(chk.value);
+                  }
+                });
+                
+                if (selectedCols.length === 0) {
+                  alert("Please select at least one column to export.");
+                  return;
+                }
+                
+                if (exportQueryParams) {
+                  exportQueryParams["export_cols"] = selectedCols.join(",");
+                  const params = new URLSearchParams(exportQueryParams);
+                  
+                  if (columnsModal) {
+                    columnsModal.hide();
+                  }
+                  
+                  window.location.href = `/api/records/export?${params.toString()}`;
+                }
+              });
+            }
+          }
+
+          if (document.readyState === "loading") {
+            document.addEventListener("DOMContentLoaded", initExportModalButtons);
+          } else {
+            initExportModalButtons();
           }
 
           // ── Fetch & Render Master Records ────────────────────────────────────────
@@ -2470,6 +2720,55 @@
           });
         }
       </script>
+      <!-- Export Columns Modal -->
+      <div class="modal fade" id="exportColumnsModal" tabindex="-1" aria-labelledby="exportColumnsModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+          <div class="modal-content shadow-lg border-0" style="border-radius: 12px;">
+            <div class="modal-header bg-success text-white" style="border-top-left-radius: 12px; border-top-right-radius: 12px;">
+              <h5 class="modal-title fw-bold" id="exportColumnsModalLabel">
+                <i class="bi bi-file-earmark-excel me-2"></i>Select Export Columns
+              </h5>
+              <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+              <p class="text-muted small mb-3">Choose the columns you want to export. Drag and drop items to reorder them.</p>
+              
+              <div class="d-flex justify-content-between align-items-center mb-3">
+                <span class="fw-bold text-dark small">Columns Selection</span>
+                <div>
+                  <button type="button" class="btn btn-xs btn-outline-secondary me-1 py-0.5 px-2" id="btnSelectAllCols" style="font-size: 0.75rem;">Select All</button>
+                  <button type="button" class="btn btn-xs btn-outline-secondary py-0.5 px-2" id="btnDeselectAllCols" style="font-size: 0.75rem;">Clear All</button>
+                </div>
+              </div>
+              
+              <!-- Draggable Sortable List -->
+              <div id="exportColumnsList" class="list-group list-group-flush border rounded overflow-auto" style="max-height: 300px;">
+                <!-- Loaded dynamically -->
+              </div>
+            </div>
+            <div class="modal-footer bg-light p-3" style="border-bottom-left-radius: 12px; border-bottom-right-radius: 12px;">
+              <button type="button" class="btn btn-secondary px-3 py-1.5 btn-sm fw-semibold" data-bs-dismiss="modal" style="border-radius: 6px;">Cancel</button>
+              <button type="button" class="btn btn-success px-4 py-1.5 btn-sm fw-semibold" id="btnConfirmExport" style="border-radius: 6px;">
+                <i class="bi bi-download me-1"></i>Download Excel
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <style>
+      .column-sort-item.dragging {
+        opacity: 0.5;
+        background-color: #f8f9fa !important;
+        border: 1px dashed #198754 !important;
+      }
+      .cursor-grab {
+        cursor: grab;
+      }
+      .cursor-grab:active {
+        cursor: grabbing;
+      }
+      </style>
 </body>
 
 </html>

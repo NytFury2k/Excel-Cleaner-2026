@@ -2016,28 +2016,7 @@ def choose_rules():
     custom_fields_registry = []
     master_fields = [
         {"name": "First Name", "identifier": "first_name", "type": "text"},
-        {"name": "Last Name", "identifier": "last_name", "type": "text"},
-        {"name": "Email Address", "identifier": "email_address", "type": "email"},
-        {"name": "Primary Phone Number", "identifier": "primary_phone_number", "type": "phone"},
-        {"name": "Alternate Phone Number", "identifier": "alternate_phone_number", "type": "phone"},
-        {"name": "Company Name", "identifier": "company_name", "type": "text"},
-        {"name": "Job Title", "identifier": "job_title", "type": "text"},
-        {"name": "Department", "identifier": "department", "type": "text"},
-        {"name": "Website URL", "identifier": "website_url", "type": "url"},
-        {"name": "Address Line 1", "identifier": "address_line_1", "type": "text"},
-        {"name": "Address Line 2", "identifier": "address_line_2", "type": "text"},
-        {"name": "City", "identifier": "city", "type": "text"},
-        {"name": "State / Province", "identifier": "state_province", "type": "text"},
-        {"name": "Postal / ZIP Code", "identifier": "postal_zip_code", "type": "text"},
-        {"name": "Country", "identifier": "country", "type": "text"},
-        {"name": "LinkedIn Profile URL", "identifier": "linkedin_profile_url", "type": "url"},
-        {"name": "Industry", "identifier": "industry", "type": "text"},
-        {"name": "Lead Source", "identifier": "lead_source", "type": "text"},
-        {"name": "Record Status", "identifier": "record_status", "type": "text"},
-        {"name": "Date of Birth", "identifier": "date_of_birth", "type": "date"},
-        {"name": "Gender", "identifier": "gender", "type": "text"},
-        {"name": "Company Size", "identifier": "company_size", "type": "text"},
-        {"name": "Annual Revenue", "identifier": "annual_revenue", "type": "numeric"}
+        {"name": "Last Name", "identifier": "last_name", "type": "text"}
     ]
 
     sheet_data = []
@@ -2163,11 +2142,7 @@ def clean_data():
     # Read master rules configurations from form
     master_rules_saved = {}
     master_fields_ids = [
-        "first_name", "last_name", "email_address", "primary_phone_number", "alternate_phone_number",
-        "company_name", "job_title", "department", "website_url", "address_line_1",
-        "address_line_2", "city", "state_province", "postal_zip_code", "country",
-        "linkedin_profile_url", "industry", "lead_source", "record_status", "date_of_birth",
-        "gender", "company_size", "annual_revenue"
+        "first_name", "last_name"
     ]
     for col_name in master_fields_ids:
         rules_list = request.form.getlist(f"rules_master_{col_name}[]")
@@ -2396,17 +2371,10 @@ def clean_data():
 
     if store_in_db:
         # Master field identifier → DB column name (1-to-1 match by convention)
-        MASTER_FIELD_IDENTIFIERS = {
-            "first_name", "last_name", "email_address", "primary_phone_number", "alternate_phone_number",
-            "company_name", "job_title", "department", "website_url", "address_line_1",
-            "address_line_2", "city", "state_province", "postal_zip_code", "country",
-            "linkedin_profile_url", "industry", "lead_source", "record_status",
-            "date_of_birth", "gender", "company_size", "annual_revenue"
-        }
+        MASTER_FIELD_IDENTIFIERS = {"first_name", "last_name"}
 
         # Build per-sheet column → master_field mapping from form data
-        # map_col_{sheet_id}_{safe_col} = "master:<identifier>" or "custom:<id>" or "ignore"
-        sheet_col_mappings = {}  # { sheet_id: { original_col: master_identifier or None } }
+        sheet_col_mappings = {}  # { sheet_id: { original_col: target_identifier } }
         for sheet in uploaded_sheets:
             sid = sheet["sheet_id"]
             sheet_col_mappings[sid] = {}
@@ -2417,14 +2385,17 @@ def clean_data():
                         safe_col = col.replace(" ", "_")
                         target = request.form.get(f"map_col_{sid}_{safe_col}") or \
                                  request.form.get(f"map_col_{safe_col}")
-                        if target and target.startswith("master:"):
-                            master_id = target.split("master:")[1]
-                            if master_id in MASTER_FIELD_IDENTIFIERS:
-                                sheet_col_mappings[sid][col] = master_id
+                        if target and (target.startswith("master:") or target.startswith("custom:")):
+                            sheet_col_mappings[sid][col] = target
 
         try:
             conn_store = get_db_connection()
-            cursor_store = conn_store.cursor()
+            cursor_store = conn_store.cursor(dictionary=True)
+            
+            # Dynamically fetch existing columns of master_records table
+            cursor_store.execute("SELECT column_name FROM information_schema.columns WHERE table_name = 'master_records' AND table_schema = 'public'")
+            db_cols = {row['column_name'] for row in cursor_store.fetchall()}
+            
             from datetime import datetime as _dt
             imported_by = session.get("username") or str(session.get("user_id", "unknown"))
             now = _dt.utcnow()
@@ -2433,47 +2404,51 @@ def clean_data():
                 sid = sheet["sheet_id"]
                 mapping = sheet_col_mappings.get(sid, {})
                 if not mapping:
-                    continue  # no master columns mapped for this sheet — skip
+                    continue  # no columns mapped for this sheet — skip
 
                 cleaned = res["cleaned_df"]
                 for _, row in cleaned.iterrows():
-                    record = {field: None for field in MASTER_FIELD_IDENTIFIERS}
-                    for col, master_id in mapping.items():
+                    record = {}
+                    custom_data = {}
+                    for col, target in mapping.items():
                         val = row.get(col)
                         if val is not None and str(val).strip() not in ("", "nan", "NaT"):
-                            if master_id == "full_name":
-                                name_val = str(val).strip()
-                                parts = name_val.split(None, 1)
-                                if len(parts) > 0:
-                                    record['first_name'] = parts[0]
-                                if len(parts) > 1:
-                                    record['last_name'] = parts[1]
-                            else:
-                                record[master_id] = str(val).strip()
+                            val_str = str(val).strip()
+                            if target.startswith("master:"):
+                                master_id = target.split("master:")[1]
+                                if master_id == "full_name":
+                                    parts = val_str.split(None, 1)
+                                    if len(parts) > 0:
+                                        record['first_name'] = parts[0]
+                                    if len(parts) > 1:
+                                        record['last_name'] = parts[1]
+                                else:
+                                    record[master_id] = val_str
+                            elif target.startswith("custom:"):
+                                fid = target.split("custom:")[1]
+                                custom_data[fid] = val_str
 
-                    cursor_store.execute("""
-                        INSERT INTO master_records (
-                            file_id, first_name, last_name, email_address, primary_phone_number,
-                            alternate_phone_number, company_name, job_title, department,
-                            website_url, address_line_1, address_line_2, city, state_province,
-                            postal_zip_code, country, linkedin_profile_url, industry,
-                            lead_source, record_status, date_of_birth, gender,
-                            company_size, annual_revenue, created_at, updated_at, imported_by
-                        ) VALUES (
-                            %s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s
-                        )
-                    """, (
-                        sheet.get("file_id", 0),
-                        record.get("first_name"), record.get("last_name"), record["email_address"],
-                        record["primary_phone_number"], record["alternate_phone_number"],
-                        record["company_name"], record["job_title"], record["department"],
-                        record["website_url"], record["address_line_1"], record["address_line_2"],
-                        record["city"], record["state_province"], record["postal_zip_code"],
-                        record["country"], record["linkedin_profile_url"], record["industry"],
-                        record["lead_source"], record["record_status"], record["date_of_birth"],
-                        record["gender"], record["company_size"], record["annual_revenue"],
-                        now, now, imported_by
-                    ))
+                    # Build dynamic insert columns and values
+                    cols_to_insert = ['file_id', 'created_at', 'updated_at', 'imported_by']
+                    vals_to_insert = [sheet.get("file_id", 0), now, now, imported_by]
+
+                    # Add mapped record fields that exist in the database table
+                    for col_name, col_val in record.items():
+                        if col_name in db_cols and col_name not in ('id', 'file_id', 'created_at', 'updated_at', 'imported_by', 'custom_fields'):
+                            cols_to_insert.append(col_name)
+                            vals_to_insert.append(col_val)
+
+                    # Add custom_fields JSON
+                    if 'custom_fields' in db_cols:
+                        cols_to_insert.append('custom_fields')
+                        vals_to_insert.append(json.dumps(custom_data) if custom_data else None)
+
+                    # Build insert sql
+                    placeholders = ", ".join(["%s"] * len(vals_to_insert))
+                    col_names_escaped = [f'"{c}"' for c in cols_to_insert]
+                    insert_sql = f"INSERT INTO master_records ({', '.join(col_names_escaped)}) VALUES ({placeholders})"
+                    
+                    cursor_store.execute(insert_sql, vals_to_insert)
                     db_stored_count += 1
 
             conn_store.commit()
@@ -3364,17 +3339,26 @@ def manage_users():
         flash("Access denied.", "warning")
         return redirect(url_for("dashboard"))
 
+    page = request.args.get("page", 1, type=int) or 1
+    page = max(1, page)
+    per_page = 25
+
     users = []
     available_admins = []
     available_managers = []
     available_tls = []
     role_limits_error = False
     role_limits = {
-        "admin": 1000000,
-        "manager": 100000,
+        "admin": 50000,
+        "manager": 50000,
         "team_lead": 50000,
         "user": 50000,
     }
+    
+    total_users = 0
+    total_pages = 1
+    start = 0
+    end = 0
 
     conn = None
     try:
@@ -3392,16 +3376,27 @@ def manage_users():
         """
 
         if caller_role == "admin":
-            cursor.execute(f"{base_select} ORDER BY u.username ASC")
-            users = cursor.fetchall()
-        else:  # manager
+            cursor.execute("SELECT COUNT(*) AS total FROM users")
+            total_users = cursor.fetchone()["total"]
+        else:
             visible_ids = get_visible_user_ids(cursor, role="manager", user_id=caller_id)
+            total_users = len(visible_ids) if visible_ids else 0
+
+        offset = (page - 1) * per_page
+        if caller_role == "admin":
+            cursor.execute(f"{base_select} ORDER BY u.username ASC LIMIT %s OFFSET %s", (per_page, offset))
+            users = cursor.fetchall()
+        else:
             if visible_ids:
                 placeholders = ",".join(["%s"] * len(visible_ids))
-                cursor.execute(f"{base_select} WHERE u.id IN ({placeholders}) ORDER BY u.username ASC", visible_ids)
+                cursor.execute(f"{base_select} WHERE u.id IN ({placeholders}) ORDER BY u.username ASC LIMIT %s OFFSET %s", visible_ids + [per_page, offset])
                 users = cursor.fetchall()
             else:
                 users = []
+
+        total_pages = max(1, (total_users + per_page - 1) // per_page)
+        start = (page - 1) * per_page + 1 if total_users > 0 else 0
+        end = min(page * per_page, total_users)
 
         # Dropdown lists for management form
         if caller_role == "admin":
@@ -3430,15 +3425,15 @@ def manage_users():
         except Exception:
             role_limits_error = True
             role_limits = {
-                "admin": 1000000,
-                "manager": 100000,
+                "admin": 50000,
+                "manager": 50000,
                 "team_lead": 50000,
                 "user": 50000,
             }
 
         for r in ['admin', 'manager', 'team_lead', 'user']:
             if r not in role_limits:
-                role_limits[r] = 1000000 if r == 'admin' else (100000 if r == 'manager' else 50000)
+                role_limits[r] = 50000
 
     except Exception as exc:
         app.logger.exception("Failed to load manage users page")
@@ -3449,8 +3444,8 @@ def manage_users():
         available_managers = []
         available_tls = []
         role_limits = {
-            "admin": 1000000,
-            "manager": 100000,
+            "admin": 50000,
+            "manager": 50000,
             "team_lead": 50000,
             "user": 50000,
         }
@@ -3460,6 +3455,9 @@ def manage_users():
                 conn.close()
             except Exception:
                 pass
+
+    def pagination_url(p):
+        return url_for("manage_users", page=p)
 
     return render_template(
         "admin_users.html",
@@ -3472,6 +3470,12 @@ def manage_users():
         caller_username=caller_username,
         role_limits=role_limits,
         role_limits_error=role_limits_error,
+        page=page,
+        total_pages=total_pages,
+        total_users=total_users,
+        start=start,
+        end=end,
+        pagination_url=pagination_url
     )
 
 
@@ -3643,8 +3647,8 @@ def update_role_limits():
                         cursor.execute("""
                             INSERT INTO role_export_limits (role_name, default_limit)
                             VALUES (%s, %s)
-                            ON DUPLICATE KEY UPDATE default_limit = %s
-                        """, (role, limit, limit))
+                            ON CONFLICT (role_name) DO UPDATE SET default_limit = EXCLUDED.default_limit
+                        """, (role, limit))
                 except ValueError:
                     pass
         conn.commit()
@@ -4988,7 +4992,7 @@ def get_records():
     total = total_row['total'] if total_row else 0
     
     # Query paginated rows
-    select_query = f"SELECT {', '.join([f'`{c}`' for c in cols])} FROM master_records WHERE {where_clause} ORDER BY id DESC LIMIT %s OFFSET %s"
+    select_query = f"SELECT {', '.join([f'`{c}`' for c in cols])} FROM master_records WHERE {where_clause} ORDER BY id ASC LIMIT %s OFFSET %s"
     cursor.execute(select_query, params + [per_page, offset])
     items = cursor.fetchall()
     
@@ -5556,6 +5560,75 @@ def enrich_apollo_bulk():
         "details": details
     })
 
+@app.route('/api/export/columns', methods=['GET'])
+@login_required()
+def get_export_columns():
+    if "user_id" not in session or session.get("role") not in ROLE_PERMISSIONS:
+        return jsonify({"error": "Unauthorized"}), 403
+        
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        
+        # 1. Fetch master_records table columns
+        cursor.execute("SELECT column_name FROM information_schema.columns WHERE table_name = 'master_records' AND table_schema = 'public'")
+        db_cols = [row['column_name'] for row in cursor.fetchall()]
+        
+        # Exclude internal system columns
+        db_cols = [c for c in db_cols if c not in ('id', 'file_id', 'custom_fields', 'created_at', 'updated_at', 'imported_by')]
+        
+        columns_list = []
+        
+        # Mapping of column names to display names
+        display_names = {
+            'first_name': 'First Name',
+            'last_name': 'Last Name',
+            'email_address': 'Email Address',
+            'primary_phone_number': 'Primary Phone Number',
+            'alternate_phone_number': 'Alternate Phone Number',
+            'company_name': 'Company Name',
+            'job_title': 'Job Title',
+            'department': 'Department',
+            'website_url': 'Website URL',
+            'address_line_1': 'Address Line 1',
+            'address_line_2': 'Address Line 2',
+            'city': 'City',
+            'state_province': 'State / Province',
+            'postal_zip_code': 'Postal / ZIP Code',
+            'country': 'Country',
+            'linkedin_profile_url': 'LinkedIn Profile URL',
+            'industry': 'Industry',
+            'lead_source': 'Lead Source',
+            'record_status': 'Record Status',
+            'date_of_birth': 'Date of Birth',
+            'gender': 'Gender',
+            'company_size': 'Company Size',
+            'annual_revenue': 'Annual Revenue'
+        }
+        
+        for col in db_cols:
+            columns_list.append({
+                'id': f"master:{col}",
+                'name': display_names.get(col, col.replace('_', ' ').title()),
+                'type': 'master'
+            })
+            
+        # 2. Fetch custom fields from registry
+        cursor.execute("SELECT id, field_name FROM field_registry WHERE is_active = 1")
+        custom_fields = cursor.fetchall()
+        for cf in custom_fields:
+            columns_list.append({
+                'id': f"custom:{cf['id']}",
+                'name': cf['field_name'],
+                'type': 'custom'
+            })
+            
+        conn.close()
+        return jsonify(columns_list)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route('/api/records/export', methods=['GET'])
 @login_required()
 def export_records():
@@ -5567,19 +5640,20 @@ def export_records():
         cursor = conn.cursor(dictionary=True)
         
         # Get physical columns dynamically
-        cursor.execute("DESCRIBE master_records")
-        cols = [row['Field'] for row in cursor.fetchall()]
+        cursor.execute("SELECT column_name FROM information_schema.columns WHERE table_name = 'master_records' AND table_schema = 'public'")
+        cols = [row['column_name'] for row in cursor.fetchall()]
         
-        query_parts = ["1=1"]
-        params = []
-        
-        # Support basic mappings
+        # Support basic search mapping filters
         search_mappings = {
             'email': 'email_address',
             'phone': 'primary_phone_number',
             'company': 'company_name',
             'city': 'city'
         }
+        
+        query_parts = ["1=1"]
+        params = []
+        
         for arg_name, col_name in search_mappings.items():
             val = request.args.get(arg_name, '').strip()
             if val and col_name in cols:
@@ -5660,7 +5734,7 @@ def export_records():
             }), 400
             
         # Query matching records
-        select_query = f"SELECT * FROM master_records WHERE {where_clause} ORDER BY id DESC"
+        select_query = f"SELECT * FROM master_records WHERE {where_clause} ORDER BY id ASC"
         cursor.execute(select_query, params)
         rows = cursor.fetchall()
         
@@ -5706,23 +5780,75 @@ def export_records():
         cursor.execute("SELECT id, field_name FROM field_registry WHERE is_active = 1")
         custom_registry = {str(r['id']): r['field_name'] for r in cursor.fetchall()}
         
+        # Parse selected export columns
+        export_cols_param = request.args.get('export_cols', '').strip()
+        if export_cols_param:
+            selected_cols = [c.strip() for c in export_cols_param.split(',') if c.strip()]
+        else:
+            selected_cols = None
+
+        display_names = {
+            'first_name': 'First Name',
+            'last_name': 'Last Name',
+            'email_address': 'Email Address',
+            'primary_phone_number': 'Primary Phone Number',
+            'alternate_phone_number': 'Alternate Phone Number',
+            'company_name': 'Company Name',
+            'job_title': 'Job Title',
+            'department': 'Department',
+            'website_url': 'Website URL',
+            'address_line_1': 'Address Line 1',
+            'address_line_2': 'Address Line 2',
+            'city': 'City',
+            'state_province': 'State / Province',
+            'postal_zip_code': 'Postal / ZIP Code',
+            'country': 'Country',
+            'linkedin_profile_url': 'LinkedIn Profile URL',
+            'industry': 'Industry',
+            'lead_source': 'Lead Source',
+            'record_status': 'Record Status',
+            'date_of_birth': 'Date of Birth',
+            'gender': 'Gender',
+            'company_size': 'Company Size',
+            'annual_revenue': 'Annual Revenue'
+        }
+
         flat_rows = []
         for r in rows:
             flat_r = {}
-            for col in cols:
-                if col == 'custom_fields':
-                    continue
-                pretty_name = col.replace('_', ' ').title()
-                flat_r[pretty_name] = r[col]
             
-            if r['custom_fields']:
+            # Resolve custom fields JSON
+            cf_dict = {}
+            if r.get('custom_fields'):
                 try:
                     cf_dict = json.loads(r['custom_fields']) if isinstance(r['custom_fields'], str) else r['custom_fields']
-                    for fid, val in cf_dict.items():
-                        header_name = custom_registry.get(str(fid), f"Custom Field {fid}")
-                        flat_r[header_name] = val
                 except Exception:
-                    pass
+                    cf_dict = {}
+
+            if selected_cols is not None:
+                # Export ONLY selected columns in their requested sequence
+                for col_id in selected_cols:
+                    if col_id.startswith('master:'):
+                        col_name = col_id.split('master:')[1]
+                        if col_name in r:
+                            pretty_name = display_names.get(col_name, col_name.replace('_', ' ').title())
+                            flat_r[pretty_name] = r[col_name]
+                    elif col_id.startswith('custom:'):
+                        fid = col_id.split('custom:')[1]
+                        header_name = custom_registry.get(str(fid), f"Custom Field {fid}")
+                        flat_r[header_name] = cf_dict.get(str(fid)) or cf_dict.get(int(fid))
+            else:
+                # Default: Export all columns
+                for col in cols:
+                    if col == 'custom_fields':
+                        continue
+                    pretty_name = display_names.get(col, col.replace('_', ' ').title())
+                    flat_r[pretty_name] = r[col]
+                
+                for fid, val in cf_dict.items():
+                    header_name = custom_registry.get(str(fid), f"Custom Field {fid}")
+                    flat_r[header_name] = val
+                    
             flat_rows.append(flat_r)
             
         conn.close()
@@ -5748,6 +5874,107 @@ def export_records():
             download_name=filename
         )
         
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/records/delete-filtered', methods=['POST'])
+@login_required()
+def delete_filtered_records():
+    if "user_id" not in session or session.get("role") not in ROLE_PERMISSIONS:
+        return jsonify({"error": "Unauthorized"}), 403
+        
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        
+        # Get active columns dynamically
+        cursor.execute("SELECT column_name FROM information_schema.columns WHERE table_name = 'master_records' AND table_schema = 'public'")
+        cols = [row['column_name'] for row in cursor.fetchall()]
+        
+        # Support reading parameters from JSON body or request args
+        body_data = {}
+        if request.is_json:
+            body_data = request.get_json() or {}
+            
+        def get_param(name, default=''):
+            val = body_data.get(name)
+            if val is not None:
+                return str(val).strip()
+            return request.args.get(name, default).strip()
+            
+        # Build search filters exactly as done in get_records
+        search_mappings = {
+            'email': 'email_address',
+            'phone': 'primary_phone_number',
+            'company': 'company_name',
+            'city': 'city'
+        }
+        
+        query_parts = ["1=1"]
+        params = []
+        
+        for arg_name, col_name in search_mappings.items():
+            val = get_param(arg_name)
+            if val and col_name in cols:
+                query_parts.append(f'"{col_name}" LIKE %s')
+                params.append(f"%{val}%")
+                
+        # Handle name query manually across first_name and last_name
+        name_val = get_param('name')
+        if name_val:
+            query_parts.append("(first_name LIKE %s OR last_name LIKE %s)")
+            params.extend([f"%{name_val}%", f"%{name_val}%"])
+                
+        # Support dynamic search on other master columns
+        for c in cols:
+            if c in ('id', 'file_id', 'custom_fields', 'created_at', 'updated_at', 'imported_by') or c in search_mappings.values():
+                continue
+            val = get_param(c)
+            if val:
+                query_parts.append(f'"{c}" LIKE %s')
+                params.append(f"%{val}%")
+                
+        # Support dynamic search on multiple custom JSON field values
+        custom_filters_str = get_param('custom_filters', '[]')
+        try:
+            custom_filters = json.loads(custom_filters_str)
+            for f in custom_filters:
+                fid = str(f.get('id', '')).strip()
+                fval = str(f.get('val', '')).strip()
+                if fid and fval:
+                    query_parts.append("custom_fields ->> %s LIKE %s")
+                    params.append(fid)
+                    params.append(f"%{fval}%")
+        except Exception as e:
+            app.logger.warning(f"Error parsing custom_filters: {e}")
+            
+        # Support missing_field filter
+        missing_field = get_param('missing_field')
+        if missing_field and missing_field in cols:
+            query_parts.append(f"({missing_field} IS NULL OR {missing_field} = '')")
+            
+        where_clause = " AND ".join(query_parts)
+        
+        # Get count of matching records to delete
+        cursor.execute(f"SELECT COUNT(*) AS cnt FROM master_records WHERE {where_clause}", params)
+        records_count = cursor.fetchone()['cnt']
+        
+        if records_count > 0:
+            # Execute DELETE query
+            cursor.execute(f"DELETE FROM master_records WHERE {where_clause}", params)
+            conn.commit()
+            
+            # Log the action in logs table
+            from helpers import log_action
+            log_action(session["user_id"], f"Deleted {records_count} filtered master records")
+            
+        conn.close()
+        return jsonify({
+            "success": True,
+            "deleted_count": records_count,
+            "message": f"Successfully deleted {records_count} records matching the current filters."
+        })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -5908,9 +6135,30 @@ def registry():
     if session.get("role") != "admin":
         flash("Access denied.", "warning")
         return redirect(url_for("upload"))
+        
+    search = request.args.get("search", "").strip()
+    page = request.args.get("page", 1, type=int) or 1
+    page = max(1, page)
+    per_page = 25
+    
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT id, field_name, normalized_name, data_type, is_active, searchable, usage_count, created_at FROM field_registry ORDER BY id ASC")
+    
+    where_clause = ""
+    params = []
+    if search:
+        where_clause = "WHERE field_name ILIKE %s OR normalized_name ILIKE %s OR data_type ILIKE %s"
+        search_param = f"%{search}%"
+        params = [search_param, search_param, search_param]
+        
+    cursor.execute(f"SELECT COUNT(*) AS total FROM field_registry {where_clause}", params)
+    total_filtered = cursor.fetchone()["total"]
+    
+    offset = (page - 1) * per_page
+    cursor.execute(
+        f"SELECT id, field_name, normalized_name, data_type, is_active, searchable, usage_count, created_at FROM field_registry {where_clause} ORDER BY id ASC LIMIT %s OFFSET %s",
+        params + [per_page, offset]
+    )
     fields = cursor.fetchall()
     
     # Calculate usage count dynamically from master_records JSON
@@ -5924,7 +6172,25 @@ def registry():
             f['created_at'] = f['created_at'].strftime('%Y-%m-%d %H:%M')
             
     conn.close()
-    return render_template('registry.html', fields=fields)
+    
+    total_pages = max(1, (total_filtered + per_page - 1) // per_page)
+    start = (page - 1) * per_page
+    end = min(page * per_page, total_filtered)
+    
+    def pagination_url(p):
+        return url_for("registry", page=p, search=search)
+        
+    return render_template(
+        'registry.html',
+        fields=fields,
+        search=search,
+        page=page,
+        total_pages=total_pages,
+        total_filtered=total_filtered,
+        start=start,
+        end=end,
+        pagination_url=pagination_url
+    )
 
 @app.route('/aliases')
 @login_required()

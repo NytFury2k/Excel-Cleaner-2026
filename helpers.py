@@ -155,11 +155,11 @@ _db_pool = None
 def get_db_connection():
     global _db_pool
     if _db_pool is None:
-        db_host = os.environ.get("SUPABASE_DB_HOST", "127.0.0.1")
-        db_name = os.environ.get("SUPABASE_DB_NAME", "postgres")
-        db_user = os.environ.get("SUPABASE_DB_USER", "postgres")
-        db_port = os.environ.get("SUPABASE_DB_PORT", "5432")
-        db_pass = os.environ.get("SUPABASE_DB_PASSWORD", "")
+        db_host = os.environ.get("POSTGRES_DB_HOST") or os.environ.get("SUPABASE_DB_HOST") or os.environ.get("DB_HOST", "127.0.0.1")
+        db_name = os.environ.get("POSTGRES_DB_NAME") or os.environ.get("SUPABASE_DB_NAME") or os.environ.get("DB_NAME", "excel_cleaner_db")
+        db_user = os.environ.get("POSTGRES_DB_USER") or os.environ.get("SUPABASE_DB_USER") or os.environ.get("DB_USER", "postgres")
+        db_port = os.environ.get("POSTGRES_DB_PORT") or os.environ.get("SUPABASE_DB_PORT") or os.environ.get("DB_PORT", "5432")
+        db_pass = os.environ.get("POSTGRES_DB_PASSWORD") or os.environ.get("SUPABASE_DB_PASSWORD") or os.environ.get("DB_PASSWORD", "")
         
         _db_pool = psycopg2.pool.SimpleConnectionPool(
             1, 20,
@@ -921,11 +921,7 @@ def log_search(user_id, username, search_term):
 # ── Hybrid Database Ingestion ──────────────────────────────────────────────────
 
 MASTER_COLUMNS = {
-    'first_name', 'last_name', 'email_address', 'primary_phone_number', 'alternate_phone_number',
-    'company_name', 'job_title', 'department', 'website_url', 'address_line_1', 'address_line_2',
-    'city', 'state_province', 'postal_zip_code', 'country', 'linkedin_profile_url', 'industry',
-    'lead_source', 'record_status', 'date_of_birth', 'gender', 'company_size', 'annual_revenue',
-    'imported_by'
+    'first_name', 'last_name', 'imported_by'
 }
 
 def normalize_header(header_name):
@@ -1006,37 +1002,22 @@ def ingest_uploaded_file(file_id, file_path, username):
             
         conn.commit()
         
+        # Get list of all columns in master_records dynamically to ensure safety
+        cursor.execute("SELECT column_name FROM information_schema.columns WHERE table_name = 'master_records' AND table_schema = 'public'")
+        all_db_columns = {row['column_name'] for row in cursor.fetchall()}
+        
         # 2. Ingest Rows
         records_to_insert = []
         for _, row in df.iterrows():
             record_dict = {
                 'file_id': file_id,
-                'first_name': None,
-                'last_name': None,
-                'email_address': None,
-                'primary_phone_number': None,
-                'alternate_phone_number': None,
-                'company_name': None,
-                'job_title': None,
-                'department': None,
-                'website_url': None,
-                'address_line_1': None,
-                'address_line_2': None,
-                'city': None,
-                'state_province': None,
-                'postal_zip_code': None,
-                'country': None,
-                'linkedin_profile_url': None,
-                'industry': None,
-                'lead_source': None,
-                'record_status': None,
-                'date_of_birth': None,
-                'gender': None,
-                'company_size': None,
-                'annual_revenue': None,
                 'imported_by': username,
                 'custom_fields': {}
             }
+            # Initialize record properties for fields in all_db_columns
+            for col in all_db_columns:
+                if col not in ('id', 'file_id', 'custom_fields', 'created_at', 'updated_at', 'imported_by'):
+                    record_dict[col] = None
             
             for header, val in row.items():
                 if header not in header_mapping:
@@ -1060,37 +1041,33 @@ def ingest_uploaded_file(file_id, file_path, username):
                             record_dict['first_name'] = parts[0]
                         if len(parts) > 1:
                             record_dict['last_name'] = parts[1]
-                    else:
+                    elif target_col in all_db_columns:
                         record_dict[target_col] = str(cleaned_val)
                 else:
                     record_dict['custom_fields'][mapping['target']] = str(cleaned_val)
                     
-            if record_dict['custom_fields']:
-                record_dict['custom_fields'] = json.dumps(record_dict['custom_fields'])
-            else:
-                record_dict['custom_fields'] = None
-                
             records_to_insert.append(record_dict)
             
         # Bulk insert records
         if records_to_insert:
-            columns_list = [
-                'file_id', 'first_name', 'last_name', 'email_address', 'primary_phone_number', 'alternate_phone_number',
-                'company_name', 'job_title', 'department', 'website_url', 'address_line_1', 'address_line_2',
-                'city', 'state_province', 'postal_zip_code', 'country', 'linkedin_profile_url', 'industry',
-                'lead_source', 'record_status', 'date_of_birth', 'gender', 'company_size', 'annual_revenue',
-                'imported_by', 'custom_fields'
-            ]
+            cols_to_insert = [c for c in all_db_columns if c not in ('id', 'created_at', 'updated_at')]
+            
+            col_names_escaped = [f'"{c}"' for c in cols_to_insert]
             insert_query = f"""
-                INSERT INTO master_records ({', '.join(columns_list)})
-                VALUES ({', '.join(['%s'] * len(columns_list))})
+                INSERT INTO master_records ({', '.join(col_names_escaped)})
+                VALUES ({', '.join(['%s'] * len(cols_to_insert))})
             """
             
-            insert_data = [
-                tuple(r[col] for col in columns_list)
-                for r in records_to_insert
-            ]
-            
+            insert_data = []
+            for r in records_to_insert:
+                row_tuple = []
+                for col in cols_to_insert:
+                    if col == 'custom_fields':
+                        row_tuple.append(json.dumps(r['custom_fields']) if r['custom_fields'] else None)
+                    else:
+                        row_tuple.append(r.get(col))
+                insert_data.append(tuple(row_tuple))
+                
             cursor.executemany(insert_query, insert_data)
             
         # Update file status and row count
