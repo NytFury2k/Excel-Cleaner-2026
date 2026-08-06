@@ -2516,7 +2516,7 @@ def clean_data():
 
                     # Build insert sql
                     placeholders = ", ".join(["%s"] * len(vals_to_insert))
-                    col_names_escaped = [f'"{c}"' for c in cols_to_insert]
+                    col_names_escaped = [f'`{c}`' for c in cols_to_insert]
                     insert_sql = f"INSERT INTO master_records ({', '.join(col_names_escaped)}) VALUES ({placeholders})"
                     
                     cursor_store.execute(insert_sql, vals_to_insert)
@@ -2553,7 +2553,10 @@ def clean_data():
         for sheet in uploaded_sheets:
             fid = sheet.get("file_id")
             if fid:
-                cursor_status.execute("UPDATE uploaded_files SET status = 'completed' WHERE id = %s", (fid,))
+                cursor_status.execute(
+                    "UPDATE uploaded_files SET total_rows = %s, rows_imported = %s, rows_rejected = %s, status = 'completed' WHERE id = %s",
+                    (total_before, db_stored_count, invalid_after, fid)
+                )
         conn_status.commit()
         conn_status.close()
     except Exception as ex:

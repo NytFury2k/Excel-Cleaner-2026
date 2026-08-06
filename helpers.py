@@ -52,7 +52,6 @@ class MySqlCursorWrapper:
         if isinstance(query, str):
             query = query.replace("custom_fields ->> %s", "JSON_UNQUOTE(JSON_EXTRACT(custom_fields, CONCAT('$.', %s)))")
             query = re.sub(r'\s+ILIKE\s+', ' LIKE ', query, flags=re.IGNORECASE)
-            query = query.replace('`', '"')
         try:
             self.cursor.execute(query, params)
             if isinstance(query, str) and query.strip().upper().startswith("INSERT"):
@@ -64,7 +63,6 @@ class MySqlCursorWrapper:
         if isinstance(query, str):
             query = query.replace("custom_fields ->> %s", "JSON_UNQUOTE(JSON_EXTRACT(custom_fields, CONCAT('$.', %s)))")
             query = re.sub(r'\s+ILIKE\s+', ' LIKE ', query, flags=re.IGNORECASE)
-            query = query.replace('`', '"')
         try:
             self.cursor.executemany(query, seq_of_params)
         except mysql.connector.Error as e:
