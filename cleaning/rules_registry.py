@@ -19,6 +19,10 @@ RULES_REGISTRY = {
     "clean_special_chars": {"label":"Remove Special Characters", "function": clean_special_chars, "type":"cleaning", "allowed_types": ["email", "phone","url", "numeric","date", "text"]},
     "handle_missing": {"label":"Handle Missing Values","function": handle_missing, "type":"cleaning","allowed_types":["email","phone","url","numeric","date","text"],"strategies":["flag","median","mean","placeholder","drop"]},
     "normalize_currency":{"label":"Normalize Currency / Number Format", "function":normalize_currency, "type":"cleaning","allowed_types":["numeric"]},
+    "lowercase_email": {"label": "Lowercase Email Normalization", "function": lowercase_email, "type": "cleaning", "allowed_types": ["email"]},
+    "title_case_text": {"label": "Convert Text to Title Case", "function": title_case_text, "type": "cleaning", "allowed_types": ["text"]},
+    "normalize_url_protocol": {"label": "Prepend https:// Protocol", "function": normalize_url_protocol, "type": "cleaning", "allowed_types": ["url"]},
+    "remove_non_alphanumeric": {"label": "Remove Non-Alphanumeric Characters", "function": remove_non_alphanumeric, "type": "cleaning", "allowed_types": ["text"]},
 
     #dedupe
     "drop_duplicates": {"label":"Remove Duplicates", "function": drop_duplicates, "type": "dedupe", "allowed_types": ["email", "phone", "url", "numeric", "date", "text"]},

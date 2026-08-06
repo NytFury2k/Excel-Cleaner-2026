@@ -178,3 +178,48 @@ def handle_missing(df, column, column_type=None, strategy="flag"):
 
     return df, errors
 
+
+def lowercase_email(df, column, column_type=None):
+    df = df.copy()
+    def to_lower(val):
+        if pd.isna(val):
+            return val
+        return str(val).strip().lower()
+    df[column] = df[column].apply(to_lower)
+    return df, []
+
+
+def title_case_text(df, column, column_type=None):
+    df = df.copy()
+    def to_title(val):
+        if pd.isna(val):
+            return val
+        return str(val).strip().title()
+    df[column] = df[column].apply(to_title)
+    return df, []
+
+
+def normalize_url_protocol(df, column, column_type=None):
+    df = df.copy()
+    def fix_url(val):
+        if pd.isna(val):
+            return val
+        s = str(val).strip()
+        if s and not s.lower().startswith(("http://", "https://")):
+            return "https://" + s
+        return s
+    df[column] = df[column].apply(fix_url)
+    return df, []
+
+
+def remove_non_alphanumeric(df, column, column_type=None):
+    df = df.copy()
+    def clean_val(val):
+        if pd.isna(val):
+            return val
+        s = str(val)
+        cleaned = re.sub(r"[^a-zA-Z0-9\s]", "", s)
+        return cleaned if cleaned != "" else None
+    df[column] = df[column].apply(clean_val)
+    return df, []
+

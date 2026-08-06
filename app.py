@@ -1731,8 +1731,27 @@ def api_clean_existing_data():
         file_path = os.path.join(upload_folder, unique_filename)
         df.to_csv(file_path, index=False)
         
+        # Log to uploaded_files DB as a system upload
+        cursor.execute(
+            "INSERT INTO uploaded_files (user_id, filename, original_filename, total_rows, status, uploaded_at) VALUES (%s, %s, %s, %s, %s, %s)",
+            (session["user_id"], file_path, "Existing Database Records", len(df), 'pending', datetime.utcnow())
+        )
+        file_id = cursor.lastrowid
+        conn.commit()
+
         session["temp_file"] = file_path
         session["uploaded_file"] = "Existing Database Records"
+        session["uploaded_sheets"] = [{
+            "sheet_id": f"s_existing_{uuid.uuid4().hex[:8]}",
+            "original_filename": "Existing Database Records",
+            "sheet_name": "Database",
+            "safe_sheet_name": "existing_db",
+            "temp_path": file_path,
+            "columns": df.columns.tolist(),
+            "total_rows": len(df),
+            "file_id": file_id
+        }]
+        session.pop("selected_rules", None)
         
         conn.close()
         return redirect(url_for("choose_rules"))

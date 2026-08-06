@@ -791,7 +791,7 @@
 
           <!-- 2. Master columns rule list -->
           {% for m in master_fields %}
-          <div class="col-card">
+          <div class="col-card" id="master_rule_card_{{ m.identifier }}">
             <!-- Card header: name + type badge -->
             <div class="col-card-header">
               <h6>
@@ -1420,6 +1420,37 @@
               btn.classList.add("btn-danger");
               btn.innerHTML = `<i class="bi bi-eye"></i> Keep`;
             }
+          });
+
+          // Real-time visibility toggle for master column rule cards
+          function updateMasterRuleCardsVisibility() {
+            const mappedMasterFields = new Set();
+            document.querySelectorAll(".mapping-select").forEach(select => {
+              const val = select.value;
+              if (val && val.startsWith("master:")) {
+                mappedMasterFields.add(val.replace("master:", ""));
+              }
+            });
+
+            document.querySelectorAll("[id^='master_rule_card_']").forEach(card => {
+              const colId = card.id.replace("master_rule_card_", "");
+              if (mappedMasterFields.has(colId)) {
+                card.style.display = "block";
+              } else {
+                card.style.display = "none";
+                card.querySelectorAll(".form-check-input").forEach(cb => {
+                  if (cb.type === "checkbox") cb.checked = false;
+                });
+              }
+            });
+          }
+
+          updateMasterRuleCardsVisibility();
+          document.querySelectorAll(".mapping-select").forEach(select => {
+            select.addEventListener("change", updateMasterRuleCardsVisibility);
+          });
+          document.querySelectorAll(".btn-ignore-column").forEach(btn => {
+            btn.addEventListener("click", updateMasterRuleCardsVisibility);
           });
 
           var cleanForm = document.querySelector("form[action*='clean_data']");
