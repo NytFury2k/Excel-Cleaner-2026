@@ -699,7 +699,7 @@ def check_login_rate_limit(username):
         FROM login_attempts
         WHERE username = %s
           AND success  = 0
-          AND attempted_at > NOW() - INTERVAL '10 minutes'
+          AND attempted_at > NOW() - INTERVAL 10 MINUTE
     """, (username,))
     row = cursor.fetchone()
     conn.close()
