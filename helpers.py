@@ -1,35 +1,3 @@
-import sys
-from types import ModuleType
-
-# Mock mysql.connector to prevent import errors and translate exceptions
-if "mysql" not in sys.modules or "mysql.connector" not in sys.modules:
-    mock_mysql = ModuleType("mysql")
-    mock_mysql_connector = ModuleType("mysql.connector")
-    mock_mysql_errors = ModuleType("mysql.connector.errors")
-
-    class MockMySqlError(Exception):
-        def __init__(self, msg="Database error", errno=None):
-            super().__init__(msg)
-            self.msg = msg
-            self.errno = errno
-
-    class MockMySqlIntegrityError(MockMySqlError):
-        pass
-
-    mock_mysql_connector.Error = MockMySqlError
-    mock_mysql_connector.IntegrityError = MockMySqlIntegrityError
-    mock_mysql_connector.DatabaseError = MockMySqlError
-    mock_mysql_connector.ProgrammingError = MockMySqlError
-    mock_mysql_connector.errors = mock_mysql_errors
-    mock_mysql.connector = mock_mysql_connector
-    mock_mysql_errors.ProgrammingError = MockMySqlError
-    mock_mysql_errors.IntegrityError = MockMySqlIntegrityError
-    mock_mysql_errors.DatabaseError = MockMySqlError
-
-    sys.modules["mysql"] = mock_mysql
-    sys.modules["mysql.connector"] = mock_mysql_connector
-    sys.modules["mysql.connector.errors"] = mock_mysql_errors
-
 import os
 import re
 import secrets
@@ -39,13 +7,10 @@ from functools import wraps
 
 import bcrypt
 import mysql.connector
+import mysql.connector.pooling
 import pandas as pd
 from flask import session, redirect, url_for, flash, request, jsonify, g
 import logging
-import psycopg2
-from psycopg2 import pool
-import psycopg2.extras
-from psycopg2 import Error as PgError, IntegrityError as PgIntegrityError
 
 _logger=logging.getLogger(__name__)
 
@@ -54,17 +19,14 @@ MAX_PAGE_SIZE = 100
 INACTIVITY_LIMIT = timedelta(minutes=60)
 
 
-# ── Postgres / Supabase Wrapper classes ───────────────────────────────────────
+# ── MySQL Wrapper classes ─────────────────────────────────────────────────────
 
-class PostgresConnectionWrapper:
+class MySqlConnectionWrapper:
     def __init__(self, conn):
         self.conn = conn
 
     def cursor(self, dictionary=False, dict=False):
-        if dictionary or dict:
-            return PostgresCursorWrapper(self.conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor))
-        else:
-            return PostgresCursorWrapper(self.conn.cursor())
+        return MySqlCursorWrapper(self.conn.cursor(dictionary=dictionary or dict))
 
     def commit(self):
         self.conn.commit()
@@ -73,78 +35,51 @@ class PostgresConnectionWrapper:
         self.conn.rollback()
 
     def close(self):
-        global _db_pool
-        if _db_pool:
-            _db_pool.putconn(self.conn)
-        else:
-            self.conn.close()
+        self.conn.close()
 
     def is_connected(self):
-        return self.conn.closed == 0
+        try:
+            return self.conn.is_connected()
+        except Exception:
+            return False
 
-class PostgresCursorWrapper:
+class MySqlCursorWrapper:
     def __init__(self, cursor):
         self.cursor = cursor
         self.lastrowid = None
 
     def execute(self, query, params=None):
         if isinstance(query, str):
+            query = query.replace("custom_fields ->> %s", "JSON_UNQUOTE(JSON_EXTRACT(custom_fields, CONCAT('$.', %s)))")
             query = query.replace('`', '"')
-            query_upper = query.strip().upper()
-            if query_upper.startswith("DESCRIBE "):
-                table_name = query_upper.split("DESCRIBE ")[1].strip().replace('"', '').lower()
-                query = f"SELECT column_name AS \"Field\" FROM information_schema.columns WHERE table_name = '{table_name}'"
-            elif query_upper.startswith("SHOW TABLES LIKE "):
-                pattern = query_upper.split("SHOW TABLES LIKE ")[1].strip()
-                query = f"SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name LIKE {pattern}"
-            elif query_upper == "SHOW TABLES":
-                query = "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'"
-
         try:
             self.cursor.execute(query, params)
             if isinstance(query, str) and query.strip().upper().startswith("INSERT"):
-                try:
-                    temp_cur = self.cursor.connection.cursor()
-                    temp_cur.execute("SELECT lastval()")
-                    row = temp_cur.fetchone()
-                    if isinstance(row, dict):
-                        self.lastrowid = list(row.values())[0]
-                    else:
-                        self.lastrowid = row[0]
-                    temp_cur.close()
-                except Exception:
-                    pass
-        except PgIntegrityError as e:
-            errno = 1062 if e.pgcode == '23505' else None
-            raise sys.modules["mysql.connector"].IntegrityError(str(e), errno=errno)
-        except PgError as e:
-            raise sys.modules["mysql.connector"].Error(str(e))
+                self.lastrowid = self.cursor.lastrowid
+        except mysql.connector.Error as e:
+            raise e
 
     def executemany(self, query, seq_of_params):
         if isinstance(query, str):
+            query = query.replace("custom_fields ->> %s", "JSON_UNQUOTE(JSON_EXTRACT(custom_fields, CONCAT('$.', %s)))")
             query = query.replace('`', '"')
         try:
             self.cursor.executemany(query, seq_of_params)
-        except PgIntegrityError as e:
-            errno = 1062 if e.pgcode == '23505' else None
-            raise sys.modules["mysql.connector"].IntegrityError(str(e), errno=errno)
-        except PgError as e:
-            raise sys.modules["mysql.connector"].Error(str(e))
+        except mysql.connector.Error as e:
+            raise e
 
     def fetchone(self):
-        try:
-            return self.cursor.fetchone()
-        except PgError as e:
-            raise sys.modules["mysql.connector"].Error(str(e))
+        return self.cursor.fetchone()
 
     def fetchall(self):
-        try:
-            return self.cursor.fetchall()
-        except PgError as e:
-            raise sys.modules["mysql.connector"].Error(str(e))
+        return self.cursor.fetchall()
 
     def close(self):
         self.cursor.close()
+
+    @property
+    def description(self):
+        return self.cursor.description
 
     @property
     def rowcount(self):
@@ -155,26 +90,24 @@ _db_pool = None
 def get_db_connection():
     global _db_pool
     if _db_pool is None:
-        db_host = os.environ.get("POSTGRES_DB_HOST") or os.environ.get("SUPABASE_DB_HOST") or os.environ.get("DB_HOST", "127.0.0.1")
-        db_name = os.environ.get("POSTGRES_DB_NAME") or os.environ.get("SUPABASE_DB_NAME") or os.environ.get("DB_NAME", "excel_cleaner_db")
-        db_user = os.environ.get("POSTGRES_DB_USER") or os.environ.get("SUPABASE_DB_USER") or os.environ.get("DB_USER", "postgres")
-        db_port = os.environ.get("POSTGRES_DB_PORT") or os.environ.get("SUPABASE_DB_PORT") or os.environ.get("DB_PORT", "5432")
-        db_pass = os.environ.get("POSTGRES_DB_PASSWORD") or os.environ.get("SUPABASE_DB_PASSWORD") or os.environ.get("DB_PASSWORD", "")
+        db_host = os.environ.get("MYSQL_HOST") or os.environ.get("DB_HOST", "127.0.0.1")
+        db_name = os.environ.get("MYSQL_DATABASE") or os.environ.get("DB_NAME", "excel_cleaner_db")
+        db_user = os.environ.get("MYSQL_USER") or os.environ.get("DB_USER", "root")
+        db_port = os.environ.get("MYSQL_PORT") or os.environ.get("DB_PORT", "3306")
+        db_pass = os.environ.get("MYSQL_PASSWORD") or os.environ.get("DB_PASSWORD", "")
         
-        _db_pool = psycopg2.pool.SimpleConnectionPool(
-            1, 20,
+        _db_pool = mysql.connector.pooling.MySQLConnectionPool(
+            pool_name="mypool",
+            pool_size=20,
             host=db_host,
             database=db_name,
             user=db_user,
             password=db_pass,
-            port=db_port
+            port=int(db_port)
         )
     
-    conn = _db_pool.getconn()
-    with conn.cursor() as cur:
-        cur.execute("SET TIME ZONE 'Asia/Kolkata';")
-    return PostgresConnectionWrapper(conn)
-
+    conn = _db_pool.get_connection()
+    return MySqlConnectionWrapper(conn)
 
 
 # ── Logging ───────────────────────────────────────────────────────────────────

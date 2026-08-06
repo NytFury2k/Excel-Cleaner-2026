@@ -2014,7 +2014,7 @@ def choose_rules():
         custom_fields_registry = cursor.fetchall()
         
         # Fetch Master Columns dynamically from master_records table
-        cursor.execute("SELECT column_name, data_type FROM information_schema.columns WHERE table_name = 'master_records' AND table_schema = 'public'")
+        cursor.execute("SELECT column_name AS column_name, data_type AS data_type FROM information_schema.columns WHERE table_name = 'master_records' AND table_schema = DATABASE()")
         db_cols = cursor.fetchall()
         
         display_names = get_master_columns_display_names(cursor)
@@ -2399,7 +2399,7 @@ def clean_data():
             cursor_map = conn_map.cursor(dictionary=True)
             
             # Fetch physical columns
-            cursor_map.execute("SELECT column_name FROM information_schema.columns WHERE table_name = 'master_records' AND table_schema = 'public'")
+            cursor_map.execute("SELECT column_name AS column_name FROM information_schema.columns WHERE table_name = 'master_records' AND table_schema = DATABASE()")
             db_cols = {row['column_name'] for row in cursor_map.fetchall()}
             
             for sheet in uploaded_sheets:
@@ -2464,7 +2464,7 @@ def clean_data():
             cursor_store = conn_store.cursor(dictionary=True)
             
             # Dynamically fetch existing columns of master_records table
-            cursor_store.execute("SELECT column_name FROM information_schema.columns WHERE table_name = 'master_records' AND table_schema = 'public'")
+            cursor_store.execute("SELECT column_name AS column_name FROM information_schema.columns WHERE table_name = 'master_records' AND table_schema = DATABASE()")
             db_cols = {row['column_name'] for row in cursor_store.fetchall()}
             
             from datetime import datetime as _dt
@@ -5655,7 +5655,7 @@ def get_export_columns():
         cursor = conn.cursor(dictionary=True)
         
         # 1. Fetch master_records table columns
-        cursor.execute("SELECT column_name FROM information_schema.columns WHERE table_name = 'master_records' AND table_schema = 'public'")
+        cursor.execute("SELECT column_name AS column_name FROM information_schema.columns WHERE table_name = 'master_records' AND table_schema = DATABASE()")
         db_cols = [row['column_name'] for row in cursor.fetchall()]
         
         # Exclude internal system columns
@@ -5724,7 +5724,7 @@ def export_records():
         cursor = conn.cursor(dictionary=True)
         
         # Get physical columns dynamically
-        cursor.execute("SELECT column_name FROM information_schema.columns WHERE table_name = 'master_records' AND table_schema = 'public'")
+        cursor.execute("SELECT column_name AS column_name FROM information_schema.columns WHERE table_name = 'master_records' AND table_schema = DATABASE()")
         cols = [row['column_name'] for row in cursor.fetchall()]
         
         # Support basic search mapping filters
@@ -5973,7 +5973,7 @@ def delete_filtered_records():
         cursor = conn.cursor(dictionary=True)
         
         # Get active columns dynamically
-        cursor.execute("SELECT column_name FROM information_schema.columns WHERE table_name = 'master_records' AND table_schema = 'public'")
+        cursor.execute("SELECT column_name AS column_name FROM information_schema.columns WHERE table_name = 'master_records' AND table_schema = DATABASE()")
         cols = [row['column_name'] for row in cursor.fetchall()]
         
         # Support reading parameters from JSON body or request args
@@ -6258,7 +6258,7 @@ def registry():
             f['created_at'] = f['created_at'].strftime('%Y-%m-%d %H:%M')
             
     # Fetch Master Columns dynamically from master_records
-    cursor.execute("SELECT column_name, data_type FROM information_schema.columns WHERE table_name = 'master_records' AND table_schema = 'public'")
+    cursor.execute("SELECT column_name AS column_name, data_type AS data_type FROM information_schema.columns WHERE table_name = 'master_records' AND table_schema = DATABASE()")
     db_cols = cursor.fetchall()
     
     display_names = get_master_columns_display_names(cursor)
@@ -6321,7 +6321,7 @@ def aliases_view():
     custom_fields = cursor.fetchall()
     
     # Fetch master columns dynamically from database
-    cursor.execute("SELECT column_name FROM information_schema.columns WHERE table_name = 'master_records' AND table_schema = 'public'")
+    cursor.execute("SELECT column_name AS column_name FROM information_schema.columns WHERE table_name = 'master_records' AND table_schema = DATABASE()")
     db_cols = cursor.fetchall()
     
     display_names = get_master_columns_display_names(cursor)
@@ -7212,7 +7212,7 @@ def api_add_master_column():
         cursor = conn.cursor(dictionary=True)
         
         # Check if column already exists
-        cursor.execute("SELECT column_name FROM information_schema.columns WHERE table_name = 'master_records' AND table_schema = 'public'")
+        cursor.execute("SELECT column_name AS column_name FROM information_schema.columns WHERE table_name = 'master_records' AND table_schema = DATABASE()")
         cols = [row['column_name'] for row in cursor.fetchall()]
         if normalized_name in cols:
             conn.close()
@@ -7260,7 +7260,7 @@ def api_delete_master_column(col_name):
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
         
-        cursor.execute("SELECT column_name FROM information_schema.columns WHERE table_name = 'master_records' AND table_schema = 'public'")
+        cursor.execute("SELECT column_name AS column_name FROM information_schema.columns WHERE table_name = 'master_records' AND table_schema = DATABASE()")
         cols = [row['column_name'] for row in cursor.fetchall()]
         if col_name not in cols:
             conn.close()
@@ -7300,7 +7300,7 @@ def api_move_to_custom(col_name):
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
         
-        cursor.execute("SELECT column_name FROM information_schema.columns WHERE table_name = 'master_records' AND table_schema = 'public'")
+        cursor.execute("SELECT column_name AS column_name FROM information_schema.columns WHERE table_name = 'master_records' AND table_schema = DATABASE()")
         cols = [row['column_name'] for row in cursor.fetchall()]
         if col_name not in cols:
             conn.close()
@@ -7495,7 +7495,7 @@ def api_rename_field():
                 conn.close()
                 return jsonify({"error": "Cannot rename to reserved system names"}), 400
                 
-            cursor.execute("SELECT column_name FROM information_schema.columns WHERE table_name = 'master_records' AND table_schema = 'public'")
+            cursor.execute("SELECT column_name AS column_name FROM information_schema.columns WHERE table_name = 'master_records' AND table_schema = DATABASE()")
             cols = [row['column_name'] for row in cursor.fetchall()]
             
             if old_db_name not in cols:
