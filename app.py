@@ -4057,7 +4057,7 @@ def profile():
 
     # Check for user's pending change requests
     cursor.execute("""
-        SELECT * FROM public.user_change_requests
+        SELECT * FROM  user_change_requests
         WHERE user_id = %s AND status = 'pending'
     """, (session["user_id"],))
     pending_request = cursor.fetchone()
@@ -4084,11 +4084,11 @@ def inject_pending_requests_count():
         
         # Pending requests count
         if role == "admin":
-            cursor.execute("SELECT COUNT(*) FROM public.user_change_requests WHERE status = 'pending'")
+            cursor.execute("SELECT COUNT(*) FROM  user_change_requests WHERE status = 'pending'")
         else: # team_lead
             cursor.execute("""
-                SELECT COUNT(*) FROM public.user_change_requests r
-                JOIN public.users u ON r.user_id = u.id
+                SELECT COUNT(*) FROM  user_change_requests r
+                JOIN  users u ON r.user_id = u.id
                 WHERE u.manager_id = %s AND r.status = 'pending'
             """, (session["user_id"],))
         row_req = cursor.fetchone()
@@ -4096,7 +4096,7 @@ def inject_pending_requests_count():
 
         # Unread notifications count
         cursor.execute("""
-            SELECT COUNT(*) FROM public.user_notifications 
+            SELECT COUNT(*) FROM  user_notifications 
             WHERE recipient_id = %s AND is_read = FALSE
         """, (session["user_id"],))
         row_notif = cursor.fetchone()
@@ -4126,16 +4126,16 @@ def inbox_preview():
     if role == "admin":
         cursor.execute("""
             SELECT r.id, r.username, r.requested_at, u.username as current_username
-            FROM public.user_change_requests r
-            JOIN public.users u ON r.user_id = u.id
+            FROM  user_change_requests r
+            JOIN  users u ON r.user_id = u.id
             WHERE r.status = 'pending'
             ORDER BY r.requested_at DESC
         """)
     else: # team_lead
         cursor.execute("""
             SELECT r.id, r.username, r.requested_at, u.username as current_username
-            FROM public.user_change_requests r
-            JOIN public.users u ON r.user_id = u.id
+            FROM  user_change_requests r
+            JOIN  users u ON r.user_id = u.id
             WHERE u.manager_id = %s AND r.status = 'pending'
             ORDER BY r.requested_at DESC
         """, (session["user_id"],))
@@ -4144,8 +4144,8 @@ def inbox_preview():
     # 2. Fetch notifications
     cursor.execute("""
         SELECT n.id, n.message, n.action_type, n.created_at, n.is_read, u.username as sender_name
-        FROM public.user_notifications n
-        JOIN public.users u ON n.sender_id = u.id
+        FROM  user_notifications n
+        JOIN  users u ON n.sender_id = u.id
         WHERE n.recipient_id = %s
         ORDER BY n.created_at DESC LIMIT 15
     """, (session["user_id"],))
@@ -4173,7 +4173,7 @@ def mark_notifications_read():
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("""
-        UPDATE public.user_notifications
+        UPDATE  user_notifications
         SET is_read = TRUE
         WHERE recipient_id = %s
     """, (session["user_id"],))
@@ -4203,7 +4203,7 @@ def profile_update():
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     cursor.execute("""
-        SELECT username, email, phone_number, address FROM public.users WHERE id = %s
+        SELECT username, email, phone_number, address FROM  users WHERE id = %s
     """, (session["user_id"],))
     curr = cursor.fetchone()
 
@@ -4232,7 +4232,7 @@ def profile_update():
     # If the user is admin, they don't need approval! Apply changes immediately.
     if session.get("role") == "admin":
         cursor.execute("""
-            UPDATE public.users
+            UPDATE  users
             SET username = %s, email = %s, phone_number = %s, address = %s
             WHERE id = %s
         """, (username, email, phone_number, address, session["user_id"]))
@@ -4251,7 +4251,7 @@ def profile_update():
 
     # Check for existing pending request
     cursor.execute("""
-        SELECT id FROM public.user_change_requests 
+        SELECT id FROM  user_change_requests 
         WHERE user_id = %s AND status = 'pending'
     """, (session["user_id"],))
     pending = cursor.fetchone()
@@ -4259,14 +4259,14 @@ def profile_update():
     if pending:
         # Update existing pending request
         cursor.execute("""
-            UPDATE public.user_change_requests
+            UPDATE  user_change_requests
             SET username = %s, email = %s, phone_number = %s, address = %s, requested_at = CURRENT_TIMESTAMP
             WHERE id = %s
         """, (username, email, phone_number, address, pending["id"]))
     else:
         # Create new pending request
         cursor.execute("""
-            INSERT INTO public.user_change_requests (user_id, username, email, phone_number, address)
+            INSERT INTO  user_change_requests (user_id, username, email, phone_number, address)
             VALUES (%s, %s, %s, %s, %s)
         """, (session["user_id"], username, email, phone_number, address))
 
@@ -4300,9 +4300,9 @@ def inbox():
             SELECT r.*, u.username AS current_username, u.email AS current_email, 
                    u.phone_number AS current_phone_number, u.address AS current_address,
                    u.role AS user_role, reviewer.username AS reviewer_name
-            FROM public.user_change_requests r
-            JOIN public.users u ON r.user_id = u.id
-            LEFT JOIN public.users reviewer ON r.reviewed_by = reviewer.id
+            FROM  user_change_requests r
+            JOIN  users u ON r.user_id = u.id
+            LEFT JOIN  users reviewer ON r.reviewed_by = reviewer.id
             WHERE r.status = 'pending'
             ORDER BY r.requested_at DESC
         """)
@@ -4311,9 +4311,9 @@ def inbox():
             SELECT r.*, u.username AS current_username, u.email AS current_email, 
                    u.phone_number AS current_phone_number, u.address AS current_address,
                    u.role AS user_role, reviewer.username AS reviewer_name
-            FROM public.user_change_requests r
-            JOIN public.users u ON r.user_id = u.id
-            LEFT JOIN public.users reviewer ON r.reviewed_by = reviewer.id
+            FROM  user_change_requests r
+            JOIN  users u ON r.user_id = u.id
+            LEFT JOIN  users reviewer ON r.reviewed_by = reviewer.id
             WHERE u.manager_id = %s AND r.status = 'pending'
             ORDER BY r.requested_at DESC
         """, (session["user_id"],))
@@ -4323,8 +4323,8 @@ def inbox():
     cursor.execute("""
         SELECT n.id, n.message, n.action_type, n.created_at, n.is_read, 
                u.username as sender_name, u.role as user_role
-        FROM public.user_notifications n
-        JOIN public.users u ON n.sender_id = u.id
+        FROM  user_notifications n
+        JOIN  users u ON n.sender_id = u.id
         WHERE n.recipient_id = %s
         ORDER BY n.created_at DESC
     """, (session["user_id"],))
@@ -4335,8 +4335,8 @@ def inbox():
     if role == "admin":
         cursor.execute("""
             SELECT k.*, u.username AS client_username, u.email AS client_email
-            FROM public.client_api_keys k
-            JOIN public.users u ON k.user_id = u.id
+            FROM  client_api_keys k
+            JOIN  users u ON k.user_id = u.id
             WHERE k.status = 'pending'
             ORDER BY k.created_at DESC
         """)
@@ -4453,8 +4453,8 @@ def approve_request(req_id):
     # Fetch change request
     cursor.execute("""
         SELECT r.*, u.manager_id 
-        FROM public.user_change_requests r
-        JOIN public.users u ON r.user_id = u.id
+        FROM  user_change_requests r
+        JOIN  users u ON r.user_id = u.id
         WHERE r.id = %s AND r.status = 'pending'
     """, (req_id,))
     req = cursor.fetchone()
@@ -4470,14 +4470,14 @@ def approve_request(req_id):
 
     # Update user details
     cursor.execute("""
-        UPDATE public.users
+        UPDATE  users
         SET username = %s, email = %s, phone_number = %s, address = %s
         WHERE id = %s
     """, (req["username"], req["email"], req["phone_number"], req["address"], req["user_id"]))
 
     # Update change request status
     cursor.execute("""
-        UPDATE public.user_change_requests
+        UPDATE  user_change_requests
         SET status = 'approved', reviewed_by = %s, reviewed_at = CURRENT_TIMESTAMP
         WHERE id = %s
     """, (session["user_id"], req_id))
@@ -4506,8 +4506,8 @@ def reject_request(req_id):
     # Fetch change request
     cursor.execute("""
         SELECT r.*, u.manager_id 
-        FROM public.user_change_requests r
-        JOIN public.users u ON r.user_id = u.id
+        FROM  user_change_requests r
+        JOIN  users u ON r.user_id = u.id
         WHERE r.id = %s AND r.status = 'pending'
     """, (req_id,))
     req = cursor.fetchone()
@@ -4523,7 +4523,7 @@ def reject_request(req_id):
 
     # Update change request status
     cursor.execute("""
-        UPDATE public.user_change_requests
+        UPDATE  user_change_requests
         SET status = 'rejected', reviewed_by = %s, reviewed_at = CURRENT_TIMESTAMP, rejection_reason = %s
         WHERE id = %s
     """, (session["user_id"], reason, req_id))
@@ -4551,7 +4551,7 @@ def inbox_approve_api_key(key_id):
     cursor = conn.cursor(dictionary=True)
 
     try:
-        cursor.execute("SELECT k.*, u.username FROM public.client_api_keys k JOIN public.users u ON k.user_id = u.id WHERE k.id = %s", (key_id,))
+        cursor.execute("SELECT k.*, u.username FROM  client_api_keys k JOIN  users u ON k.user_id = u.id WHERE k.id = %s", (key_id,))
         key_row = cursor.fetchone()
 
         if not key_row:
@@ -4570,7 +4570,7 @@ def inbox_approve_api_key(key_id):
             final_expires_at = f"{exp_dt} 23:59:59"
 
         cursor.execute("""
-            UPDATE public.client_api_keys
+            UPDATE  client_api_keys
             SET status = 'approved', is_active = 1, max_rows_limit = %s, expires_at = %s, approved_by = %s, approved_at = NOW()
             WHERE id = %s
         """, (final_limit, final_expires_at, session["user_id"], key_id))
@@ -4584,7 +4584,7 @@ def inbox_approve_api_key(key_id):
         )
 
         cursor.execute("""
-            INSERT INTO public.user_notifications (recipient_id, sender_id, message, action_type)
+            INSERT INTO  user_notifications (recipient_id, sender_id, message, action_type)
             VALUES (%s, %s, %s, 'api_key_approval')
         """, (key_row["user_id"], session["user_id"], client_msg))
         conn.commit()
@@ -4618,7 +4618,7 @@ def inbox_reject_api_key(key_id):
     cursor = conn.cursor(dictionary=True)
 
     try:
-        cursor.execute("SELECT k.*, u.username FROM public.client_api_keys k JOIN public.users u ON k.user_id = u.id WHERE k.id = %s", (key_id,))
+        cursor.execute("SELECT k.*, u.username FROM  client_api_keys k JOIN  users u ON k.user_id = u.id WHERE k.id = %s", (key_id,))
         key_row = cursor.fetchone()
 
         if not key_row:

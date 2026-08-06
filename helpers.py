@@ -51,6 +51,7 @@ class MySqlCursorWrapper:
     def execute(self, query, params=None):
         if isinstance(query, str):
             query = query.replace("custom_fields ->> %s", "JSON_UNQUOTE(JSON_EXTRACT(custom_fields, CONCAT('$.', %s)))")
+            query = re.sub(r'\s+ILIKE\s+', ' LIKE ', query, flags=re.IGNORECASE)
             query = query.replace('`', '"')
         try:
             self.cursor.execute(query, params)
@@ -62,6 +63,7 @@ class MySqlCursorWrapper:
     def executemany(self, query, seq_of_params):
         if isinstance(query, str):
             query = query.replace("custom_fields ->> %s", "JSON_UNQUOTE(JSON_EXTRACT(custom_fields, CONCAT('$.', %s)))")
+            query = re.sub(r'\s+ILIKE\s+', ' LIKE ', query, flags=re.IGNORECASE)
             query = query.replace('`', '"')
         try:
             self.cursor.executemany(query, seq_of_params)
@@ -158,7 +160,7 @@ def log_action(user_id, action, total=0, valid=0, invalid=0, removed=0,
     if action_type:
         try:
             # Query manager of the user doing the action
-            cursor.execute("SELECT manager_id, username FROM public.users WHERE id = %s", (user_id,))
+            cursor.execute("SELECT manager_id, username FROM users WHERE id = %s", (user_id,))
             user_row = cursor.fetchone()
             if user_row:
                 manager_id = user_row["manager_id"]
@@ -178,18 +180,18 @@ def log_action(user_id, action, total=0, valid=0, invalid=0, removed=0,
                 if manager_id:
                     # Insert for manager (Team Leader)
                     cursor.execute("""
-                        INSERT INTO public.user_notifications (recipient_id, sender_id, message, action_type)
+                        INSERT INTO user_notifications (recipient_id, sender_id, message, action_type)
                         VALUES (%s, %s, %s, %s)
                     """, (manager_id, user_id, formatted_msg, action_type))
                 else:
                     # Send to all admins if user has no manager
-                    cursor.execute("SELECT id FROM public.users WHERE role = 'admin'")
+                    cursor.execute("SELECT id FROM users WHERE role = 'admin'")
                     admins = cursor.fetchall()
                     for admin in admins:
                         admin_id = admin["id"]
                         if admin_id != user_id:
                             cursor.execute("""
-                                INSERT INTO public.user_notifications (recipient_id, sender_id, message, action_type)
+                                INSERT INTO user_notifications (recipient_id, sender_id, message, action_type)
                                 VALUES (%s, %s, %s, %s)
                             """, (admin_id, user_id, formatted_msg, action_type))
                 conn.commit()
