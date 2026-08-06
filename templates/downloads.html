@@ -660,18 +660,16 @@
                           <input type="checkbox" id="selectAllRecordsCheckbox" class="form-check-input">
                         </th>
                         <th>ID</th>
-                        <th>Name</th>
-                        <th>Email</th>
-                        <th>Phone</th>
-                        <th>Company</th>
-                        <th>Location</th>
+                        {% for col in active_master_cols %}
+                        <th>{{ col.display_name }}</th>
+                        {% endfor %}
                         <th class="text-center">Custom Fields</th>
                         <th class="text-center">Action</th>
                       </tr>
                     </thead>
                     <tbody id="recordsTableBody">
                       <tr>
-                        <td colspan="9" class="text-center py-5">
+                        <td colspan="{{ 4 + active_master_cols|length }}" class="text-center py-5">
                           <div class="spinner-border text-danger" role="status">
                             <span class="visually-hidden">Loading...</span>
                           </div>
@@ -1120,6 +1118,7 @@
           const rawFields = document.getElementById("customFieldsData") ? document.getElementById("customFieldsData").getAttribute("data-fields") : "[]";
           window.customFieldsRegistry = JSON.parse(rawFields || "[]");
           const sessionUserId = "{{ session.get('user_id', 0) }}";
+          window.activeMasterCols = {{ active_master_cols | tojson }};
 
           window.selectedMissingField = "";
           let currentPage = 1;
@@ -1802,7 +1801,7 @@
                 console.error(err);
                 recordsTableBody.innerHTML = `
               <tr>
-                  <td colspan="9" class="text-center py-5 text-danger">
+                  <td colspan="${4 + window.activeMasterCols.length}" class="text-center py-5 text-danger">
                       <i class="bi bi-exclamation-triangle-fill fs-3 mb-2 d-block"></i>
                       An error occurred while fetching database records. Please try again.
                   </td>
@@ -1825,7 +1824,7 @@
             if (!records || records.length === 0) {
               recordsTableBody.innerHTML = `
             <tr>
-                <td colspan="9" class="text-center py-5 text-muted">
+                <td colspan="${4 + window.activeMasterCols.length}" class="text-center py-5 text-muted">
                     <i class="bi bi-folder2-open fs-2 mb-3 d-block"></i>
                     No matching records found. Try adjusting your query parameters.
                 </td>
@@ -1837,7 +1836,22 @@
             let html = "";
             records.forEach(r => {
               const hasCustom = r.custom_fields && Object.keys(r.custom_fields).length > 0;
-              const location = [r.city, r.state, r.country].filter(Boolean).join(", ") || "--";
+              
+              let cellsHtml = "";
+              window.activeMasterCols.forEach((col, idx) => {
+                let val = r[col.column_name];
+                if (val === null || val === undefined || val === '') {
+                  val = '--';
+                } else if (col.column_name === 'primary_phone_number' || col.column_name === 'alternate_phone_number') {
+                  val = String(val).replace(/\.0+$/, '');
+                }
+                
+                if (idx === 0) {
+                  cellsHtml += `<td><strong>${val}</strong></td>`;
+                } else {
+                  cellsHtml += `<td><span class="text-muted">${val}</span></td>`;
+                }
+              });
 
               html += `
             <tr id="record-row-${r.id}">
@@ -1845,11 +1859,7 @@
                     <input type="checkbox" class="form-check-input record-checkbox" data-id="${r.id}">
                 </td>
                 <td><span class="badge bg-secondary">#${r.id}</span></td>
-                <td><strong>${r.name || "--"}</strong></td>
-                <td><span class="text-muted">${r.email || "--"}</span></td>
-                <td><span class="text-muted">${r.phone ? String(r.phone).replace(/\.0+$/, '') : "--"}</span></td>
-                <td><span class="text-muted">${r.company || "--"}</span></td>
-                <td><span class="text-muted small">${location}</span></td>
+                ${cellsHtml}
                 <td class="text-center">
                     ${hasCustom ?
                   `<span class="badge bg-danger-subtle text-danger px-3 py-1">${Object.keys(r.custom_fields).length} attributes</span>` :

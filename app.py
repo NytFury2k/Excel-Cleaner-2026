@@ -2760,7 +2760,28 @@ def downloads():
         export_rows   = []
         total_exports = 0
 
-    # --- Fetch custom attributes registry for search filters ---
+    # Fetch first 5 physical columns of master_records table (excluding system ones)
+    cursor.execute("SELECT column_name AS column_name FROM information_schema.columns WHERE table_name = 'master_records' AND table_schema = DATABASE()")
+    all_db_cols = [r['column_name'] for r in cursor.fetchall()]
+    system_cols = {'id', 'file_id', 'custom_fields', 'created_at', 'updated_at', 'imported_by'}
+    
+    # Filter out system columns
+    master_cols_only = [c for c in all_db_cols if c not in system_cols]
+    
+    # Get the display name for each column from master_columns_registry or default to title case
+    cursor.execute("SELECT column_name, display_name FROM master_columns_registry")
+    registry_map = {row['column_name']: row['display_name'] for row in cursor.fetchall()}
+    
+    active_master_cols = []
+    # Take at most 5 master columns
+    for c in master_cols_only[:5]:
+        display_name = registry_map.get(c, " ".join([w.capitalize() for w in c.split("_")]))
+        active_master_cols.append({
+            "column_name": c,
+            "display_name": display_name
+        })
+
+    # Fetch custom attributes registry for search filters
     cursor.execute("SELECT id, field_name FROM field_registry WHERE is_active = 1")
     custom_fields = cursor.fetchall()
 
@@ -2806,6 +2827,7 @@ def downloads():
         hist_start=hist_start,
         hist_end=hist_end,
         custom_fields=custom_fields,
+        active_master_cols=active_master_cols,
         hist_page_url=lambda p: url_for(
             "downloads",
             hist_page=p,
