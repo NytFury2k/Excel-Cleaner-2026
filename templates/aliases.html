@@ -132,30 +132,9 @@
                     <label for="masterTarget" class="form-label text-muted small fw-semibold">Master Column
                       Target</label>
                     <select class="form-select" id="masterTarget">
-                      <option value="first_name">First Name</option>
-                      <option value="last_name">Last Name</option>
-                      <option value="email_address">Email Address</option>
-                      <option value="primary_phone_number">Primary Phone Number</option>
-                      <option value="alternate_phone_number">Alternate Phone Number</option>
-                      <option value="company_name">Company Name</option>
-                      <option value="job_title">Job Title</option>
-                      <option value="department">Department</option>
-                      <option value="website_url">Website URL</option>
-                      <option value="address_line_1">Address Line 1</option>
-                      <option value="address_line_2">Address Line 2</option>
-                      <option value="city">City</option>
-                      <option value="state_province">State / Province</option>
-                      <option value="postal_zip_code">Postal / ZIP Code</option>
-                      <option value="country">Country</option>
-                      <option value="linkedin_profile_url">LinkedIn Profile URL</option>
-                      <option value="industry">Industry</option>
-                      <option value="lead_source">Lead Source</option>
-                      <option value="record_status">Record Status</option>
-                      <option value="date_of_birth">Date of Birth</option>
-                      <option value="gender">Gender</option>
-                      <option value="company_size">Company Size</option>
-                      <option value="annual_revenue">Annual Revenue</option>
-                      <option value="imported_by">Imported By</option>
+                      {% for m in master_fields %}
+                      <option value="{{ m.identifier }}">{{ m.name }}</option>
+                      {% endfor %}
                     </select>
                   </div>
 

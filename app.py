@@ -6166,6 +6166,8 @@ def get_record_custom_fields(record_id):
     
     # 1. Resolve JSON custom fields
     for key_id_str, val in cfields.items():
+        if val is None or str(val).strip() in ('', 'None', 'nan', 'NaT', '--'):
+            continue
         try:
             cursor.execute("SELECT field_name FROM field_registry WHERE id = %s", (int(key_id_str),))
             f_row = cursor.fetchone()
@@ -6176,13 +6178,38 @@ def get_record_custom_fields(record_id):
         except (ValueError, TypeError):
             resolved_data[key_id_str] = val
             
-    # 2. Add other populated columns that aren't metadata or main table columns
+    # 2. Add other populated columns that aren't metadata
     for col, val in row.items():
-        if col in ('id', 'file_id', 'custom_fields', 'created_at', 'updated_at', 'imported_by',
-                   'first_name', 'last_name', 'email_address', 'primary_phone_number', 'company_name', 'city', 'state_province'):
+        if col in ('id', 'file_id', 'custom_fields', 'created_at', 'updated_at'):
             continue
-        if val is not None and str(val).strip() != '':
-            label = " ".join([w.capitalize() for w in col.split("_")])
+        if val is not None and str(val).strip() not in ('', 'None', 'nan', 'NaT', '--'):
+            display_names = {
+                'first_name': 'First Name',
+                'last_name': 'Last Name',
+                'email_address': 'Email Address',
+                'primary_phone_number': 'Primary Phone Number',
+                'alternate_phone_number': 'Alternate Phone Number',
+                'company_name': 'Company Name',
+                'job_title': 'Job Title',
+                'department': 'Department',
+                'website_url': 'Website URL',
+                'address_line_1': 'Address Line 1',
+                'address_line_2': 'Address Line 2',
+                'city': 'City',
+                'state_province': 'State / Province',
+                'postal_zip_code': 'Postal / ZIP Code',
+                'country': 'Country',
+                'linkedin_profile_url': 'LinkedIn Profile URL',
+                'industry': 'Industry',
+                'lead_source': 'Lead Source',
+                'record_status': 'Record Status',
+                'date_of_birth': 'Date of Birth',
+                'gender': 'Gender',
+                'company_size': 'Company Size',
+                'annual_revenue': 'Annual Revenue',
+                'imported_by': 'Imported By'
+            }
+            label = display_names.get(col, " ".join([w.capitalize() for w in col.split("_")]))
             resolved_data[label] = val
             
     conn.close()
@@ -6319,8 +6346,49 @@ def aliases_view():
     cursor.execute("SELECT id, field_name FROM field_registry WHERE is_active = 1")
     custom_fields = cursor.fetchall()
     
+    # Fetch master columns dynamically from database
+    cursor.execute("SELECT column_name FROM information_schema.columns WHERE table_name = 'master_records' AND table_schema = 'public'")
+    db_cols = cursor.fetchall()
+    
+    display_names = {
+        'first_name': 'First Name',
+        'last_name': 'Last Name',
+        'email_address': 'Email Address',
+        'primary_phone_number': 'Primary Phone Number',
+        'alternate_phone_number': 'Alternate Phone Number',
+        'company_name': 'Company Name',
+        'job_title': 'Job Title',
+        'department': 'Department',
+        'website_url': 'Website URL',
+        'address_line_1': 'Address Line 1',
+        'address_line_2': 'Address Line 2',
+        'city': 'City',
+        'state_province': 'State / Province',
+        'postal_zip_code': 'Postal / ZIP Code',
+        'country': 'Country',
+        'linkedin_profile_url': 'LinkedIn Profile URL',
+        'industry': 'Industry',
+        'lead_source': 'Lead Source',
+        'record_status': 'Record Status',
+        'date_of_birth': 'Date of Birth',
+        'gender': 'Gender',
+        'company_size': 'Company Size',
+        'annual_revenue': 'Annual Revenue',
+        'imported_by': 'Imported By'
+    }
+    
+    master_fields = []
+    for col in db_cols:
+        c_name = col['column_name']
+        if c_name in ('id', 'file_id', 'custom_fields', 'created_at', 'updated_at'):
+            continue
+        master_fields.append({
+            "identifier": c_name,
+            "name": display_names.get(c_name, c_name.replace('_', ' ').title())
+        })
+        
     conn.close()
-    return render_template('aliases.html', aliases=aliases, custom_fields=custom_fields)
+    return render_template('aliases.html', aliases=aliases, custom_fields=custom_fields, master_fields=master_fields)
 
 @app.route('/history')
 @login_required()
