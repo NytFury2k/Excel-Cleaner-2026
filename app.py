@@ -7222,11 +7222,11 @@ def api_add_master_column():
             return jsonify({"error": f"Column '{normalized_name}' already exists in database"}), 400
             
         # Physical Alter Table
-        cursor.execute(f'ALTER TABLE master_records ADD COLUMN "{normalized_name}" {data_type} NULL')
+        cursor.execute(f'ALTER TABLE master_records ADD COLUMN `{normalized_name}` {data_type} NULL')
         
         # Add to master_columns_registry
         cursor.execute(
-            "INSERT INTO master_columns_registry (column_name, display_name) VALUES (%s, %s) ON CONFLICT (column_name) DO UPDATE SET display_name = EXCLUDED.display_name",
+            "INSERT INTO master_columns_registry (column_name, display_name) VALUES (%s, %s) ON DUPLICATE KEY UPDATE display_name = VALUES(display_name)",
             (normalized_name, field_name)
         )
         
@@ -7270,7 +7270,7 @@ def api_delete_master_column(col_name):
             return jsonify({"error": f"Column '{col_name}' does not exist in master records"}), 404
             
         # Physical Alter Table
-        cursor.execute(f'ALTER TABLE master_records DROP COLUMN "{col_name}"')
+        cursor.execute(f'ALTER TABLE master_records DROP COLUMN `{col_name}`')
         
         # Delete from master_columns_registry
         cursor.execute("DELETE FROM master_columns_registry WHERE column_name = %s", (col_name,))
@@ -7312,13 +7312,13 @@ def api_move_to_custom(col_name):
         # 1. Insert into field_registry
         display_label = " ".join([w.capitalize() for w in col_name.split("_")])
         cursor.execute(
-            "INSERT INTO field_registry (field_name, normalized_name, data_type, is_active, searchable, filterable) VALUES (%s, %s, 'VARCHAR', 1, 1, 1) RETURNING id",
+            "INSERT INTO field_registry (field_name, normalized_name, data_type, is_active, searchable, filterable) VALUES (%s, %s, 'VARCHAR', 1, 1, 1)",
             (display_label, col_name)
         )
-        new_field_id = cursor.fetchone()['id']
+        new_field_id = cursor.lastrowid
         
         # 2. Query and migrate data to custom_fields JSON
-        cursor.execute(f'SELECT id, custom_fields, "{col_name}" FROM master_records WHERE "{col_name}" IS NOT NULL AND "{col_name}" != \'\'')
+        cursor.execute(f"SELECT id, custom_fields, `{col_name}` FROM master_records WHERE `{col_name}` IS NOT NULL AND `{col_name}` != ''")
         records = cursor.fetchall()
         
         for r in records:
@@ -7344,7 +7344,7 @@ def api_move_to_custom(col_name):
         )
         
         # 4. Drop physical column
-        cursor.execute(f'ALTER TABLE master_records DROP COLUMN "{col_name}"')
+        cursor.execute(f"ALTER TABLE master_records DROP COLUMN `{col_name}`")
         
         # 5. Delete from master_columns_registry
         cursor.execute("DELETE FROM master_columns_registry WHERE column_name = %s", (col_name,))
@@ -7389,10 +7389,10 @@ def api_add_custom_field():
             return jsonify({"error": f"Custom field '{normalized_name}' already exists in registry"}), 400
             
         cursor.execute(
-            "INSERT INTO field_registry (field_name, normalized_name, data_type, is_active, searchable, filterable) VALUES (%s, %s, %s, 1, 1, 1) RETURNING id",
+            "INSERT INTO field_registry (field_name, normalized_name, data_type, is_active, searchable, filterable) VALUES (%s, %s, %s, 1, 1, 1)",
             (field_name, normalized_name, data_type)
         )
-        new_id = cursor.fetchone()['id']
+        new_id = cursor.lastrowid
         
         # Add alias automatically
         cursor.execute("SELECT COUNT(*) as count FROM field_aliases WHERE alias = %s", (field_name,))
@@ -7510,7 +7510,7 @@ def api_rename_field():
                 if new_db_name in cols:
                     conn.close()
                     return jsonify({"error": f"Column '{new_db_name}' already exists"}), 400
-                cursor.execute(f'ALTER TABLE master_records RENAME COLUMN "{old_db_name}" TO "{new_db_name}"')
+                cursor.execute(f"ALTER TABLE master_records RENAME COLUMN `{old_db_name}` TO `{new_db_name}`")
                 
             # Update target in aliases
             cursor.execute(
@@ -7520,7 +7520,7 @@ def api_rename_field():
             
             # Update master_columns_registry
             cursor.execute(
-                "INSERT INTO master_columns_registry (column_name, display_name) VALUES (%s, %s) ON CONFLICT (column_name) DO UPDATE SET display_name = EXCLUDED.display_name",
+                "INSERT INTO master_columns_registry (column_name, display_name) VALUES (%s, %s) ON DUPLICATE KEY UPDATE display_name = VALUES(display_name)",
                 (new_db_name, new_name)
             )
             if old_db_name != new_db_name:

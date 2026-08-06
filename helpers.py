@@ -50,8 +50,10 @@ class MySqlCursorWrapper:
 
     def execute(self, query, params=None):
         if isinstance(query, str):
-            query = query.replace("custom_fields ->> %s", "JSON_UNQUOTE(JSON_EXTRACT(custom_fields, CONCAT('$.', %s)))")
+            query = query.replace("custom_fields ->> %s", "JSON_UNQUOTE(JSON_EXTRACT(custom_fields, CONCAT('$.\"', %s, '\"')))")
             query = re.sub(r'\s+ILIKE\s+', ' LIKE ', query, flags=re.IGNORECASE)
+            query = re.sub(r'ON\s+CONFLICT\s*\([^)]*\)\s*DO\s+UPDATE\s+SET', 'ON DUPLICATE KEY UPDATE', query, flags=re.IGNORECASE)
+            query = re.sub(r'EXCLUDED\.([a-zA-Z0-9_]+)', r'VALUES(\1)', query, flags=re.IGNORECASE)
         try:
             self.cursor.execute(query, params)
             if isinstance(query, str) and query.strip().upper().startswith("INSERT"):
@@ -61,8 +63,10 @@ class MySqlCursorWrapper:
 
     def executemany(self, query, seq_of_params):
         if isinstance(query, str):
-            query = query.replace("custom_fields ->> %s", "JSON_UNQUOTE(JSON_EXTRACT(custom_fields, CONCAT('$.', %s)))")
+            query = query.replace("custom_fields ->> %s", "JSON_UNQUOTE(JSON_EXTRACT(custom_fields, CONCAT('$.\"', %s, '\"')))")
             query = re.sub(r'\s+ILIKE\s+', ' LIKE ', query, flags=re.IGNORECASE)
+            query = re.sub(r'ON\s+CONFLICT\s*\([^)]*\)\s*DO\s+UPDATE\s+SET', 'ON DUPLICATE KEY UPDATE', query, flags=re.IGNORECASE)
+            query = re.sub(r'EXCLUDED\.([a-zA-Z0-9_]+)', r'VALUES(\1)', query, flags=re.IGNORECASE)
         try:
             self.cursor.executemany(query, seq_of_params)
         except mysql.connector.Error as e:
