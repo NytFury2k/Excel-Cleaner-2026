@@ -194,7 +194,12 @@
           <div class="tab-pane fade show active" id="custom-fields-pane" role="tabpanel" aria-labelledby="custom-fields-tab">
             <div class="card shadow-sm mb-3">
               <div class="card-header d-flex justify-content-between align-items-center">
-                <span><i class="bi bi-tag-fill me-2 text-danger"></i>Custom Attributes Registry</span>
+                <div class="d-flex align-items-center gap-3">
+                  <span><i class="bi bi-tag-fill me-2 text-danger"></i>Custom Attributes Registry</span>
+                  <button class="btn btn-sm btn-danger d-none px-3 py-1" id="btnBulkDeleteCustom" style="border-radius: 0.5rem; font-size: 0.78rem;">
+                    <i class="bi bi-trash-fill me-1"></i>Delete Selected
+                  </button>
+                </div>
                 <form method="get" action="{{ url_for('registry') }}" class="d-flex align-items-center gap-2 mb-0">
                   <input type="text" name="search" value="{{ search }}" class="form-control form-control-sm"
                     placeholder="Search display, normalized name..." style="min-width:240px; border-radius:0.5rem;" aria-label="Search registry">
@@ -206,6 +211,7 @@
                   <table class="table table-hover align-middle mb-0">
                     <thead>
                       <tr>
+                        <th><input type="checkbox" id="selectAllCustom" class="form-check-input"></th>
                         <th>ID</th>
                         <th>Field Display Name</th>
                         <th>Normalized Name</th>
@@ -220,6 +226,7 @@
                       {% if fields %}
                       {% for field in fields %}
                       <tr data-field-id="{{ field.id }}" data-type="custom" data-name="{{ field.field_name }}" data-db-name="{{ field.normalized_name }}">
+                        <td><input type="checkbox" class="form-check-input select-custom" data-field-id="{{ field.id }}"></td>
                         <td><span class="badge bg-secondary font-outfit">#{{ field.id }}</span></td>
                         <td><strong>{{ field.field_name }}</strong></td>
                         <td><code class="text-primary fw-semibold">{{ field.normalized_name }}</code></td>
@@ -248,7 +255,7 @@
                       {% endfor %}
                       {% else %}
                       <tr>
-                        <td colspan="8" class="text-center py-5 text-muted">
+                        <td colspan="9" class="text-center py-5 text-muted">
                           <i class="bi bi-tag fs-2 mb-3 d-block text-secondary"></i>
                           No custom attributes found.
                         </td>
@@ -289,14 +296,20 @@
           <!-- Pane 2: Master Columns -->
           <div class="tab-pane fade" id="master-cols-pane" role="tabpanel" aria-labelledby="master-cols-tab">
             <div class="card shadow-sm">
-              <div class="card-header">
-                <span><i class="bi bi-database-fill me-2 text-danger"></i>Physical Database Master Columns</span>
+              <div class="card-header d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center gap-3">
+                  <span><i class="bi bi-database-fill me-2 text-danger"></i>Physical Database Master Columns</span>
+                  <button class="btn btn-sm btn-danger d-none px-3 py-1" id="btnBulkDeleteMaster" style="border-radius: 0.5rem; font-size: 0.78rem;">
+                    <i class="bi bi-trash-fill me-1"></i>Delete Selected
+                  </button>
+                </div>
               </div>
               <div class="card-body p-0">
                 <div class="table-responsive">
                   <table class="table table-hover align-middle mb-0">
                     <thead>
                       <tr>
+                        <th><input type="checkbox" id="selectAllMaster" class="form-check-input"></th>
                         <th>Display Name</th>
                         <th>Database Field Name</th>
                         <th>SQL Data Type</th>
@@ -308,6 +321,7 @@
                       {% if master_columns %}
                       {% for col in master_columns %}
                       <tr data-col-name="{{ col.column_name }}" data-type="master" data-name="{{ col.display_name }}" data-db-name="{{ col.column_name }}">
+                        <td><input type="checkbox" class="form-check-input select-master" data-field-id="{{ col.column_name }}"></td>
                         <td><strong>{{ col.display_name }}</strong></td>
                         <td><code class="text-danger fw-semibold">{{ col.column_name }}</code></td>
                         <td><span class="badge bg-light text-dark border border-secondary-subtle">{{ col.data_type }}</span></td>
@@ -323,7 +337,7 @@
                       {% endfor %}
                       {% else %}
                       <tr>
-                        <td colspan="5" class="text-center py-5 text-muted">
+                        <td colspan="6" class="text-center py-5 text-muted">
                           <i class="bi bi-database-exclamation fs-2 mb-3 d-block text-secondary"></i>
                           No physical columns found in Master table.
                         </td>
@@ -694,6 +708,136 @@
             });
         });
       });
+
+      // 7. Bulk select custom fields logic
+      const selectAllCustom = document.getElementById("selectAllCustom");
+      const selectCustomCheckboxes = document.querySelectorAll(".select-custom");
+      const btnBulkDeleteCustom = document.getElementById("btnBulkDeleteCustom");
+
+      if (selectAllCustom) {
+        selectAllCustom.addEventListener("change", function () {
+          selectCustomCheckboxes.forEach(cb => {
+            cb.checked = selectAllCustom.checked;
+          });
+          toggleBulkCustomButton();
+        });
+      }
+
+      selectCustomCheckboxes.forEach(cb => {
+        cb.addEventListener("change", function () {
+          const checkedCount = document.querySelectorAll(".select-custom:checked").length;
+          selectAllCustom.checked = (checkedCount === selectCustomCheckboxes.length);
+          toggleBulkCustomButton();
+        });
+      });
+
+      function toggleBulkCustomButton() {
+        const checkedCount = document.querySelectorAll(".select-custom:checked").length;
+        if (checkedCount > 0) {
+          btnBulkDeleteCustom.classList.remove("d-none");
+        } else {
+          btnBulkDeleteCustom.classList.add("d-none");
+        }
+      }
+
+      if (btnBulkDeleteCustom) {
+        btnBulkDeleteCustom.addEventListener("click", function () {
+          const checked = document.querySelectorAll(".select-custom:checked");
+          if (checked.length === 0) return;
+
+          if (!confirm(`Are you sure you want to delete the selected ${checked.length} custom field(s)? This will permanently cleanse this data from all records in the database. This action cannot be undone.`)) {
+            return;
+          }
+
+          btnBulkDeleteCustom.disabled = true;
+          btnBulkDeleteCustom.innerHTML = `<span class="spinner-border spinner-border-sm me-1" role="status"></span>Deleting...`;
+
+          const promises = Array.from(checked).map(cb => {
+            const fieldId = cb.getAttribute("data-field-id");
+            return fetch(`/api/fields/custom/${fieldId}/delete`, { method: 'POST' })
+              .then(res => {
+                if (!res.ok) throw new Error(`Failed to delete field ID ${fieldId}`);
+                return res.json();
+              });
+          });
+
+          Promise.all(promises)
+            .then(() => {
+              alert("Selected custom fields deleted successfully.");
+              window.location.reload();
+            })
+            .catch(err => {
+              console.error(err);
+              alert("Error deleting fields: " + err.message);
+              window.location.reload();
+            });
+        });
+      }
+
+      // 8. Bulk select master columns logic
+      const selectAllMaster = document.getElementById("selectAllMaster");
+      const selectMasterCheckboxes = document.querySelectorAll(".select-master");
+      const btnBulkDeleteMaster = document.getElementById("btnBulkDeleteMaster");
+
+      if (selectAllMaster) {
+        selectAllMaster.addEventListener("change", function () {
+          selectMasterCheckboxes.forEach(cb => {
+            cb.checked = selectAllMaster.checked;
+          });
+          toggleBulkMasterButton();
+        });
+      }
+
+      selectMasterCheckboxes.forEach(cb => {
+        cb.addEventListener("change", function () {
+          const checkedCount = document.querySelectorAll(".select-master:checked").length;
+          selectAllMaster.checked = (checkedCount === selectMasterCheckboxes.length);
+          toggleBulkMasterButton();
+        });
+      });
+
+      function toggleBulkMasterButton() {
+        const checkedCount = document.querySelectorAll(".select-master:checked").length;
+        if (checkedCount > 0) {
+          btnBulkDeleteMaster.classList.remove("d-none");
+        } else {
+          btnBulkDeleteMaster.classList.add("d-none");
+        }
+      }
+
+      if (btnBulkDeleteMaster) {
+        btnBulkDeleteMaster.addEventListener("click", function () {
+          const checked = document.querySelectorAll(".select-master:checked");
+          if (checked.length === 0) return;
+
+          if (!confirm(`Warning: Are you sure you want to delete the selected ${checked.length} master column(s)? This will physically DROP these columns from the master records table and wipe all their values in the database. This action cannot be undone.`)) {
+            return;
+          }
+
+          btnBulkDeleteMaster.disabled = true;
+          btnBulkDeleteMaster.innerHTML = `<span class="spinner-border spinner-border-sm me-1" role="status"></span>Deleting...`;
+
+          const promises = Array.from(checked).map(cb => {
+            const colName = cb.getAttribute("data-field-id");
+            return fetch(`/api/fields/master/${colName}/delete`, { method: 'POST' })
+              .then(res => {
+                if (!res.ok) throw new Error(`Failed to delete column ${colName}`);
+                return res.json();
+              });
+          });
+
+          Promise.all(promises)
+            .then(() => {
+              alert("Selected master columns deleted successfully.");
+              window.location.reload();
+            })
+            .catch(err => {
+              console.error(err);
+              alert("Error deleting columns: " + err.message);
+              window.location.reload();
+            });
+        });
+      }
 
     });
   </script>
