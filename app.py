@@ -7138,10 +7138,12 @@ def api_convert_to_master(field_id):
         
         # 2. Add column to master_records table
         try:
-            cursor.execute(f"ALTER TABLE master_records ADD COLUMN IF NOT EXISTS `{c_name}` VARCHAR(255) NULL")
-            conn.commit()
+            cursor.execute("SELECT column_name AS column_name FROM information_schema.columns WHERE table_name = 'master_records' AND table_schema = DATABASE()")
+            existing_cols = [row['column_name'] for row in cursor.fetchall()]
+            if c_name not in existing_cols:
+                cursor.execute(f"ALTER TABLE master_records ADD COLUMN `{c_name}` VARCHAR(255) NULL")
+                conn.commit()
         except Exception as alter_err:
-            # Column might already exist, log warning and roll back to reset aborted transaction state
             app.logger.warning(f"ALTER TABLE column warning: {alter_err}")
             try:
                 conn.rollback()
