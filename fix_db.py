@@ -260,6 +260,20 @@ sql_statements = [
 
 conn = None
 try:
+    # 1. Connect without database to ensure it exists
+    conn_init = mysql.connector.connect(
+        host=HOST,
+        user=USER,
+        password=PASSWORD,
+        port=int(PORT)
+    )
+    cur_init = conn_init.cursor()
+    cur_init.execute(f"CREATE DATABASE IF NOT EXISTS `{DATABASE}`")
+    conn_init.commit()
+    cur_init.close()
+    conn_init.close()
+
+    # 2. Connect to the actual database
     conn = mysql.connector.connect(
         host=HOST,
         database=DATABASE,

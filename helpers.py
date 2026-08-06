@@ -96,6 +96,22 @@ def get_db_connection():
         db_port = os.environ.get("MYSQL_PORT") or os.environ.get("DB_PORT", "3306")
         db_pass = os.environ.get("MYSQL_PASSWORD") or os.environ.get("DB_PASSWORD", "")
         
+        # Ensure database exists
+        try:
+            conn_init = mysql.connector.connect(
+                host=db_host,
+                user=db_user,
+                password=db_pass,
+                port=int(db_port)
+            )
+            cur_init = conn_init.cursor()
+            cur_init.execute(f"CREATE DATABASE IF NOT EXISTS `{db_name}`")
+            conn_init.commit()
+            cur_init.close()
+            conn_init.close()
+        except Exception as e:
+            _logger.error(f"Failed to auto-create database {db_name}: {e}")
+        
         _db_pool = mysql.connector.pooling.MySQLConnectionPool(
             pool_name="mypool",
             pool_size=20,
