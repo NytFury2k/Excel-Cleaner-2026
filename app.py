@@ -2014,10 +2014,7 @@ def choose_rules():
 
     presets = []
     custom_fields_registry = []
-    master_fields = [
-        {"name": "First Name", "identifier": "first_name", "type": "text"},
-        {"name": "Last Name", "identifier": "last_name", "type": "text"}
-    ]
+    master_fields = []
 
     sheet_data = []
     conn = None
@@ -2033,6 +2030,60 @@ def choose_rules():
         # Load active custom fields
         cursor.execute("SELECT id, field_name FROM field_registry WHERE is_active = 1")
         custom_fields_registry = cursor.fetchall()
+        
+        # Fetch Master Columns dynamically from master_records table
+        cursor.execute("SELECT column_name, data_type FROM information_schema.columns WHERE table_name = 'master_records' AND table_schema = 'public'")
+        db_cols = cursor.fetchall()
+        
+        display_names = {
+            'first_name': 'First Name',
+            'last_name': 'Last Name',
+            'email_address': 'Email Address',
+            'primary_phone_number': 'Primary Phone Number',
+            'alternate_phone_number': 'Alternate Phone Number',
+            'company_name': 'Company Name',
+            'job_title': 'Job Title',
+            'department': 'Department',
+            'website_url': 'Website URL',
+            'address_line_1': 'Address Line 1',
+            'address_line_2': 'Address Line 2',
+            'city': 'City',
+            'state_province': 'State / Province',
+            'postal_zip_code': 'Postal / ZIP Code',
+            'country': 'Country',
+            'linkedin_profile_url': 'LinkedIn Profile URL',
+            'industry': 'Industry',
+            'lead_source': 'Lead Source',
+            'record_status': 'Record Status',
+            'date_of_birth': 'Date of Birth',
+            'gender': 'Gender',
+            'company_size': 'Company Size',
+            'annual_revenue': 'Annual Revenue'
+        }
+        
+        for col in db_cols:
+            c_name = col['column_name']
+            if c_name in ('id', 'file_id', 'custom_fields', 'created_at', 'updated_at', 'imported_by'):
+                continue
+            
+            c_type = col['data_type'].lower()
+            val_type = "text"
+            if "int" in c_type or "decimal" in c_type or "numeric" in c_type:
+                val_type = "numeric"
+            elif "timestamp" in c_type or "date" in c_type:
+                val_type = "date"
+            elif "phone" in c_name:
+                val_type = "phone"
+            elif "email" in c_name:
+                val_type = "email"
+            elif "url" in c_name or "website" in c_name or "linkedin" in c_name:
+                val_type = "url"
+                
+            master_fields.append({
+                "name": display_names.get(c_name, c_name.replace('_', ' ').title()),
+                "identifier": c_name,
+                "type": val_type
+            })
         
         # Populate sheet details
         for sheet in uploaded_sheets:
