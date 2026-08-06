@@ -1862,24 +1862,11 @@ def upload():
                     cursor_upload = conn_upload.cursor()
                     cursor_upload.execute(
                         "INSERT INTO uploaded_files (user_id, filename, original_filename, total_rows, status, uploaded_at) VALUES (%s, %s, %s, %s, %s, %s)",
-                        (session["user_id"], sheet_temp_path, f"{safe_filename} [{sheet_name}]", len(df), 'processing', datetime.utcnow())
+                        (session["user_id"], sheet_temp_path, f"{safe_filename} [{sheet_name}]", len(df), 'pending', datetime.utcnow())
                     )
                     file_id = cursor_upload.lastrowid
                     conn_upload.commit()
                     conn_upload.close()
-                    
-                    # Background Ingestion
-                    import threading
-                    from helpers import ingest_uploaded_file
-                    
-                    def run_background_ingestion(fid, fpath, uname):
-                        try:
-                            ingest_uploaded_file(fid, fpath, uname)
-                        except Exception:
-                            pass
-                    t = threading.Thread(target=run_background_ingestion, args=(file_id, sheet_temp_path, username))
-                    t.daemon = True
-                    t.start()
                     
                     total_rows_all_sheets += len(df)
                     uploaded_sheets.append({
@@ -1916,24 +1903,11 @@ def upload():
                         cursor_upload = conn_upload.cursor()
                         cursor_upload.execute(
                             "INSERT INTO uploaded_files (user_id, filename, original_filename, total_rows, status, uploaded_at) VALUES (%s, %s, %s, %s, %s, %s)",
-                            (session["user_id"], sheet_temp_path, f"{safe_filename} [{sheet_name}]", len(df), 'processing', datetime.utcnow())
+                            (session["user_id"], sheet_temp_path, f"{safe_filename} [{sheet_name}]", len(df), 'pending', datetime.utcnow())
                         )
                         file_id = cursor_upload.lastrowid
                         conn_upload.commit()
                         conn_upload.close()
-                        
-                        # Background Ingestion
-                        import threading
-                        from helpers import ingest_uploaded_file
-                        
-                        def run_background_ingestion(fid, fpath, uname):
-                            try:
-                                ingest_uploaded_file(fid, fpath, uname)
-                            except Exception:
-                                pass
-                        t = threading.Thread(target=run_background_ingestion, args=(file_id, sheet_temp_path, username))
-                        t.daemon = True
-                        t.start()
                         
                         total_rows_all_sheets += len(df)
                         uploaded_sheets.append({
@@ -2418,20 +2392,72 @@ def clean_data():
         # Master field identifier → DB column name (1-to-1 match by convention)
         MASTER_FIELD_IDENTIFIERS = {"first_name", "last_name"}
 
-        # Build per-sheet column → master_field mapping from form data
+        # Build per-sheet column → master_field mapping from form data with dynamic custom fields creation
         sheet_col_mappings = {}  # { sheet_id: { original_col: target_identifier } }
-        for sheet in uploaded_sheets:
-            sid = sheet["sheet_id"]
-            sheet_col_mappings[sid] = {}
-            # Read columns from results to get actual df columns
-            for res in results:
-                if res.get("safe_sheet_name") == sheet["safe_sheet_name"]:
-                    for col in res["cleaned_df"].columns:
-                        safe_col = col.replace(" ", "_")
-                        target = request.form.get(f"map_col_{sid}_{safe_col}") or \
-                                 request.form.get(f"map_col_{safe_col}")
-                        if target and (target.startswith("master:") or target.startswith("custom:")):
-                            sheet_col_mappings[sid][col] = target
+        try:
+            conn_map = get_db_connection()
+            cursor_map = conn_map.cursor(dictionary=True)
+            
+            # Fetch physical columns
+            cursor_map.execute("SELECT column_name FROM information_schema.columns WHERE table_name = 'master_records' AND table_schema = 'public'")
+            db_cols = {row['column_name'] for row in cursor_map.fetchall()}
+            
+            for sheet in uploaded_sheets:
+                sid = sheet["sheet_id"]
+                sheet_col_mappings[sid] = {}
+                # Read columns from results to get actual df columns
+                for res in results:
+                    if res.get("safe_sheet_name") == sheet["safe_sheet_name"]:
+                        for col in res["cleaned_df"].columns:
+                            safe_col = col.replace(" ", "_")
+                            target = request.form.get(f"map_col_{sid}_{safe_col}") or \
+                                     request.form.get(f"map_col_{safe_col}")
+                                     
+                            if target == '__discard__':
+                                continue
+                                
+                            if target == 'ignore' or not target:
+                                # Resolve and create dynamic custom field now!
+                                norm_col = col.strip().lower().replace(" ", "_")
+                                if norm_col in db_cols:
+                                    target = f"master:{norm_col}"
+                                else:
+                                    # Match aliases
+                                    cursor_map.execute("SELECT target_type, target_identifier FROM field_aliases WHERE normalized_alias = %s", (norm_col,))
+                                    alias_row = cursor_map.fetchone()
+                                    if alias_row:
+                                        target = f"{alias_row['target_type']}:{alias_row['target_identifier']}"
+                                    else:
+                                        # Check Registry
+                                        cursor_map.execute("SELECT id FROM field_registry WHERE normalized_name = %s", (norm_col,))
+                                        reg_row = cursor_map.fetchone()
+                                        if reg_row:
+                                            target = f"custom:{reg_row['id']}"
+                                        else:
+                                            # Create new dynamic custom field
+                                            cursor_map.execute(
+                                                "INSERT INTO field_registry (field_name, normalized_name, data_type, usage_count) VALUES (%s, %s, %s, %s)",
+                                                (col, norm_col, 'VARCHAR', 1)
+                                            )
+                                            new_id = cursor_map.lastrowid
+                                            cursor_map.execute(
+                                                "INSERT INTO field_aliases (alias, normalized_alias, target_type, target_identifier) VALUES (%s, %s, 'custom', %s)",
+                                                (col, norm_col, str(new_id))
+                                            )
+                                            target = f"custom:{new_id}"
+                                            
+                            if target and (target.startswith("master:") or target.startswith("custom:")):
+                                sheet_col_mappings[sid][col] = target
+                                
+            conn_map.commit()
+            conn_map.close()
+        except Exception as _map_err:
+            import traceback
+            traceback.print_exc()
+            app.logger.error(f"Error resolving columns dynamic mappings: {_map_err}")
+            if 'conn_map' in locals() and conn_map:
+                conn_map.rollback()
+                conn_map.close()
 
         try:
             conn_store = get_db_connection()
@@ -2519,6 +2545,19 @@ def clean_data():
             "row_index" : None,
             "message" : "All rows removed after applying filters."
         })
+
+    # Update uploaded files status on clean
+    try:
+        conn_status = get_db_connection()
+        cursor_status = conn_status.cursor()
+        for sheet in uploaded_sheets:
+            fid = sheet.get("file_id")
+            if fid:
+                cursor_status.execute("UPDATE uploaded_files SET status = 'completed' WHERE id = %s", (fid,))
+        conn_status.commit()
+        conn_status.close()
+    except Exception as ex:
+        app.logger.error(f"Error updating file statuses: {ex}")
 
     # FINAL RENDER
     return render_template(
