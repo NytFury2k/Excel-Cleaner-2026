@@ -231,6 +231,12 @@ sql_statements = [
         approved_by INT NULL,
         approved_at TIMESTAMP NULL
     )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS master_columns_registry (
+        column_name VARCHAR(150) PRIMARY KEY,
+        display_name VARCHAR(150) NOT NULL
+    )
     """
 ]
 
@@ -295,6 +301,7 @@ try:
         cur.execute("DROP TABLE IF EXISTS role_export_limits CASCADE")
         cur.execute("DROP TABLE IF EXISTS user_daily_exports CASCADE")
         cur.execute("DROP TABLE IF EXISTS client_api_keys CASCADE")
+        cur.execute("DROP TABLE IF EXISTS master_columns_registry CASCADE")
         cur.execute("DROP TABLE IF EXISTS users CASCADE")
         conn.commit()
     except Exception:
@@ -326,6 +333,41 @@ try:
             cur.execute(
                 "INSERT INTO role_export_limits (role_name, default_limit) VALUES (%s, %s)",
                 (role, limit)
+            )
+            
+    # Seed Default Master Columns display names
+    default_master_cols = [
+        ('first_name', 'First Name'),
+        ('last_name', 'Last Name'),
+        ('email_address', 'Email Address'),
+        ('primary_phone_number', 'Primary Phone Number'),
+        ('alternate_phone_number', 'Alternate Phone Number'),
+        ('company_name', 'Company Name'),
+        ('job_title', 'Job Title'),
+        ('department', 'Department'),
+        ('website_url', 'Website URL'),
+        ('address_line_1', 'Address Line 1'),
+        ('address_line_2', 'Address Line 2'),
+        ('city', 'City'),
+        ('state_province', 'State / Province'),
+        ('postal_zip_code', 'Postal / ZIP Code'),
+        ('country', 'Country'),
+        ('linkedin_profile_url', 'LinkedIn Profile URL'),
+        ('industry', 'Industry'),
+        ('lead_source', 'Lead Source'),
+        ('record_status', 'Record Status'),
+        ('date_of_birth', 'Date of Birth'),
+        ('gender', 'Gender'),
+        ('company_size', 'Company Size'),
+        ('annual_revenue', 'Annual Revenue'),
+        ('imported_by', 'Imported By')
+    ]
+    for col_name_str, display in default_master_cols:
+        cur.execute("SELECT COUNT(*) FROM master_columns_registry WHERE column_name = %s", (col_name_str,))
+        if cur.fetchone()[0] == 0:
+            cur.execute(
+                "INSERT INTO master_columns_registry (column_name, display_name) VALUES (%s, %s)",
+                (col_name_str, display)
             )
 
     # Seed Default Custom Fields in Registry

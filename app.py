@@ -153,6 +153,14 @@ app.config["MAIL_PASSWORD"] = os.environ.get("MAIL_PASSWORD", "")
 app.config["MAIL_DEFAULT_SENDER"] = os.environ.get("MAIL_DEFAULT_SENDER", "")
 mail = Mail(app)
 
+def get_master_columns_display_names(cursor):
+    try:
+        cursor.execute("SELECT column_name, display_name FROM master_columns_registry")
+        rows = cursor.fetchall()
+        return {row['column_name']: row['display_name'] for row in rows}
+    except Exception:
+        return {}
+
 
 app.logger.addHandler(file_handler)
 app.logger.addHandler(stream_handler)
@@ -2035,31 +2043,7 @@ def choose_rules():
         cursor.execute("SELECT column_name, data_type FROM information_schema.columns WHERE table_name = 'master_records' AND table_schema = 'public'")
         db_cols = cursor.fetchall()
         
-        display_names = {
-            'first_name': 'First Name',
-            'last_name': 'Last Name',
-            'email_address': 'Email Address',
-            'primary_phone_number': 'Primary Phone Number',
-            'alternate_phone_number': 'Alternate Phone Number',
-            'company_name': 'Company Name',
-            'job_title': 'Job Title',
-            'department': 'Department',
-            'website_url': 'Website URL',
-            'address_line_1': 'Address Line 1',
-            'address_line_2': 'Address Line 2',
-            'city': 'City',
-            'state_province': 'State / Province',
-            'postal_zip_code': 'Postal / ZIP Code',
-            'country': 'Country',
-            'linkedin_profile_url': 'LinkedIn Profile URL',
-            'industry': 'Industry',
-            'lead_source': 'Lead Source',
-            'record_status': 'Record Status',
-            'date_of_birth': 'Date of Birth',
-            'gender': 'Gender',
-            'company_size': 'Company Size',
-            'annual_revenue': 'Annual Revenue'
-        }
+        display_names = get_master_columns_display_names(cursor)
         
         for col in db_cols:
             c_name = col['column_name']
@@ -6183,32 +6167,7 @@ def get_record_custom_fields(record_id):
         if col in ('id', 'file_id', 'custom_fields', 'created_at', 'updated_at'):
             continue
         if val is not None and str(val).strip() not in ('', 'None', 'nan', 'NaT', '--'):
-            display_names = {
-                'first_name': 'First Name',
-                'last_name': 'Last Name',
-                'email_address': 'Email Address',
-                'primary_phone_number': 'Primary Phone Number',
-                'alternate_phone_number': 'Alternate Phone Number',
-                'company_name': 'Company Name',
-                'job_title': 'Job Title',
-                'department': 'Department',
-                'website_url': 'Website URL',
-                'address_line_1': 'Address Line 1',
-                'address_line_2': 'Address Line 2',
-                'city': 'City',
-                'state_province': 'State / Province',
-                'postal_zip_code': 'Postal / ZIP Code',
-                'country': 'Country',
-                'linkedin_profile_url': 'LinkedIn Profile URL',
-                'industry': 'Industry',
-                'lead_source': 'Lead Source',
-                'record_status': 'Record Status',
-                'date_of_birth': 'Date of Birth',
-                'gender': 'Gender',
-                'company_size': 'Company Size',
-                'annual_revenue': 'Annual Revenue',
-                'imported_by': 'Imported By'
-            }
+            display_names = get_master_columns_display_names(cursor)
             label = display_names.get(col, " ".join([w.capitalize() for w in col.split("_")]))
             resolved_data[label] = val
             
@@ -6263,31 +6222,7 @@ def registry():
     cursor.execute("SELECT column_name, data_type FROM information_schema.columns WHERE table_name = 'master_records' AND table_schema = 'public'")
     db_cols = cursor.fetchall()
     
-    display_names = {
-        'first_name': 'First Name',
-        'last_name': 'Last Name',
-        'email_address': 'Email Address',
-        'primary_phone_number': 'Primary Phone Number',
-        'alternate_phone_number': 'Alternate Phone Number',
-        'company_name': 'Company Name',
-        'job_title': 'Job Title',
-        'department': 'Department',
-        'website_url': 'Website URL',
-        'address_line_1': 'Address Line 1',
-        'address_line_2': 'Address Line 2',
-        'city': 'City',
-        'state_province': 'State / Province',
-        'postal_zip_code': 'Postal / ZIP Code',
-        'country': 'Country',
-        'linkedin_profile_url': 'LinkedIn Profile URL',
-        'industry': 'Industry',
-        'lead_source': 'Lead Source',
-        'record_status': 'Record Status',
-        'date_of_birth': 'Date of Birth',
-        'gender': 'Gender',
-        'company_size': 'Company Size',
-        'annual_revenue': 'Annual Revenue'
-    }
+    display_names = get_master_columns_display_names(cursor)
     
     master_columns = []
     for col in db_cols:
@@ -6350,32 +6285,7 @@ def aliases_view():
     cursor.execute("SELECT column_name FROM information_schema.columns WHERE table_name = 'master_records' AND table_schema = 'public'")
     db_cols = cursor.fetchall()
     
-    display_names = {
-        'first_name': 'First Name',
-        'last_name': 'Last Name',
-        'email_address': 'Email Address',
-        'primary_phone_number': 'Primary Phone Number',
-        'alternate_phone_number': 'Alternate Phone Number',
-        'company_name': 'Company Name',
-        'job_title': 'Job Title',
-        'department': 'Department',
-        'website_url': 'Website URL',
-        'address_line_1': 'Address Line 1',
-        'address_line_2': 'Address Line 2',
-        'city': 'City',
-        'state_province': 'State / Province',
-        'postal_zip_code': 'Postal / ZIP Code',
-        'country': 'Country',
-        'linkedin_profile_url': 'LinkedIn Profile URL',
-        'industry': 'Industry',
-        'lead_source': 'Lead Source',
-        'record_status': 'Record Status',
-        'date_of_birth': 'Date of Birth',
-        'gender': 'Gender',
-        'company_size': 'Company Size',
-        'annual_revenue': 'Annual Revenue',
-        'imported_by': 'Imported By'
-    }
+    display_names = get_master_columns_display_names(cursor)
     
     master_fields = []
     for col in db_cols:
@@ -7272,6 +7182,12 @@ def api_add_master_column():
         # Physical Alter Table
         cursor.execute(f'ALTER TABLE master_records ADD COLUMN "{normalized_name}" {data_type} NULL')
         
+        # Add to master_columns_registry
+        cursor.execute(
+            "INSERT INTO master_columns_registry (column_name, display_name) VALUES (%s, %s) ON CONFLICT (column_name) DO UPDATE SET display_name = EXCLUDED.display_name",
+            (normalized_name, field_name)
+        )
+        
         # Add alias automatically for mapping
         cursor.execute("SELECT COUNT(*) as count FROM field_aliases WHERE alias = %s", (field_name,))
         if cursor.fetchone()['count'] == 0:
@@ -7313,6 +7229,9 @@ def api_delete_master_column(col_name):
             
         # Physical Alter Table
         cursor.execute(f'ALTER TABLE master_records DROP COLUMN "{col_name}"')
+        
+        # Delete from master_columns_registry
+        cursor.execute("DELETE FROM master_columns_registry WHERE column_name = %s", (col_name,))
         
         # Delete related aliases
         cursor.execute("DELETE FROM field_aliases WHERE target_type = 'master' AND target_identifier = %s", (col_name,))
@@ -7384,6 +7303,9 @@ def api_move_to_custom(col_name):
         
         # 4. Drop physical column
         cursor.execute(f'ALTER TABLE master_records DROP COLUMN "{col_name}"')
+        
+        # 5. Delete from master_columns_registry
+        cursor.execute("DELETE FROM master_columns_registry WHERE column_name = %s", (col_name,))
         
         conn.commit()
         conn.close()
@@ -7553,6 +7475,14 @@ def api_rename_field():
                 "UPDATE field_aliases SET target_identifier = %s WHERE target_type = 'master' AND target_identifier = %s",
                 (new_db_name, old_db_name)
             )
+            
+            # Update master_columns_registry
+            cursor.execute(
+                "INSERT INTO master_columns_registry (column_name, display_name) VALUES (%s, %s) ON CONFLICT (column_name) DO UPDATE SET display_name = EXCLUDED.display_name",
+                (new_db_name, new_name)
+            )
+            if old_db_name != new_db_name:
+                cursor.execute("DELETE FROM master_columns_registry WHERE column_name = %s", (old_db_name,))
             
         elif field_type == 'custom':
             fid = int(field_id)
