@@ -16,6 +16,10 @@
       --red: var(--red-accent);
       --border: #e5e7eb;
       --surface: #f9fafb;
+      --bg-primary: #f4f5f7;
+      --text-main: #111827;
+      --text-muted: #6b7280;
+      --input-bg: #ffffff;
     }
 
     [data-theme="dark"] {
@@ -25,6 +29,10 @@
       --red: var(--red-accent);
       --border: #2d2d34;
       --surface: #18181c;
+      --bg-primary: #0f0f12;
+      --text-main: #f3f4f6;
+      --text-muted: #9ca3af;
+      --input-bg: #222227;
     }
 
     .btn-danger, .bg-danger {
@@ -38,13 +46,16 @@
     }
 
     body {
-      background: #f4f5f7;
+      background: var(--bg-primary);
       font-family: system-ui, -apple-system, sans-serif;
+      color: var(--text-main);
     }
 
     .card {
       border: 1px solid var(--border);
-      border-radius: 10px;
+      border-radius: 12px;
+      background: var(--input-bg);
+      color: var(--text-main);
     }
 
     .card-header {
@@ -52,6 +63,7 @@
       border-bottom: 1px solid var(--border);
       padding: 14px 20px;
       font-weight: 600;
+      color: var(--text-main);
     }
 
     .table thead th {
@@ -60,7 +72,7 @@
       font-size: 0.78rem;
       text-transform: uppercase;
       letter-spacing: 0.05em;
-      color: #6b7280;
+      color: var(--text-muted);
       border-bottom: 2px solid var(--border);
       white-space: nowrap;
     }
@@ -69,10 +81,12 @@
       vertical-align: middle;
       border-color: var(--border);
       font-size: 0.88rem;
+      color: var(--text-main);
     }
 
     .table-hover tbody tr:hover {
-      background: #fef2f2;
+      background: var(--red-light);
+      opacity: 0.95;
     }
 
     .badge {
@@ -82,13 +96,13 @@
     .page-hdr h2 {
       font-size: 1.3rem;
       font-weight: 700;
-      color: #111827;
+      color: var(--text-main);
       margin-bottom: 3px;
     }
 
     .page-hdr p {
       font-size: 0.875rem;
-      color: #6b7280;
+      color: var(--text-muted);
       margin: 0;
     }
 
@@ -102,7 +116,7 @@
     }
 
     .pag-info {
-      color: #6b7280;
+      color: var(--text-muted);
       font-size: 0.9rem;
       white-space: nowrap;
     }
@@ -117,6 +131,20 @@
       margin-left: 260px;
       padding: 24px;
     }
+
+    .nav-tabs .nav-link {
+      color: var(--text-muted);
+      font-weight: 500;
+      border: none;
+      border-bottom: 2px solid transparent;
+      padding: 10px 20px;
+    }
+
+    .nav-tabs .nav-link.active {
+      color: var(--red-accent);
+      background-color: transparent;
+      border-color: var(--red-accent);
+    }
   </style>
 </head>
 
@@ -125,217 +153,550 @@
     {% include '_sidebar.html' %}
     <main class="content-area">
       <div class="container">
+        
+        <!-- Header Section -->
         <div class="page-hdr mb-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
           <div>
             <h2>Field Registry</h2>
-            <p class="text-muted">Manage dynamic schema definitions and track usage frequency across worksheets</p>
+            <p class="text-muted">Manage master table schema columns and dynamic custom field attributes</p>
           </div>
           <div class="d-flex flex-wrap align-items-center gap-2">
-            <form method="get" action="{{ url_for('registry') }}" class="d-flex align-items-center gap-2">
-              <input type="text" name="search" value="{{ search }}" class="form-control form-control-sm"
-                placeholder="Search display name, normalized name, data type"
-                style="min-width:280px; border-radius:0.6rem;" aria-label="Search registry">
-              <button type="submit" class="btn btn-sm btn-outline-secondary"
-                style="border-radius:0.6rem; padding:0.45rem 0.85rem;"><i class="bi bi-search"></i></button>
-            </form>
-            <button class="btn btn-success"
-              style="padding: 6px 10px; font-size: 0.8rem; margin-top: 10px;"
-              onclick="window.location.href='/api/registry/export';">Export Registry</button>
+            <button class="btn btn-danger btn-sm px-3 py-2 fw-semibold" id="btnAddColumn" style="border-radius: 0.6rem;">
+              <i class="bi bi-plus-circle me-1"></i>Add Column / Field
+            </button>
+            <button class="btn btn-success btn-sm px-3 py-2 fw-semibold" style="border-radius:0.6rem;"
+              onclick="window.location.href='/api/registry/export';">
+              <i class="bi bi-download me-1"></i>Export Registry
+            </button>
           </div>
         </div>
 
-        <div class="card shadow-sm">
-          <div class="card-body p-0">
-            <div class="table-responsive" style="border-radius:10px;overflow:hidden;">
-              <table class="table table-hover align-middle mb-0" id="registryTable">
-                <thead>
-                  <tr>
-                    <th>ID</th>
-                    <th>Field Display Name</th>
-                    <th>Normalized Name</th>
-                    <th>Data Type</th>
-                    <th class="text-center">Active</th>
-                    <th class="text-center">Searchable</th>
-                    <th class="text-center">Usage Count</th>
-                    <th>Created At</th>
-                    <th class="text-center">Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {% if fields %}
-                  {% for field in fields %}
-                  <tr data-field-id="{{ field.id }}">
-                    <td><span class="badge bg-secondary font-outfit">#{{ field.id }}</span></td>
-                    <td><strong>{{ field.field_name }}</strong></td>
-                    <td><code class="text-primary fw-semibold">{{ field.normalized_name }}</code></td>
-                    <td><span class="badge bg-light text-dark border border-secondary-subtle">{{ field.data_type
-                        }}</span></td>
-                    <td class="text-center">
-                      <div class="form-check form-switch d-inline-block">
-                        <input class="form-check-input toggle-status" type="checkbox" role="switch"
-                          data-type="is_active" {% if field.is_active %}checked{% endif %}>
-                      </div>
-                    </td>
-                    <td class="text-center">
-                      <div class="form-check form-switch d-inline-block">
-                        <input class="form-check-input toggle-status" type="checkbox" role="switch"
-                          data-type="searchable" {% if field.searchable %}checked{% endif %}>
-                      </div>
-                    </td>
-                    <td class="text-center">
-                      <span class="badge bg-danger rounded-pill px-3">{{ field.usage_count }} records</span>
-                    </td>
-                    <td><span class="text-muted small">{{ field.created_at }}</span></td>
-                    <td class="text-center">
-                      <button class="btn btn-sm btn-danger btn-convert py-1 px-2" data-field-id="{{ field.id }}"
-                        data-field-name="{{ field.field_name }}">Convert to Master</button>
-                    </td>
-                  </tr>
-                  {% endfor %}
-                  {% else %}
-                  <tr>
-                    <td colspan="9" class="text-center py-5 text-muted">
-                      <i class="bi bi-file-earmark-bar-graph fs-2 mb-3 d-block text-secondary"></i>
-                      {% if search %}
-                        No registry fields match your search.
+        <!-- Navigation Tabs -->
+        <ul class="nav nav-tabs border-bottom mb-4" id="registryTabs" role="tablist">
+          <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="custom-fields-tab" data-bs-toggle="tab" data-bs-target="#custom-fields-pane"
+              type="button" role="tab" aria-controls="custom-fields-pane" aria-selected="true">
+              <i class="bi bi-tags me-1"></i>Custom Fields Registry
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" id="master-cols-tab" data-bs-toggle="tab" data-bs-target="#master-cols-pane"
+              type="button" role="tab" aria-controls="master-cols-pane" aria-selected="false">
+              <i class="bi bi-database me-1"></i>Master Columns Management
+            </button>
+          </li>
+        </ul>
+
+        <!-- Tab Content -->
+        <div class="tab-content" id="registryTabContent">
+          
+          <!-- Pane 1: Custom Fields -->
+          <div class="tab-pane fade show active" id="custom-fields-pane" role="tabpanel" aria-labelledby="custom-fields-tab">
+            <div class="card shadow-sm mb-3">
+              <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-tag-fill me-2 text-danger"></i>Custom Attributes Registry</span>
+                <form method="get" action="{{ url_for('registry') }}" class="d-flex align-items-center gap-2 mb-0">
+                  <input type="text" name="search" value="{{ search }}" class="form-control form-control-sm"
+                    placeholder="Search display, normalized name..." style="min-width:240px; border-radius:0.5rem;" aria-label="Search registry">
+                  <button type="submit" class="btn btn-xs btn-outline-secondary" style="border-radius:0.5rem; padding: 0.25rem 0.6rem;"><i class="bi bi-search"></i></button>
+                </form>
+              </div>
+              <div class="card-body p-0">
+                <div class="table-responsive">
+                  <table class="table table-hover align-middle mb-0">
+                    <thead>
+                      <tr>
+                        <th>ID</th>
+                        <th>Field Display Name</th>
+                        <th>Normalized Name</th>
+                        <th>Data Type</th>
+                        <th class="text-center">Active</th>
+                        <th class="text-center">Searchable</th>
+                        <th class="text-center">Usage Count</th>
+                        <th class="text-center">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {% if fields %}
+                      {% for field in fields %}
+                      <tr data-field-id="{{ field.id }}" data-type="custom" data-name="{{ field.field_name }}" data-db-name="{{ field.normalized_name }}">
+                        <td><span class="badge bg-secondary font-outfit">#{{ field.id }}</span></td>
+                        <td><strong>{{ field.field_name }}</strong></td>
+                        <td><code class="text-primary fw-semibold">{{ field.normalized_name }}</code></td>
+                        <td><span class="badge bg-light text-dark border border-secondary-subtle">{{ field.data_type }}</span></td>
+                        <td class="text-center">
+                          <div class="form-check form-switch d-inline-block">
+                            <input class="form-check-input toggle-status" type="checkbox" role="switch"
+                              data-type="is_active" {% if field.is_active %}checked{% endif %}>
+                          </div>
+                        </td>
+                        <td class="text-center">
+                          <div class="form-check form-switch d-inline-block">
+                            <input class="form-check-input toggle-status" type="checkbox" role="switch"
+                              data-type="searchable" {% if field.searchable %}checked{% endif %}>
+                          </div>
+                        </td>
+                        <td class="text-center">
+                          <span class="badge bg-danger rounded-pill px-3">{{ field.usage_count }} records</span>
+                        </td>
+                        <td class="text-center" style="white-space: nowrap;">
+                          <button class="btn btn-sm btn-outline-primary btn-rename-modal px-2 py-0.5" data-field-id="{{ field.id }}" data-type="custom">Rename</button>
+                          <button class="btn btn-sm btn-outline-danger btn-convert ms-1 px-2 py-0.5" data-field-id="{{ field.id }}" data-field-name="{{ field.field_name }}">Move to Master</button>
+                          <button class="btn btn-sm btn-danger btn-delete-field ms-1 px-2 py-0.5" data-field-id="{{ field.id }}" data-type="custom"><i class="bi bi-trash"></i></button>
+                        </td>
+                      </tr>
+                      {% endfor %}
                       {% else %}
-                        No custom fields registered yet. Upload an Excel sheet to automatically populate this registry.
+                      <tr>
+                        <td colspan="8" class="text-center py-5 text-muted">
+                          <i class="bi bi-tag fs-2 mb-3 d-block text-secondary"></i>
+                          No custom attributes found.
+                        </td>
+                      </tr>
                       {% endif %}
-                    </td>
-                  </tr>
-                  {% endif %}
-                </tbody>
-              </table>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <!-- Custom Pagination -->
+            {% if total_pages > 1 %}
+            <div class="pag-wrap">
+              <div class="pag-info">Showing {{ start + 1 if total_filtered else 0 }}–{{ end }} of {{ total_filtered }} custom fields</div>
+              <nav aria-label="Registry pagination">
+                <ul class="pagination pagination-sm mb-0">
+                  <li class="page-item {% if page <= 1 %}disabled{% endif %}">
+                    <a class="page-link" href="{{ pagination_url(1) }}"><i class="bi bi-chevron-double-left"></i></a>
+                  </li>
+                  <li class="page-item {% if page <= 1 %}disabled{% endif %}">
+                    <a class="page-link" href="{{ pagination_url(page-1) }}"><i class="bi bi-chevron-left"></i></a>
+                  </li>
+                  {% for p in range(1, total_pages + 1) %}
+                  <li class="page-item {% if p == page %}active{% endif %}">
+                    <a class="page-link" href="{{ pagination_url(p) }}">{{ p }}</a>
+                  </li>
+                  {% endfor %}
+                  <li class="page-item {% if page >= total_pages %}disabled{% endif %}">
+                    <a class="page-link" href="{{ pagination_url(page+1) }}"><i class="bi bi-chevron-right"></i></a>
+                  </li>
+                </ul>
+              </nav>
+            </div>
+            {% endif %}
+          </div>
+
+          <!-- Pane 2: Master Columns -->
+          <div class="tab-pane fade" id="master-cols-pane" role="tabpanel" aria-labelledby="master-cols-tab">
+            <div class="card shadow-sm">
+              <div class="card-header">
+                <span><i class="bi bi-database-fill me-2 text-danger"></i>Physical Database Master Columns</span>
+              </div>
+              <div class="card-body p-0">
+                <div class="table-responsive">
+                  <table class="table table-hover align-middle mb-0">
+                    <thead>
+                      <tr>
+                        <th>Display Name</th>
+                        <th>Database Field Name</th>
+                        <th>SQL Data Type</th>
+                        <th class="text-center">Usage Count</th>
+                        <th class="text-center">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {% if master_columns %}
+                      {% for col in master_columns %}
+                      <tr data-col-name="{{ col.column_name }}" data-type="master" data-name="{{ col.display_name }}" data-db-name="{{ col.column_name }}">
+                        <td><strong>{{ col.display_name }}</strong></td>
+                        <td><code class="text-danger fw-semibold">{{ col.column_name }}</code></td>
+                        <td><span class="badge bg-light text-dark border border-secondary-subtle">{{ col.data_type }}</span></td>
+                        <td class="text-center">
+                          <span class="badge bg-danger rounded-pill px-3">{{ col.usage_count }} records</span>
+                        </td>
+                        <td class="text-center" style="white-space: nowrap;">
+                          <button class="btn btn-sm btn-outline-primary btn-rename-modal px-2 py-0.5" data-field-id="{{ col.column_name }}" data-type="master">Rename</button>
+                          <button class="btn btn-sm btn-outline-danger btn-move-custom ms-1 px-2 py-0.5" data-col-name="{{ col.column_name }}">Move to Custom</button>
+                          <button class="btn btn-sm btn-danger btn-delete-field ms-1 px-2 py-0.5" data-field-id="{{ col.column_name }}" data-type="master"><i class="bi bi-trash"></i></button>
+                        </td>
+                      </tr>
+                      {% endfor %}
+                      {% else %}
+                      <tr>
+                        <td colspan="5" class="text-center py-5 text-muted">
+                          <i class="bi bi-database-exclamation fs-2 mb-3 d-block text-secondary"></i>
+                          No physical columns found in Master table.
+                        </td>
+                      </tr>
+                      {% endif %}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </div>
           </div>
         </div>
 
-        {% if total_pages > 1 %}
-        <div class="pag-wrap">
-          <div class="pag-info">Showing {{ start + 1 if total_filtered else 0 }}–{{ end }} of {{ total_filtered }} records · Page {{ page }} of {{ total_pages }}</div>
-
-          <nav aria-label="Registry pagination">
-            <ul class="pagination mb-0">
-              <li class="page-item {% if page <= 1 %}disabled{% endif %}">
-                <a class="page-link" href="{{ pagination_url(1) }}"><i class="bi bi-chevron-double-left"></i></a>
-              </li>
-              <li class="page-item {% if page <= 1 %}disabled{% endif %}">
-                <a class="page-link" href="{{ pagination_url(page-1) }}"><i class="bi bi-chevron-left"></i></a>
-              </li>
-              {% set ns = namespace(last=0) %}
-              {% for p in range(1, total_pages + 1) %}
-                {% if p == 1 or p == total_pages or (p >= page-2 and p <= page+2) %}
-                  {% if ns.last > 0 and p - ns.last > 1 %}
-                    <li class="page-item disabled"><span class="page-link">…</span></li>
-                  {% endif %}
-                  <li class="page-item {% if p == page %}active{% endif %}">
-                    <a class="page-link" href="{{ pagination_url(p) }}">{{ p }}</a>
-                  </li>
-                  {% set ns.last = p %}
-                {% endif %}
-              {% endfor %}
-              <li class="page-item {% if page >= total_pages %}disabled{% endif %}">
-                <a class="page-link" href="{{ pagination_url(page+1) }}"><i class="bi bi-chevron-right"></i></a>
-              </li>
-              <li class="page-item {% if page >= total_pages %}disabled{% endif %}">
-                <a class="page-link" href="{{ pagination_url(total_pages) }}"><i class="bi bi-chevron-double-right"></i></a>
-              </li>
-            </ul>
-          </nav>
-
-          <form method="get" action="{{ url_for('registry') }}" class="d-flex align-items-center gap-2">
-            <input type="hidden" name="search" value="{{ search }}">
-            <label class="mb-0 text-muted" for="registryPageJumpInput" style="white-space:nowrap; font-size:0.85rem;">Go to page</label>
-            <input id="registryPageJumpInput" type="number" name="page" min="1" max="{{ total_pages }}" value="{{ page }}"
-              class="form-control form-control-sm" style="width:90px; border-radius:7px;" aria-label="Jump to page">
-            <button type="submit" class="btn btn-sm btn-outline-danger" style="border-radius:7px; font-size:0.82rem;">Go</button>
-          </form>
-        </div>
-        {% endif %}
       </div>
-      <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-      <script>
-        document.addEventListener("DOMContentLoaded", function () {
-          const toggles = document.querySelectorAll(".toggle-status");
-
-          toggles.forEach(toggle => {
-            toggle.addEventListener("change", function () {
-              const row = this.closest("tr");
-              const fieldId = row.getAttribute("data-field-id");
-              const property = this.getAttribute("data-type");
-              const value = this.checked;
-
-              this.disabled = true;
-
-              const payload = {};
-              payload[property] = value;
-
-              fetch(`/api/fields/${fieldId}/status`, {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json"
-                },
-                body: JSON.stringify(payload)
-              })
-                .then(res => {
-                  if (!res.ok) {
-                    throw new Error("Failed to update status");
-                  }
-                  return res.json();
-                })
-                .then(data => {
-                  this.disabled = false;
-                  row.classList.add("table-success-glow");
-                  setTimeout(() => row.classList.remove("table-success-glow"), 1000);
-                })
-                .catch(err => {
-                  console.error(err);
-                  this.checked = !value;
-                  this.disabled = false;
-                  alert("Could not update field property. Please try again.");
-                });
-            });
-          });
-
-          // 2. Convert to Master Key Click Handler
-          const convertButtons = document.querySelectorAll(".btn-convert");
-          convertButtons.forEach(btn => {
-            btn.addEventListener("click", function () {
-              const fieldId = this.getAttribute("data-field-id");
-              const fieldName = this.getAttribute("data-field-name");
-
-              const confirmed = confirm(`Are you sure you want to convert the custom field "${fieldName}" to a Master Column?\n\nThis will modify the database schema, migrate all existing records' custom JSON attributes to the new column, and update all mapped aliases.`);
-
-              if (!confirmed) return;
-
-              this.disabled = true;
-              this.innerHTML = `<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>Converting...`;
-
-              fetch(`/api/fields/${fieldId}/convert-to-master`, {
-                method: "POST"
-              })
-                .then(res => {
-                  if (!res.ok) {
-                    return res.json().then(data => { throw new Error(data.error || "Conversion failed"); });
-                  }
-                  return res.json();
-                })
-                .then(data => {
-                  alert(data.message || "Field successfully converted!");
-                  window.location.reload();
-                })
-                .catch(err => {
-                  console.error(err);
-                  this.disabled = false;
-                  this.innerHTML = `<i class="bi bi-shuffle me-1"></i>Convert to Master`;
-                  alert(`Error: ${err.message}`);
-                });
-            });
-          });
-        });
-      </script>
     </main>
   </div>
+
+  <!-- Add Column Modal -->
+  <div class="modal fade" id="addColumnModal" tabindex="-1" aria-labelledby="addColumnModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content shadow-lg border-0" style="border-radius: 12px;">
+        <div class="modal-header bg-danger text-white" style="border-top-left-radius: 12px; border-top-right-radius: 12px;">
+          <h5 class="modal-title fw-bold" id="addColumnModalLabel">
+            <i class="bi bi-plus-square-fill me-2"></i>Add Column or Custom Field
+          </h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body p-4">
+          <form id="addColumnForm">
+            <div class="mb-3">
+              <label class="form-label small fw-bold text-muted">COLUMN / FIELD CATEGORY</label>
+              <div class="d-flex gap-3">
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="col_category" id="cat_custom" value="custom" checked>
+                  <label class="form-check-label small fw-semibold" for="cat_custom">Custom Field (Dynamic JSONB)</label>
+                </div>
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="col_category" id="cat_master" value="master">
+                  <label class="form-check-label small fw-semibold" for="cat_master">Master Column (Physical DB Table)</label>
+                </div>
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label for="new_field_name" class="form-label small fw-bold text-muted">DISPLAY LABEL</label>
+              <input type="text" class="form-control" id="new_field_name" placeholder="E.g., Secondary Phone Number" required>
+            </div>
+
+            <div class="mb-3" id="dbTypeGroup" style="display:none;">
+              <label for="new_field_type" class="form-label small fw-bold text-muted">SQL DATA TYPE</label>
+              <select class="form-select" id="new_field_type">
+                <option value="VARCHAR(255)" selected>TEXT (VARCHAR 255)</option>
+                <option value="TEXT">LONG TEXT (TEXT)</option>
+                <option value="INT">NUMBER (INTEGER)</option>
+                <option value="DECIMAL(15,2)">CURRENCY / DECIMAL</option>
+                <option value="DATE">DATE</option>
+                <option value="TIMESTAMP">TIMESTAMP</option>
+              </select>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer bg-light p-3" style="border-bottom-left-radius: 12px; border-bottom-right-radius: 12px;">
+          <button type="button" class="btn btn-secondary px-3 py-1.5 btn-sm fw-semibold" data-bs-dismiss="modal" style="border-radius: 6px;">Cancel</button>
+          <button type="button" class="btn btn-danger px-4 py-1.5 btn-sm fw-semibold" id="btnConfirmAddColumn" style="border-radius: 6px;">
+            <i class="bi bi-save me-1"></i>Save Field
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Rename Field Modal -->
+  <div class="modal fade" id="renameFieldModal" tabindex="-1" aria-labelledby="renameFieldModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content shadow-lg border-0" style="border-radius: 12px;">
+        <div class="modal-header bg-primary text-white" style="border-top-left-radius: 12px; border-top-right-radius: 12px;">
+          <h5 class="modal-title fw-bold" id="renameFieldModalLabel">
+            <i class="bi bi-pencil-square me-2"></i>Rename Registry Field
+          </h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body p-4">
+          <form id="renameFieldForm">
+            <input type="hidden" id="rename_field_id">
+            <input type="hidden" id="rename_field_type">
+
+            <div class="mb-3">
+              <label for="rename_display_name" class="form-label small fw-bold text-muted">DISPLAY LABEL</label>
+              <input type="text" class="form-control" id="rename_display_name" required>
+            </div>
+
+            <div class="mb-3" id="renameDbNameGroup">
+              <label for="rename_db_name" class="form-label small fw-bold text-muted">DATABASE FIELD NAME (SNAKE_CASE)</label>
+              <input type="text" class="form-control" id="rename_db_name" placeholder="E.g., secondary_phone">
+              <small class="form-text text-muted" style="font-size:0.75rem;">Leave empty to auto-derive from the display label.</small>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer bg-light p-3" style="border-bottom-left-radius: 12px; border-bottom-right-radius: 12px;">
+          <button type="button" class="btn btn-secondary px-3 py-1.5 btn-sm fw-semibold" data-bs-dismiss="modal" style="border-radius: 6px;">Cancel</button>
+          <button type="button" class="btn btn-primary px-4 py-1.5 btn-sm fw-semibold" id="btnConfirmRename" style="border-radius: 6px;">
+            <i class="bi bi-check-circle me-1"></i>Apply Changes
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      
+      // 1. Toggles configuration (searchable / active)
+      const toggles = document.querySelectorAll(".toggle-status");
+      toggles.forEach(toggle => {
+        toggle.addEventListener("change", function () {
+          const row = this.closest("tr");
+          const fieldId = row.getAttribute("data-field-id");
+          const property = this.getAttribute("data-type");
+          const value = this.checked;
+
+          this.disabled = true;
+
+          const payload = {};
+          payload[property] = value;
+
+          fetch(`/api/fields/${fieldId}/status`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+          })
+            .then(res => {
+              if (!res.ok) throw new Error("Failed to update status");
+              return res.json();
+            })
+            .then(data => {
+              this.disabled = false;
+            })
+            .catch(err => {
+              console.error(err);
+              this.checked = !value;
+              this.disabled = false;
+              alert("Could not update field property. Please try again.");
+            });
+        });
+      });
+
+      // 2. Add Column/Field modal logic
+      const addModal = new bootstrap.Modal(document.getElementById("addColumnModal"));
+      const btnAddColumn = document.getElementById("btnAddColumn");
+      const btnConfirmAddColumn = document.getElementById("btnConfirmAddColumn");
+      const catCustom = document.getElementById("cat_custom");
+      const catMaster = document.getElementById("cat_master");
+      const dbTypeGroup = document.getElementById("dbTypeGroup");
+
+      if (btnAddColumn) {
+        btnAddColumn.addEventListener("click", () => {
+          document.getElementById("addColumnForm").reset();
+          dbTypeGroup.style.display = "none";
+          addModal.show();
+        });
+      }
+
+      if (catCustom && catMaster) {
+        catCustom.addEventListener("change", () => dbTypeGroup.style.display = "none");
+        catMaster.addEventListener("change", () => dbTypeGroup.style.display = "block");
+      }
+
+      if (btnConfirmAddColumn) {
+        btnConfirmAddColumn.addEventListener("click", function () {
+          const category = document.querySelector('input[name="col_category"]:checked').value;
+          const fieldName = document.getElementById("new_field_name").value.trim();
+          const dataType = document.getElementById("new_field_type").value;
+
+          if (!fieldName) {
+            alert("Please provide a column/field label.");
+            return;
+          }
+
+          btnConfirmAddColumn.disabled = true;
+          btnConfirmAddColumn.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span>Saving...`;
+
+          const url = category === 'master' ? '/api/fields/master/add' : '/api/fields/custom/add';
+          const payload = { field_name: fieldName, data_type: category === 'master' ? dataType : 'VARCHAR' };
+
+          fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+          })
+            .then(async res => {
+              const data = await res.json();
+              if (!res.ok) throw new Error(data.error || "Failed to create column");
+              return data;
+            })
+            .then(data => {
+              alert(data.message || "Field added successfully!");
+              window.location.reload();
+            })
+            .catch(err => {
+              console.error(err);
+              alert("Error: " + err.message);
+            })
+            .finally(() => {
+              btnConfirmAddColumn.disabled = false;
+              btnConfirmAddColumn.innerHTML = `<i class="bi bi-save me-1"></i>Save Field`;
+            });
+        });
+      }
+
+      // 3. Rename Field modal logic
+      const renameModal = new bootstrap.Modal(document.getElementById("renameFieldModal"));
+      const renameButtons = document.querySelectorAll(".btn-rename-modal");
+      const btnConfirmRename = document.getElementById("btnConfirmRename");
+
+      renameButtons.forEach(btn => {
+        btn.addEventListener("click", function () {
+          const row = this.closest("tr");
+          const fieldId = this.getAttribute("data-field-id");
+          const type = this.getAttribute("data-type");
+          const currentLabel = row.getAttribute("data-name");
+          const currentDbName = row.getAttribute("data-db-name");
+
+          document.getElementById("rename_field_id").value = fieldId;
+          document.getElementById("rename_field_type").value = type;
+          document.getElementById("rename_display_name").value = currentLabel;
+          document.getElementById("rename_db_name").value = currentDbName;
+
+          renameModal.show();
+        });
+      });
+
+      if (btnConfirmRename) {
+        btnConfirmRename.addEventListener("click", function () {
+          const type = document.getElementById("rename_field_type").value;
+          const id = document.getElementById("rename_field_id").value;
+          const newName = document.getElementById("rename_display_name").value.trim();
+          const newDbName = document.getElementById("rename_db_name").value.trim();
+
+          if (!newName) {
+            alert("Please specify a display name label.");
+            return;
+          }
+
+          btnConfirmRename.disabled = true;
+          btnConfirmRename.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span>Applying...`;
+
+          fetch('/api/fields/rename', {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ type: type, id: id, new_name: newName, new_db_name: newDbName })
+          })
+            .then(async res => {
+              const data = await res.json();
+              if (!res.ok) throw new Error(data.error || "Rename failed");
+              return data;
+            })
+            .then(data => {
+              alert(data.message || "Successfully renamed!");
+              window.location.reload();
+            })
+            .catch(err => {
+              console.error(err);
+              alert("Error: " + err.message);
+            })
+            .finally(() => {
+              btnConfirmRename.disabled = false;
+              btnConfirmRename.innerHTML = `<i class="bi bi-check-circle me-1"></i>Apply Changes`;
+            });
+        });
+      }
+
+      // 4. Delete column logic (both master and custom)
+      const deleteButtons = document.querySelectorAll(".btn-delete-field");
+      deleteButtons.forEach(btn => {
+        btn.addEventListener("click", function () {
+          const type = this.getAttribute("data-type");
+          const fieldId = this.getAttribute("data-field-id");
+          const label = this.closest("tr").getAttribute("data-name");
+
+          const promptMsg = type === 'master' 
+            ? `WARNING: Are you sure you want to physically DELETE the Master Column "${label}"? This drops the column and ERASES all its data from the database. This action cannot be undone.`
+            : `WARNING: Are you sure you want to delete the Custom Field "${label}" from the registry? This clears all its associated attributes from all records. This action cannot be undone.`;
+
+          if (!confirm(promptMsg)) return;
+
+          btn.disabled = true;
+          const url = type === 'master' ? `/api/fields/master/${fieldId}/delete` : `/api/fields/custom/${fieldId}/delete`;
+
+          fetch(url, { method: "POST" })
+            .then(async res => {
+              const data = await res.json();
+              if (!res.ok) throw new Error(data.error || "Delete failed");
+              return data;
+            })
+            .then(data => {
+              alert(data.message || "Successfully deleted column.");
+              window.location.reload();
+            })
+            .catch(err => {
+              console.error(err);
+              btn.disabled = false;
+              alert("Error: " + err.message);
+            });
+        });
+      });
+
+      // 5. Convert Custom Field to Master (Move to Master)
+      const convertButtons = document.querySelectorAll(".btn-convert");
+      convertButtons.forEach(btn => {
+        btn.addEventListener("click", function () {
+          const fieldId = this.getAttribute("data-field-id");
+          const fieldName = this.getAttribute("data-field-name");
+
+          const confirmed = confirm(`Are you sure you want to convert the custom field "${fieldName}" to a physical Master Column?\n\nThis moves all values from JSON fields to a dedicated database column and drops the field registry record.`);
+          if (!confirmed) return;
+
+          btn.disabled = true;
+          btn.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span>Converting...`;
+
+          fetch(`/api/fields/${fieldId}/convert-to-master`, { method: "POST" })
+            .then(async res => {
+              const data = await res.json();
+              if (!res.ok) throw new Error(data.error || "Conversion failed");
+              return data;
+            })
+            .then(data => {
+              alert(data.message || "Successfully converted to Master Column!");
+              window.location.reload();
+            })
+            .catch(err => {
+              console.error(err);
+              btn.disabled = false;
+              btn.innerHTML = `Move to Master`;
+              alert(`Error: ${err.message}`);
+            });
+        });
+      });
+
+      // 6. Move Master to Custom Field
+      const moveCustomButtons = document.querySelectorAll(".btn-move-custom");
+      moveCustomButtons.forEach(btn => {
+        btn.addEventListener("click", function () {
+          const colName = this.getAttribute("data-col-name");
+          const displayLabel = this.closest("tr").getAttribute("data-name");
+
+          const confirmed = confirm(`Are you sure you want to move the master column "${displayLabel}" to custom JSON attributes?\n\nThis migrates all physical column data to the custom_fields JSON field and drops the database column.`);
+          if (!confirmed) return;
+
+          btn.disabled = true;
+          btn.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span>Moving...`;
+
+          fetch(`/api/fields/master/${colName}/move-to-custom`, { method: "POST" })
+            .then(async res => {
+              const data = await res.json();
+              if (!res.ok) throw new Error(data.error || "Failed to move column");
+              return data;
+            })
+            .then(data => {
+              alert(data.message || "Successfully converted to Custom attribute!");
+              window.location.reload();
+            })
+            .catch(err => {
+              console.error(err);
+              btn.disabled = false;
+              btn.innerHTML = `Move to Custom`;
+              alert(`Error: ${err.message}`);
+            });
+        });
+      });
+
+    });
+  </script>
 </body>
 
 </html>

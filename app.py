@@ -2190,6 +2190,16 @@ def clean_data():
         sheet_total_before = len(df)
         total_before += sheet_total_before
         
+        # Check and drop ignored/discarded columns
+        cols_to_drop = []
+        for column in df.columns:
+            safe_col = column.replace(" ", "_")
+            target = request.form.get(f"map_col_{sheet_id}_{safe_col}") or request.form.get(f"map_col_{safe_col}")
+            if target == '__discard__':
+                cols_to_drop.append(column)
+        if cols_to_drop:
+            df = df.drop(columns=cols_to_drop)
+            
         # Build mapping rules for this sheet
         sheet_selected_rules = []
         for column in df.columns:
@@ -6148,7 +6158,7 @@ def registry():
     params = []
     if search:
         where_clause = "WHERE field_name ILIKE %s OR normalized_name ILIKE %s OR data_type ILIKE %s"
-        search_param = f"%{search}%"
+        search_param = f"%%{search}%%"
         params = [search_param, search_param, search_param]
         
     cursor.execute(f"SELECT COUNT(*) AS total FROM field_registry {where_clause}", params)
@@ -6171,6 +6181,57 @@ def registry():
         if f['created_at'] and isinstance(f['created_at'], datetime):
             f['created_at'] = f['created_at'].strftime('%Y-%m-%d %H:%M')
             
+    # Fetch Master Columns dynamically from master_records
+    cursor.execute("SELECT column_name, data_type FROM information_schema.columns WHERE table_name = 'master_records' AND table_schema = 'public'")
+    db_cols = cursor.fetchall()
+    
+    display_names = {
+        'first_name': 'First Name',
+        'last_name': 'Last Name',
+        'email_address': 'Email Address',
+        'primary_phone_number': 'Primary Phone Number',
+        'alternate_phone_number': 'Alternate Phone Number',
+        'company_name': 'Company Name',
+        'job_title': 'Job Title',
+        'department': 'Department',
+        'website_url': 'Website URL',
+        'address_line_1': 'Address Line 1',
+        'address_line_2': 'Address Line 2',
+        'city': 'City',
+        'state_province': 'State / Province',
+        'postal_zip_code': 'Postal / ZIP Code',
+        'country': 'Country',
+        'linkedin_profile_url': 'LinkedIn Profile URL',
+        'industry': 'Industry',
+        'lead_source': 'Lead Source',
+        'record_status': 'Record Status',
+        'date_of_birth': 'Date of Birth',
+        'gender': 'Gender',
+        'company_size': 'Company Size',
+        'annual_revenue': 'Annual Revenue'
+    }
+    
+    master_columns = []
+    for col in db_cols:
+        c_name = col['column_name']
+        c_type = col['data_type']
+        
+        # Exclude system fields
+        if c_name in ('id', 'file_id', 'custom_fields', 'created_at', 'updated_at', 'imported_by'):
+            continue
+            
+        # Get usage count dynamically
+        cursor.execute(f'SELECT COUNT(*) as count FROM master_records WHERE "{c_name}" IS NOT NULL AND "{c_name}" != \'\'')
+        cnt_row = cursor.fetchone()
+        usage_count = cnt_row['count'] if cnt_row else 0
+        
+        master_columns.append({
+            'column_name': c_name,
+            'display_name': display_names.get(c_name, c_name.replace('_', ' ').title()),
+            'data_type': c_type,
+            'usage_count': usage_count
+        })
+        
     conn.close()
     
     total_pages = max(1, (total_filtered + per_page - 1) // per_page)
@@ -6181,14 +6242,15 @@ def registry():
         return url_for("registry", page=p, search=search)
         
     return render_template(
-        'registry.html',
+        "registry.html",
         fields=fields,
-        search=search,
+        master_columns=master_columns,
         page=page,
-        total_pages=total_pages,
         total_filtered=total_filtered,
+        total_pages=total_pages,
         start=start,
         end=end,
+        search=search,
         pagination_url=pagination_url
     )
 
@@ -7057,6 +7119,353 @@ def api_convert_to_master(field_id):
             conn.rollback()
             conn.close()
         return jsonify({"error": f"Migration failed: {str(e)}"}), 500
+
+
+@app.route('/api/fields/master/add', methods=['POST'])
+@login_required()
+def api_add_master_column():
+    if session.get("role") != "admin":
+        return jsonify({"error": "Unauthorized"}), 403
+    try:
+        data = request.get_json() or {}
+        field_name = data.get("field_name", "").strip()
+        data_type = data.get("data_type", "VARCHAR(255)").strip()
+        
+        if not field_name:
+            return jsonify({"error": "Column name is required"}), 400
+            
+        # Normalize to snake_case for physical column name
+        normalized_name = re.sub(r'[\s_\-]+', '_', field_name).lower().strip('_')
+        
+        if not normalized_name or normalized_name in ('id', 'file_id', 'custom_fields', 'created_at', 'updated_at', 'imported_by'):
+            return jsonify({"error": "Invalid or reserved column name"}), 400
+            
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        
+        # Check if column already exists
+        cursor.execute("SELECT column_name FROM information_schema.columns WHERE table_name = 'master_records' AND table_schema = 'public'")
+        cols = [row['column_name'] for row in cursor.fetchall()]
+        if normalized_name in cols:
+            conn.close()
+            return jsonify({"error": f"Column '{normalized_name}' already exists in database"}), 400
+            
+        # Physical Alter Table
+        cursor.execute(f'ALTER TABLE master_records ADD COLUMN "{normalized_name}" {data_type} NULL')
+        
+        # Add alias automatically for mapping
+        cursor.execute("SELECT COUNT(*) as count FROM field_aliases WHERE alias = %s", (field_name,))
+        if cursor.fetchone()['count'] == 0:
+            cursor.execute(
+                "INSERT INTO field_aliases (alias, normalized_alias, target_type, target_identifier) VALUES (%s, %s, 'master', %s)",
+                (field_name, normalized_name, normalized_name)
+            )
+            
+        conn.commit()
+        conn.close()
+        
+        from helpers import log_action
+        log_action(session["user_id"], f"Added master column '{normalized_name}'")
+        
+        return jsonify({"success": True, "message": f"Successfully added master column '{field_name}' ({normalized_name})!"}), 200
+    except Exception as e:
+        if 'conn' in locals() and conn:
+            conn.close()
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/fields/master/<col_name>/delete', methods=['POST'])
+@login_required()
+def api_delete_master_column(col_name):
+    if session.get("role") != "admin":
+        return jsonify({"error": "Unauthorized"}), 403
+    try:
+        col_name = col_name.strip().lower()
+        if col_name in ('id', 'file_id', 'custom_fields', 'created_at', 'updated_at', 'imported_by'):
+            return jsonify({"error": "Cannot delete system column"}), 400
+            
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        
+        cursor.execute("SELECT column_name FROM information_schema.columns WHERE table_name = 'master_records' AND table_schema = 'public'")
+        cols = [row['column_name'] for row in cursor.fetchall()]
+        if col_name not in cols:
+            conn.close()
+            return jsonify({"error": f"Column '{col_name}' does not exist in master records"}), 404
+            
+        # Physical Alter Table
+        cursor.execute(f'ALTER TABLE master_records DROP COLUMN "{col_name}"')
+        
+        # Delete related aliases
+        cursor.execute("DELETE FROM field_aliases WHERE target_type = 'master' AND target_identifier = %s", (col_name,))
+        
+        conn.commit()
+        conn.close()
+        
+        from helpers import log_action
+        log_action(session["user_id"], f"Deleted master column '{col_name}'")
+        
+        return jsonify({"success": True, "message": f"Successfully deleted Master column '{col_name}' from database!"}), 200
+    except Exception as e:
+        if 'conn' in locals() and conn:
+            conn.close()
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/fields/master/<col_name>/move-to-custom', methods=['POST'])
+@login_required()
+def api_move_to_custom(col_name):
+    if session.get("role") != "admin":
+        return jsonify({"error": "Unauthorized"}), 403
+    try:
+        col_name = col_name.strip().lower()
+        if col_name in ('id', 'file_id', 'custom_fields', 'created_at', 'updated_at', 'imported_by'):
+            return jsonify({"error": "Cannot move system column"}), 400
+            
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        
+        cursor.execute("SELECT column_name FROM information_schema.columns WHERE table_name = 'master_records' AND table_schema = 'public'")
+        cols = [row['column_name'] for row in cursor.fetchall()]
+        if col_name not in cols:
+            conn.close()
+            return jsonify({"error": f"Column '{col_name}' does not exist in master records"}), 404
+            
+        # 1. Insert into field_registry
+        display_label = " ".join([w.capitalize() for w in col_name.split("_")])
+        cursor.execute(
+            "INSERT INTO field_registry (field_name, normalized_name, data_type, is_active, searchable, filterable) VALUES (%s, %s, 'VARCHAR', 1, 1, 1) RETURNING id",
+            (display_label, col_name)
+        )
+        new_field_id = cursor.fetchone()['id']
+        
+        # 2. Query and migrate data to custom_fields JSON
+        cursor.execute(f'SELECT id, custom_fields, "{col_name}" FROM master_records WHERE "{col_name}" IS NOT NULL AND "{col_name}" != \'\'')
+        records = cursor.fetchall()
+        
+        for r in records:
+            val = r[col_name]
+            cfields = r['custom_fields']
+            if isinstance(cfields, str):
+                try:
+                    cfields = json.loads(cfields)
+                except Exception:
+                    cfields = {}
+            elif not cfields:
+                cfields = {}
+                
+            cfields[str(new_field_id)] = val
+            new_json = json.dumps(cfields)
+            
+            cursor.execute("UPDATE master_records SET custom_fields = %s WHERE id = %s", (new_json, r['id']))
+            
+        # 3. Update field aliases targets
+        cursor.execute(
+            "UPDATE field_aliases SET target_type = 'custom', target_identifier = %s WHERE target_type = 'master' AND target_identifier = %s",
+            (str(new_field_id), col_name)
+        )
+        
+        # 4. Drop physical column
+        cursor.execute(f'ALTER TABLE master_records DROP COLUMN "{col_name}"')
+        
+        conn.commit()
+        conn.close()
+        
+        from helpers import log_action
+        log_action(session["user_id"], f"Moved master column '{col_name}' to custom registry field ID {new_field_id}")
+        
+        return jsonify({"success": True, "message": f"Successfully moved master column '{col_name}' to custom field registry!"}), 200
+    except Exception as e:
+        if 'conn' in locals() and conn:
+            conn.rollback()
+            conn.close()
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/fields/custom/add', methods=['POST'])
+@login_required()
+def api_add_custom_field():
+    if session.get("role") != "admin":
+        return jsonify({"error": "Unauthorized"}), 403
+    try:
+        data = request.get_json() or {}
+        field_name = data.get("field_name", "").strip()
+        data_type = data.get("data_type", "VARCHAR").strip()
+        
+        if not field_name:
+            return jsonify({"error": "Field name is required"}), 400
+            
+        normalized_name = re.sub(r'[\s_\-]+', '_', field_name).lower().strip('_')
+        
+        if not normalized_name:
+            return jsonify({"error": "Invalid field name"}), 400
+            
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        
+        cursor.execute("SELECT id FROM field_registry WHERE normalized_name = %s", (normalized_name,))
+        if cursor.fetchone():
+            conn.close()
+            return jsonify({"error": f"Custom field '{normalized_name}' already exists in registry"}), 400
+            
+        cursor.execute(
+            "INSERT INTO field_registry (field_name, normalized_name, data_type, is_active, searchable, filterable) VALUES (%s, %s, %s, 1, 1, 1) RETURNING id",
+            (field_name, normalized_name, data_type)
+        )
+        new_id = cursor.fetchone()['id']
+        
+        # Add alias automatically
+        cursor.execute("SELECT COUNT(*) as count FROM field_aliases WHERE alias = %s", (field_name,))
+        if cursor.fetchone()['count'] == 0:
+            cursor.execute(
+                "INSERT INTO field_aliases (alias, normalized_alias, target_type, target_identifier) VALUES (%s, %s, 'custom', %s)",
+                (field_name, normalized_name, str(new_id))
+            )
+            
+        conn.commit()
+        conn.close()
+        
+        from helpers import log_action
+        log_action(session["user_id"], f"Added custom field '{field_name}' to registry")
+        
+        return jsonify({"success": True, "message": f"Successfully registered custom field '{field_name}'!"}), 200
+    except Exception as e:
+        if 'conn' in locals() and conn:
+            conn.close()
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/fields/custom/<int:field_id>/delete', methods=['POST'])
+@login_required()
+def api_delete_custom_field(field_id):
+    if session.get("role") != "admin":
+        return jsonify({"error": "Unauthorized"}), 403
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        
+        cursor.execute("SELECT field_name FROM field_registry WHERE id = %s", (field_id,))
+        field = cursor.fetchone()
+        if not field:
+            conn.close()
+            return jsonify({"error": "Custom field not found"}), 404
+            
+        f_name = field['field_name']
+        
+        # 1. Cleanse records' JSONB values
+        cursor.execute("SELECT id, custom_fields FROM master_records WHERE custom_fields ->> %s IS NOT NULL", (str(field_id),))
+        records = cursor.fetchall()
+        for r in records:
+            cfields = r['custom_fields']
+            if isinstance(cfields, str):
+                try:
+                    cfields = json.loads(cfields)
+                except Exception:
+                    cfields = {}
+            elif not cfields:
+                cfields = {}
+                
+            cfields.pop(str(field_id), None)
+            new_json = json.dumps(cfields) if cfields else None
+            cursor.execute("UPDATE master_records SET custom_fields = %s WHERE id = %s", (new_json, r['id']))
+            
+        # 2. Delete aliases
+        cursor.execute("DELETE FROM field_aliases WHERE target_type = 'custom' AND target_identifier = %s", (str(field_id),))
+        
+        # 3. Delete registry field
+        cursor.execute("DELETE FROM field_registry WHERE id = %s", (field_id,))
+        
+        conn.commit()
+        conn.close()
+        
+        from helpers import log_action
+        log_action(session["user_id"], f"Deleted custom field '{f_name}' from registry")
+        
+        return jsonify({"success": True, "message": f"Successfully deleted custom field '{f_name}'!"}), 200
+    except Exception as e:
+        if 'conn' in locals() and conn:
+            conn.rollback()
+            conn.close()
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/fields/rename', methods=['POST'])
+@login_required()
+def api_rename_field():
+    if session.get("role") != "admin":
+        return jsonify({"error": "Unauthorized"}), 403
+    try:
+        data = request.get_json() or {}
+        field_type = data.get("type", "").strip().lower()
+        field_id = data.get("id")
+        new_name = data.get("new_name", "").strip()
+        new_db_name = data.get("new_db_name", "").strip()
+        
+        if not field_id or not new_name:
+            return jsonify({"error": "Field ID and new display name are required"}), 400
+            
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        
+        if field_type == 'master':
+            old_db_name = str(field_id).strip().lower()
+            if old_db_name in ('id', 'file_id', 'custom_fields', 'created_at', 'updated_at', 'imported_by'):
+                conn.close()
+                return jsonify({"error": "Cannot rename system columns"}), 400
+                
+            if not new_db_name:
+                new_db_name = re.sub(r'[\s_\-]+', '_', new_name).lower().strip('_')
+                
+            if new_db_name in ('id', 'file_id', 'custom_fields', 'created_at', 'updated_at', 'imported_by'):
+                conn.close()
+                return jsonify({"error": "Cannot rename to reserved system names"}), 400
+                
+            cursor.execute("SELECT column_name FROM information_schema.columns WHERE table_name = 'master_records' AND table_schema = 'public'")
+            cols = [row['column_name'] for row in cursor.fetchall()]
+            
+            if old_db_name not in cols:
+                conn.close()
+                return jsonify({"error": f"Column '{old_db_name}' does not exist"}), 404
+                
+            # Rename physical column if db name changed
+            if old_db_name != new_db_name:
+                if new_db_name in cols:
+                    conn.close()
+                    return jsonify({"error": f"Column '{new_db_name}' already exists"}), 400
+                cursor.execute(f'ALTER TABLE master_records RENAME COLUMN "{old_db_name}" TO "{new_db_name}"')
+                
+            # Update target in aliases
+            cursor.execute(
+                "UPDATE field_aliases SET target_identifier = %s WHERE target_type = 'master' AND target_identifier = %s",
+                (new_db_name, old_db_name)
+            )
+            
+        elif field_type == 'custom':
+            fid = int(field_id)
+            if not new_db_name:
+                new_db_name = re.sub(r'[\s_\-]+', '_', new_name).lower().strip('_')
+                
+            cursor.execute("SELECT id FROM field_registry WHERE id = %s", (fid,))
+            if not cursor.fetchone():
+                conn.close()
+                return jsonify({"error": "Custom field not found"}), 404
+                
+            cursor.execute(
+                "UPDATE field_registry SET field_name = %s, normalized_name = %s WHERE id = %s",
+                (new_name, new_db_name, fid)
+            )
+            
+        else:
+            conn.close()
+            return jsonify({"error": "Invalid field type"}), 400
+            
+        conn.commit()
+        conn.close()
+        
+        from helpers import log_action
+        log_action(session["user_id"], f"Renamed {field_type} field '{field_id}' to '{new_name}' ({new_db_name})")
+        
+        return jsonify({"success": True, "message": f"Successfully renamed field to '{new_name}'!"}), 200
+    except Exception as e:
+        if 'conn' in locals() and conn:
+            conn.rollback()
+            conn.close()
+        return jsonify({"error": str(e)}), 500
 
 
 # ── CLIENT & ADMIN API KEY MANAGEMENT ROUTES ──────────────────────────────────

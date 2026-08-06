@@ -753,24 +753,31 @@
                   apply its cleaning rules.</p>
                 <div class="row g-3">
                   {% for col in sheet.columns %}
-                  <div class="col-md-4">
+                  <div class="col-md-4 col-mapping-card" data-column-name="{{ col }}">
                     <label class="form-label small fw-bold text-truncate d-block" title="{{ col }}">{{ col }}</label>
-                    <select class="form-select form-select-sm"
-                      name="map_col_{{ sheet.sheet_id }}_{{ col|replace(' ', '_') }}">
-                      <option value="ignore">[Ignore / Keep As Is]</option>
-                      <optgroup label="Master Columns">
-                        {% for m in master_fields %}
-                        <option value="master:{{ m.identifier }}" {% if sheet.suggestions[col]=='master:' ~ m.identifier
-                          %}selected{% endif %}>{{ m.name }}</option>
-                        {% endfor %}
-                      </optgroup>
-                      <optgroup label="Custom Fields">
-                        {% for c in custom_fields_registry %}
-                        <option value="custom:{{ c.id }}" {% if sheet.suggestions[col]=='custom:' ~ c.id %}selected{%
-                          endif %}>{{ c.field_name }}</option>
-                        {% endfor %}
-                      </optgroup>
-                    </select>
+                    <div class="input-group input-group-sm">
+                      <select class="form-select form-select-sm mapping-select"
+                        name="map_col_{{ sheet.sheet_id }}_{{ col|replace(' ', '_') }}"
+                        data-original-val="{% if sheet.suggestions[col] %}{{ sheet.suggestions[col] }}{% else %}ignore{% endif %}">
+                        <option value="ignore">[Ignore / Keep As Is]</option>
+                        <option value="__discard__" class="text-danger">[Ignore & Discard Column]</option>
+                        <optgroup label="Master Columns">
+                          {% for m in master_fields %}
+                          <option value="master:{{ m.identifier }}" {% if sheet.suggestions[col]=='master:' ~ m.identifier
+                            %}selected{% endif %}>{{ m.name }}</option>
+                          {% endfor %}
+                        </optgroup>
+                        <optgroup label="Custom Fields">
+                          {% for c in custom_fields_registry %}
+                          <option value="custom:{{ c.id }}" {% if sheet.suggestions[col]=='custom:' ~ c.id %}selected{%
+                            endif %}>{{ c.field_name }}</option>
+                          {% endfor %}
+                        </optgroup>
+                      </select>
+                      <button class="btn btn-outline-secondary btn-ignore-column" type="button" title="Ignore & Discard Column">
+                        <i class="bi bi-eye-slash"></i> Ignore
+                      </button>
+                    </div>
                   </div>
                   {% endfor %}
                 </div>
@@ -1340,6 +1347,63 @@
 
       <script>
         document.addEventListener("DOMContentLoaded", function () {
+          // Column ignoring toggle logic
+          const ignoreButtons = document.querySelectorAll(".btn-ignore-column");
+          ignoreButtons.forEach(btn => {
+            btn.addEventListener("click", function () {
+              const card = this.closest(".col-mapping-card");
+              const select = card.querySelector(".mapping-select");
+              
+              if (select.value === "__discard__") {
+                // Undo Ignore
+                const originalVal = select.getAttribute("data-original-val") || "ignore";
+                select.value = originalVal;
+                card.style.opacity = "1";
+                this.classList.remove("btn-danger");
+                this.classList.add("btn-outline-secondary");
+                this.innerHTML = `<i class="bi bi-eye-slash"></i> Ignore`;
+              } else {
+                // Perform Ignore
+                // Save current selection value to restore it on undo
+                select.setAttribute("data-original-val", select.value);
+                select.value = "__discard__";
+                card.style.opacity = "0.4";
+                this.classList.remove("btn-outline-secondary");
+                this.classList.add("btn-danger");
+                this.innerHTML = `<i class="bi bi-eye"></i> Keep`;
+              }
+            });
+          });
+
+          // Also handle when user changes mapping select manually to __discard__
+          const mappingSelects = document.querySelectorAll(".mapping-select");
+          mappingSelects.forEach(select => {
+            select.addEventListener("change", function () {
+              const card = this.closest(".col-mapping-card");
+              const btn = card.querySelector(".btn-ignore-column");
+              if (this.value === "__discard__") {
+                card.style.opacity = "0.4";
+                btn.classList.remove("btn-outline-secondary");
+                btn.classList.add("btn-danger");
+                btn.innerHTML = `<i class="bi bi-eye"></i> Keep`;
+              } else {
+                card.style.opacity = "1";
+                btn.classList.remove("btn-danger");
+                btn.classList.add("btn-outline-secondary");
+                btn.innerHTML = `<i class="bi bi-eye-slash"></i> Ignore`;
+              }
+            });
+            // Trigger check initially in case any is pre-selected as __discard__
+            if (select.value === "__discard__") {
+              const card = select.closest(".col-mapping-card");
+              const btn = card.querySelector(".btn-ignore-column");
+              card.style.opacity = "0.4";
+              btn.classList.remove("btn-outline-secondary");
+              btn.classList.add("btn-danger");
+              btn.innerHTML = `<i class="bi bi-eye"></i> Keep`;
+            }
+          });
+
           var cleanForm = document.querySelector("form[action*='clean_data']");
           if (cleanForm) {
             cleanForm.addEventListener("submit", function (e) {
