@@ -864,6 +864,24 @@
             <!-- Dynamically populated custom field rule cards -->
           </div>
 
+          <!-- Store in Database Option -->
+          <div class="card shadow-sm border mb-3">
+            <div class="card-body py-3 d-flex align-items-center justify-content-between">
+              <div class="d-flex align-items-center gap-3">
+                <div class="theme-icon-container" style="background:#fee2e2;color:#ef4444;width:40px;height:40px;border-radius:8px;display:flex;align-items:center;justify-content:center;">
+                  <i class="bi bi-database-fill-down fs-5"></i>
+                </div>
+                <div>
+                  <h6 class="mb-0 fw-bold text-dark">Save to System Database</h6>
+                  <p class="text-muted small mb-0">Store successfully cleaned and validated rows into the master records table.</p>
+                </div>
+              </div>
+              <div class="form-check form-switch fs-5">
+                <input class="form-check-input" type="checkbox" name="store_in_db" id="storeInDbSwitch" value="1" checked>
+              </div>
+            </div>
+          </div>
+
           <!-- Submit bar -->
           <div class="submit-bar">
             <button type="submit" class="btn btn-danger px-5 py-2"

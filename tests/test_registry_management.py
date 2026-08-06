@@ -9,6 +9,7 @@ def client(monkeypatch):
         def __init__(self):
             self.results = []
             self.one_result = None
+            self.lastrowid = 1
             
         def execute(self, query, params=None):
             # Dynamic mock response based on query content
