@@ -1,6 +1,6 @@
-# Local Project Setup Guide: Excel Cleaner 2026
+# Local Project Setup Guide: Excel Cleaner 2026 (MySQL Edition)
 
-This document provides a comprehensive step-by-step walkthrough to set up and run the **Excel Cleaner 2026** web application locally on a new or different laptop.
+This document provides a comprehensive step-by-step guide to set up and run the **Excel Cleaner 2026** web application locally on your laptop using a local **MySQL** database.
 
 ---
 
@@ -9,23 +9,22 @@ This document provides a comprehensive step-by-step walkthrough to set up and ru
 2. [Step 1: Obtain the Project Code](#step-1-obtain-the-project-code)
 3. [Step 2: Set Up Python Virtual Environment](#step-2-set-up-python-virtual-environment)
 4. [Step 3: Install Required Dependencies](#step-3-install-required-dependencies)
-5. [Step 4: Configure Environment Variables (.env)](#step-4-configure-environment-variables-env)
-6. [Step 5: Start Local PostgreSQL Database (Docker)](#step-5-start-local-postgresql-database-docker)
-7. [Step 6: Initialize Database Schema & Seed Data](#step-6-initialize-database-schema--seed-data)
-8. [Step 7: Launch the Web Application](#step-7-launch-the-web-application)
-9. [Step 8: Default Credentials & Initial Login](#step-8-default-credentials--initial-login)
-10. [Troubleshooting & Common Issues](#troubleshooting--common-issues)
+5. [Step 4: Configure Local Environment Variables (.env)](#step-4-configure-local-environment-variables-env)
+6. [Step 5: Initialize MySQL Schema & Seed Data](#step-5-initialize-mysql-schema--seed-data)
+7. [Step 6: Launch the Web Application](#step-6-launch-the-web-application)
+8. [Step 7: Default Credentials & Initial Login](#step-7-default-credentials--initial-login)
+9. [🛠️ Troubleshooting & Common Issues](#🛠️-troubleshooting--common-issues)
 
 ---
 
 ## 1. Prerequisites
 
-Before beginning, ensure the following software is installed on the target laptop:
+Before beginning, ensure the following software is installed on your laptop:
 
 * **Git**: [Download Git](https://git-scm.com/)
 * **Python**: Version 3.10 or higher. [Download Python](https://www.python.org/downloads/)
-  * *Important:* Ensure `Add Python to PATH` is checked during installation on Windows.
-* **Docker Desktop**: [Download Docker Desktop](https://www.docker.com/products/docker-desktop/) (Required for local PostgreSQL database container).
+  * *Important:* Ensure the option **"Add Python to PATH"** is checked during installation on Windows.
+* **MySQL Server**: Version 8.0 or higher. [Download MySQL Installer](https://dev.mysql.com/downloads/installer/) (Or use MySQL running on a Docker container / XAMPP / WampServer).
 * **Code Editor / Terminal**: E.g., Visual Studio Code, PowerShell, or Git Bash.
 
 ---
@@ -77,7 +76,7 @@ pip install -r requirements.txt
 
 ---
 
-## Step 4: Configure Environment Variables (`.env`)
+## Step 4: Configure Local Environment Variables (`.env`)
 
 Create a local environment configuration file from the template provided.
 
@@ -94,18 +93,18 @@ Create a local environment configuration file from the template provided.
 
 ### Customize `.env`:
 
-Open `.env` in your editor and ensure key configurations match your setup:
+Open the newly created `.env` file in your editor and update the MySQL configurations matching your local MySQL credentials:
 
 ```env
 # Flask Secret Key (replace with a secure random key in production)
 FLASK_SECRET_KEY=bec16071429b40e09435226c1b91e5e4f94839488191131b6759dfcfe5639ea5
 
-# Local PostgreSQL Database Credentials (matching docker-compose.yml)
-SUPABASE_DB_HOST=127.0.0.1
-SUPABASE_DB_PORT=5433
-SUPABASE_DB_NAME=postgres_db
-SUPABASE_DB_USER=postgres
-SUPABASE_DB_PASSWORD=mylocalpassword
+# Local MySQL Database Credentials
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_NAME=excel_cleaner_db
+DB_USER=root
+DB_PASSWORD=your_local_mysql_password
 
 # Mail SMTP settings (Optional for basic local development)
 MAIL_SERVER=smtp.gmail.com
@@ -118,26 +117,9 @@ MAIL_DEFAULT_SENDER=your-email@gmail.com
 
 ---
 
-## Step 5: Start Local PostgreSQL Database (Docker)
+## Step 5: Initialize MySQL Schema & Seed Data
 
-1. Make sure **Docker Desktop** is open and running on your laptop.
-2. In your terminal (inside project directory), start the database container:
-
-```bash
-docker-compose up -d
-```
-
-3. Verify the container status:
-```bash
-docker ps
-```
-You should see `local-postgres` running on port `5433`.
-
----
-
-## Step 6: Initialize Database Schema & Seed Data
-
-Run the database setup script to automatically create all required tables (`users`, `logs`, `master_records`, `api_tokens`, `rule_presets`, etc.) and seed the default administrator account:
+Run the database setup script. This script automatically checks if the database specified by `DB_NAME` exists in MySQL, auto-creates it if missing, creates all required tables (`users`, `logs`, `master_records`, `field_registry`, etc.), and seeds the default administrator account:
 
 ```bash
 python fix_db.py
@@ -145,7 +127,7 @@ python fix_db.py
 
 ---
 
-## Step 7: Launch the Web Application
+## Step 6: Launch the Web Application
 
 Start the Flask development server:
 
@@ -158,7 +140,7 @@ Once started, open your web browser and navigate to:
 
 ---
 
-## Step 8: Default Credentials & Initial Login
+## Step 7: Default Credentials & Initial Login
 
 Use the default administrative credentials to log in:
 
@@ -171,7 +153,8 @@ Use the default administrative credentials to log in:
 
 | Issue / Symptom | Possible Cause | Solution |
 | :--- | :--- | :--- |
-| `psycopg2.OperationalError: could not connect to server` | Docker database container is not running or incorrect port. | Ensure Docker Desktop is running and execute `docker-compose up -d`. Check `.env` `SUPABASE_DB_PORT` is `5433`. |
+| `mysql.connector.errors.InterfaceError: 2003: Can't connect to MySQL server` | MySQL Server is not running or incorrect port. | Ensure your local MySQL service is started (e.g. via Services panel on Windows or `mysql.server start` on macOS). Check `.env` `DB_PORT` is `3306` (or matching custom port). |
+| `Access denied for user 'root'@'localhost'` | Incorrect database user or password in `.env`. | Double-check your local MySQL password and update the `DB_PASSWORD` configuration in `.env`. |
 | `FLASK_SECRET_KEY is not set in .env` | Missing `.env` file. | Create `.env` by copying `.env.example`. |
 | PowerShell script activation error | Windows execution policy restriction. | Run `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass` in PowerShell before activating `.venv`. |
 | Port 5000 already in use | Another application or Flask instance is using port 5000. | Stop the process using port 5000 or change port in `app.py`. |
