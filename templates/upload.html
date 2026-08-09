@@ -333,6 +333,20 @@
       height: 3rem;
       color: var(--red);
     }
+
+    #uploadTabs .nav-link {
+      color: var(--text-muted, #6b7280);
+      background: transparent;
+      border: none;
+      transition: background-color 0.2s ease, color 0.2s ease;
+    }
+    #uploadTabs .nav-link.active {
+      background: var(--primary-color, #b91c1c) !important;
+      color: #fff !important;
+    }
+    [data-theme="dark"] #uploadTabs .nav-link {
+      color: var(--text-muted, #9ca3af);
+    }
   </style>
 </head>
 
@@ -383,30 +397,66 @@
             <!-- Upload card -->
             <div class="upload-card">
               <form method="post" enctype="multipart/form-data" id="uploadForm">
-
-                <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
-                  <div class="dz-icon" id="dzIcon">
-                    <i class="bi bi-file-earmark-spreadsheet" id="dzIconI"></i>
-                  </div>
-                  <p class="dz-title" id="dzTitle">Click to browse or drag &amp; drop</p>
-                  <p class="dz-sub">.xlsx, .xls, .csv &nbsp;·&nbsp; Max 50 MB</p>
-                  <input type="file" id="fileInput" name="file" accept=".xlsx,.xls,.csv" multiple required>
-                </div>
-
-                <!-- File confirmation pill (appears after selection) -->
-                <div class="d-flex justify-content-center mt-3">
-                  <div class="file-chosen-label" id="fileChosenLabel">
-                    <i class="bi bi-check-circle-fill"></i>
-                    <span id="fileChosenName"></span>
-                    <button type="button" onclick="clearFile(event)"
-                      style="background:none;border:none;padding:0;margin-left:4px;color:#6b7280;line-height:1;font-size:0.9rem;"
-                      title="Remove file">
-                      <i class="bi bi-x-lg"></i>
+                
+                <!-- Upload Method Tabs -->
+                <ul class="nav nav-pills nav-fill mb-3" id="uploadTabs" role="tablist" style="background: var(--bg-hover, #f3f4f6); padding: 4px; border-radius: 8px;">
+                  <li class="nav-item" role="presentation">
+                    <button class="nav-link active py-2 fw-semibold" id="file-tab" data-bs-toggle="pill" data-bs-target="#fileUploadPanel" type="button" role="tab" style="font-size: 0.82rem; border-radius: 6px; border: none;">
+                      <i class="bi bi-file-earmark-arrow-up me-2"></i>File Upload
                     </button>
+                  </li>
+                  <li class="nav-item" role="presentation">
+                    <button class="nav-link py-2 fw-semibold" id="gsh-tab" data-bs-toggle="pill" data-bs-target="#googleSheetPanel" type="button" role="tab" style="font-size: 0.82rem; border-radius: 6px; border: none;">
+                      <i class="bi bi-google me-2"></i>Google Sheets Link
+                    </button>
+                  </li>
+                </ul>
+
+                <input type="hidden" name="upload_method" id="uploadMethod" value="file">
+
+                <div class="tab-content" id="uploadTabContent">
+                  <!-- File Upload Panel -->
+                  <div class="tab-pane fade show active" id="fileUploadPanel" role="tabpanel">
+                    <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+                      <div class="dz-icon" id="dzIcon">
+                        <i class="bi bi-file-earmark-spreadsheet" id="dzIconI"></i>
+                      </div>
+                      <p class="dz-title" id="dzTitle">Click to browse or drag &amp; drop</p>
+                      <p class="dz-sub">.xlsx, .xls, .csv &nbsp;·&nbsp; Max 50 MB</p>
+                      <input type="file" id="fileInput" name="file" accept=".xlsx,.xls,.csv" multiple required>
+                    </div>
+
+                    <!-- File confirmation pill (appears after selection) -->
+                    <div class="d-flex justify-content-center mt-3">
+                      <div class="file-chosen-label" id="fileChosenLabel">
+                        <i class="bi bi-check-circle-fill"></i>
+                        <span id="fileChosenName"></span>
+                        <button type="button" onclick="clearFile(event)"
+                          style="background:none;border:none;padding:0;margin-left:4px;color:#6b7280;line-height:1;font-size:0.9rem;"
+                          title="Remove file">
+                          <i class="bi bi-x-lg"></i>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Google Sheets Panel -->
+                  <div class="tab-pane fade" id="googleSheetPanel" role="tabpanel">
+                    <div class="p-3 border text-start" style="border-radius: 9px; background: var(--bg-hover, #f3f4f6); border-color: var(--border-color, #e5e7eb) !important;">
+                      <label for="googleSheetInput" class="form-label fw-semibold text-dark small mb-2" style="color: var(--text-main) !important;">Google Sheets Share Link</label>
+                      <div class="input-group input-group-sm mb-3">
+                        <span class="input-group-text bg-light border-end-0 text-muted" style="border-color: var(--border-color, #d1d5db);"><i class="bi bi-link-45deg"></i></span>
+                        <input type="url" class="form-control form-control-sm border-start-0" id="googleSheetInput" name="google_sheet_url" placeholder="https://docs.google.com/spreadsheets/d/..." style="border-color: var(--border-color, #d1d5db);">
+                      </div>
+                      <div class="alert alert-warning py-2 px-3 mb-0" style="font-size: 0.78rem; border-radius: 6px; border-color: #fde047; background-color: #fef9c3; color: #854d0e;">
+                        <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                        <strong>Important:</strong> Set sheet sharing settings to <u>"Anyone with the link can view"</u> so the application can read the data.
+                      </div>
+                    </div>
                   </div>
                 </div>
 
-                <button type="submit" class="btn-submit" id="submitBtn" disabled>
+                <button type="submit" class="btn-submit mt-3" id="submitBtn" disabled>
                   <i class="bi bi-gear-fill me-2"></i>Analyse &amp; Select Rules
                 </button>
 
@@ -523,6 +573,36 @@
         handleFiles(files);
       }
     });
+
+    // Toggle active method and fields required property
+    const fileTab = document.getElementById("file-tab");
+    const gshTab = document.getElementById("gsh-tab");
+    const uploadMethod = document.getElementById("uploadMethod");
+    const googleSheetInput = document.getElementById("googleSheetInput");
+
+    if (fileTab && gshTab) {
+      fileTab.addEventListener("shown.bs.tab", function () {
+        uploadMethod.value = "file";
+        fileInput.required = true;
+        googleSheetInput.required = false;
+        submitBtn.disabled = !fileInput.files || fileInput.files.length === 0;
+      });
+
+      gshTab.addEventListener("shown.bs.tab", function () {
+        uploadMethod.value = "google_sheet";
+        fileInput.required = false;
+        googleSheetInput.required = true;
+        submitBtn.disabled = googleSheetInput.value.trim() === "";
+      });
+    }
+
+    if (googleSheetInput) {
+      googleSheetInput.addEventListener("input", function () {
+        if (uploadMethod.value === "google_sheet") {
+          submitBtn.disabled = this.value.trim() === "";
+        }
+      });
+    }
 
     // Show loading overlay on form submit or clean existing click
     document.getElementById("uploadForm").addEventListener("submit", function () {
