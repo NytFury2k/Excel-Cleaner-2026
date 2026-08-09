@@ -2169,9 +2169,15 @@ def clean_data():
 
     # Read master rules configurations from form
     master_rules_saved = {}
-    master_fields_ids = [
-        "first_name", "last_name"
-    ]
+    try:
+        conn_fields = get_db_connection()
+        cursor_fields = conn_fields.cursor(dictionary=True)
+        cursor_fields.execute("SELECT column_name AS column_name FROM information_schema.columns WHERE table_name = 'master_records' AND table_schema = DATABASE()")
+        master_fields_ids = [row['column_name'] for row in cursor_fields.fetchall() if row['column_name'] not in ('id', 'file_id', 'custom_fields', 'created_at', 'updated_at', 'imported_by')]
+        conn_fields.close()
+    except Exception:
+        master_fields_ids = ["first_name", "last_name", "email_address", "primary_phone_number", "company_name"]
+
     for col_name in master_fields_ids:
         rules_list = request.form.getlist(f"rules_master_{col_name}[]")
         strategy = request.form.get(f"strategy_master_{col_name}", "flag")

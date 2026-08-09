@@ -116,3 +116,84 @@ def test_lazy_custom_fields_registration(client, tmp_path):
     cursor.execute("DELETE FROM field_aliases WHERE normalized_alias = 'brand_new_custom_col'")
     conn.commit()
     conn.close()
+
+
+def test_clean_multiple_sheets_and_files(client, tmp_path):
+    # 1. Create two dummy files representing multiple sheets/files
+    file1 = tmp_path / "file1.csv"
+    pd.DataFrame({
+        "first_name": ["Alice"],
+        "email_address": ["ALICE@example.com"]
+    }).to_csv(file1, index=False)
+    
+    file2 = tmp_path / "file2.csv"
+    pd.DataFrame({
+        "first_name": ["Bob"],
+        "email_address": ["BOB@example.com"]
+    }).to_csv(file2, index=False)
+    
+    # 2. Set up session with multiple sheets
+    with client.session_transaction() as sess:
+        sess["user_id"] = 1
+        sess["role"] = "admin"
+        sess["uploaded_file"] = "2 files"
+        sess["uploaded_sheets"] = [
+            {
+                "sheet_id": "s_file1",
+                "original_filename": "file1.csv",
+                "sheet_name": "CSV",
+                "safe_sheet_name": "file1",
+                "temp_path": str(file1),
+                "columns": ["first_name", "email_address"],
+                "total_rows": 1,
+                "file_id": 1
+            },
+            {
+                "sheet_id": "s_file2",
+                "original_filename": "file2.csv",
+                "sheet_name": "CSV",
+                "safe_sheet_name": "file2",
+                "temp_path": str(file2),
+                "columns": ["first_name", "email_address"],
+                "total_rows": 1,
+                "file_id": 2
+            }
+        ]
+        
+    # 3. Post mapping data for BOTH sheets
+    form_data = {
+        "map_col_s_file1_first_name": "master:first_name",
+        "map_col_s_file1_email_address": "custom:1",
+        "map_col_s_file2_first_name": "master:first_name",
+        "map_col_s_file2_email_address": "custom:1",
+        "rules_master_first_name[]": ["trim_whitespace"],
+        "custom_field_target_0": "1",
+        "rules_custom_0[]": ["validate_email", "lowercase_email"],
+        "strategy_custom_0": "flag"
+    }
+    
+    res = client.post("/clean", data=form_data)
+    assert res.status_code == 200
+    
+    # 4. Verify clean output contains sheets for both files
+    cleaned_file_path = session.get("cleaned_file")
+    assert cleaned_file_path is not None
+    assert os.path.exists(cleaned_file_path)
+    
+    xl = pd.ExcelFile(cleaned_file_path)
+    assert "file1" in xl.sheet_names
+    assert "file2" in xl.sheet_names
+    
+    df1 = xl.parse("file1")
+    assert df1.loc[0, "first_name"] == "Alice"
+    assert df1.loc[0, "email_address"] == "alice@example.com"
+    
+    df2 = xl.parse("file2")
+    assert df2.loc[0, "first_name"] == "Bob"
+    assert df2.loc[0, "email_address"] == "bob@example.com"
+    
+    xl.close()
+    
+    # Clean up
+    if os.path.exists(cleaned_file_path):
+        os.remove(cleaned_file_path)
