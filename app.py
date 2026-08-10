@@ -5168,6 +5168,16 @@ def get_records():
     if missing_field and missing_field in cols:
         query_parts.append(f"({missing_field} IS NULL OR {missing_field} = '')")
 
+    # Scoped database record visibility by department network permissions
+    visible_ids = get_visible_user_ids(cursor, role=session.get("role"), user_id=session.get("user_id"))
+    if session.get("role") != "admin":
+        if visible_ids:
+            placeholders = ",".join(["%s"] * len(visible_ids))
+            query_parts.append(f"imported_by IN ({placeholders})")
+            params.extend(visible_ids)
+        else:
+            query_parts.append("1=0")
+
     where_clause = " AND ".join(query_parts)
 
     # Log records search query activity
@@ -5906,6 +5916,16 @@ def export_records():
         missing_field = request.args.get('missing_field', '').strip()
         if missing_field and missing_field in cols:
             query_parts.append(f"({missing_field} IS NULL OR {missing_field} = '')")
+
+        # Scoped database record visibility by department network permissions
+        visible_ids = get_visible_user_ids(cursor, role=session.get("role"), user_id=session.get("user_id"))
+        if session.get("role") != "admin":
+            if visible_ids:
+                placeholders = ",".join(["%s"] * len(visible_ids))
+                query_parts.append(f"imported_by IN ({placeholders})")
+                params.extend(visible_ids)
+            else:
+                query_parts.append("1=0")
     
         where_clause = " AND ".join(query_parts)
         
@@ -6130,7 +6150,7 @@ def delete_filtered_records():
         for arg_name, col_name in search_mappings.items():
             val = get_param(arg_name)
             if val and col_name in cols:
-                query_parts.append(f'"{col_name}" LIKE %s')
+                query_parts.append(f"`{col_name}` LIKE %s")
                 params.append(f"%{val}%")
                 
         # Handle name query manually across first_name and last_name
@@ -6145,7 +6165,7 @@ def delete_filtered_records():
                 continue
             val = get_param(c)
             if val:
-                query_parts.append(f'"{c}" LIKE %s')
+                query_parts.append(f"`{c}` LIKE %s")
                 params.append(f"%{val}%")
                 
         # Support dynamic search on multiple custom JSON field values
@@ -6167,6 +6187,16 @@ def delete_filtered_records():
         if missing_field and missing_field in cols:
             query_parts.append(f"({missing_field} IS NULL OR {missing_field} = '')")
             
+        # Scoped database record visibility by department network permissions
+        visible_ids = get_visible_user_ids(cursor, role=session.get("role"), user_id=session.get("user_id"))
+        if session.get("role") != "admin":
+            if visible_ids:
+                placeholders = ",".join(["%s"] * len(visible_ids))
+                query_parts.append(f"imported_by IN ({placeholders})")
+                params.extend(visible_ids)
+            else:
+                query_parts.append("1=0")
+
         where_clause = " AND ".join(query_parts)
         
         # Get count of matching records to delete
