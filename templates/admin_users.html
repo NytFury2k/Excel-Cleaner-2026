@@ -472,7 +472,7 @@
         </thead>
         <tbody id="directoryTableBody">
           {% for u in users %}
-          <tr class="user-row" id="row-{{ u.id }}" data-id="{{ u.id }}" data-username="{{ u.username | lower }}" data-email="{{ (u.email or '') | lower }}" data-role="{{ u.role }}" data-status="{{ u.status or 'active' }}" data-manager-id="{{ u.manager_id }}">
+          <tr class="user-row" id="row-{{ u.id }}" data-id="{{ u.id }}" data-username="{{ u.username | lower }}" data-email="{{ (u.email or '') | lower }}" data-role="{{ u.role }}" data-status="{{ u.status or 'active' }}" data-manager-id="{{ u.manager_id }}" data-upload-access="{{ u.upload_access }}" data-download-access="{{ u.download_access }}">
             <td>
               <div class="user-info-cell">
                 <div class="user-avatar">
@@ -518,6 +518,8 @@
                           data-manager-id="{{ u.manager_id or '' }}" 
                           data-export-limit="{{ u.export_limit or '' }}" 
                           data-status="{{ u.status or 'active' }}" 
+                          data-upload-access="{{ u.upload_access }}"
+                          data-download-access="{{ u.download_access }}"
                           onclick="openEditModal(this)">
                     <i class="bi bi-pencil-square text-danger"></i> Manage
                   </button>
@@ -663,7 +665,18 @@
               <option value="sleep">Sleep</option>
               <option value="disabled">Disabled</option>
               <option value="deleted">Deleted</option>
-            </select>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label d-block fw-semibold mb-2">Feature Access Privileges</label>
+            <div class="form-check form-switch mb-2">
+              <input class="form-check-input" type="checkbox" id="editUploadAccess" checked>
+              <label class="form-check-label" for="editUploadAccess">Upload File Access</label>
+            </div>
+            <div class="form-check form-switch">
+              <input class="form-check-input" type="checkbox" id="editDownloadAccess" checked>
+              <label class="form-check-label" for="editDownloadAccess">Download File Access</label>
+            </div>
           </div>
 
         </div>
@@ -774,6 +787,8 @@
       role: row.getAttribute('data-role'),
       status: row.getAttribute('data-status'),
       managerId: row.getAttribute('data-manager-id') ? parseInt(row.getAttribute('data-manager-id')) : null,
+      uploadAccess: row.getAttribute('data-upload-access'),
+      downloadAccess: row.getAttribute('data-download-access'),
       element: row
     });
   });
@@ -860,6 +875,8 @@
                       data-manager-id="${member.managerId || ''}" 
                       data-export-limit="${document.querySelector(`#row-${member.id}`).querySelector('td:nth-child(4)').innerText.trim().split(' ')[0]}" 
                       data-status="${member.status}" 
+                      data-upload-access="${member.uploadAccess}"
+                      data-download-access="${member.downloadAccess}"
                       onclick="openEditModal(this)">
                 <i class="bi bi-pencil-square text-danger"></i> Manage
               </button>
@@ -894,6 +911,11 @@
     document.getElementById('editExportLimit').value = (exportLimit.includes('Default') || !exportLimit) ? '' : exportLimit;
     document.getElementById('editStatus').value = status || 'active';
 
+    const uploadAccess = btn.getAttribute('data-upload-access');
+    const downloadAccess = btn.getAttribute('data-download-access');
+    document.getElementById('editUploadAccess').checked = (uploadAccess !== '0');
+    document.getElementById('editDownloadAccess').checked = (downloadAccess !== '0');
+
     editModal.show();
   }
 
@@ -917,6 +939,8 @@
     fd.append('manager_id', document.getElementById('editManager').value);
     fd.append('export_limit', document.getElementById('editExportLimit').value);
     fd.append('status', document.getElementById('editStatus').value);
+    fd.append('upload_access', document.getElementById('editUploadAccess').checked ? '1' : '0');
+    fd.append('download_access', document.getElementById('editDownloadAccess').checked ? '1' : '0');
 
     try {
       const r = await fetch(`/admin/users/update/${id}`, {

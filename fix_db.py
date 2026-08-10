@@ -54,6 +54,8 @@ sql_statements = [
         address TEXT NULL,
         export_limit INT DEFAULT 50000,
         role_id INT NULL,
+        upload_access TINYINT NOT NULL DEFAULT 1,
+        download_access TINYINT NOT NULL DEFAULT 1,
         FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE SET NULL
     )
     """,

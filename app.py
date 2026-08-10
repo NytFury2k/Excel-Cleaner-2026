@@ -109,7 +109,7 @@ def basic_auth_required():
             conn = get_db_connection()
             cursor = conn.cursor(dictionary=True)
             cursor.execute(
-                "SELECT id, username, password, role, is_active, status FROM users WHERE username = %s",
+                "SELECT id, username, password, role, is_active, status, upload_access, download_access FROM users WHERE username = %s",
                 (auth.username,)
             )
             user = cursor.fetchone()
@@ -125,6 +125,8 @@ def basic_auth_required():
             session["user_id"] = user["id"]
             session["username"] = user["username"]
             session["role"] = user["role"]
+            session["upload_access"] = user.get("upload_access", 1)
+            session["download_access"] = user.get("download_access", 1)
             
             return f(*args, **kwargs)
         return decorated
@@ -307,7 +309,7 @@ def _email_already_exists(email, exclude_user_id=None):
 @app.route("/admin/logs")
 @login_required()
 def admin_logs():
-    if session.get("role") not in ("admin", "manager", "team_lead"):
+    if session.get("role") not in ("admin", "manager", "team_lead", "user"):
         flash("Access denied.", "warning")
         return redirect(url_for("upload"))
         
@@ -317,6 +319,10 @@ def admin_logs():
     to_date = request.args.get("to_date","") 
     log_type = (request.args.get("log_type", "all") or "all").strip().lower()
     selected_user_id = request.args.get("user_id", "")
+    
+    if session.get("role") not in ("admin", "manager", "team_lead"):
+        selected_user_id = str(session["user_id"])
+
     if log_type not in {"login", "cleaning", "search", "export", "all"}:
         log_type = "all"
 
@@ -1304,7 +1310,7 @@ def login():
         cursor = conn.cursor(dictionary=True)
         try:
             cursor.execute(
-                "SELECT id, username, password, role, is_active, manager_id, email, requires_password_change, status FROM users WHERE username=%s",
+                "SELECT id, username, password, role, is_active, manager_id, email, requires_password_change, status, upload_access, download_access FROM users WHERE username=%s",
                 (username,)
             )
             user = cursor.fetchone()
@@ -1352,6 +1358,8 @@ def login():
         session["username"]   = user["username"]
         session["user_email"] = user.get("email")
         session["manager_id"] = user.get("manager_id")
+        session["upload_access"] = user.get("upload_access", 1)
+        session["download_access"] = user.get("download_access", 1)
         session["last_active"] = datetime.utcnow().isoformat()
         
         record_login_attempt(username, success=True)
@@ -1766,6 +1774,10 @@ def api_clean_existing_data():
 def upload():
     if "user_id" not in session or session.get("role") not in ROLE_PERMISSIONS:
         return redirect(url_for("login"))
+
+    if session.get("role") == "user" and session.get("upload_access", 1) == 0:
+        flash("Access Denied: You do not have upload permissions.", "warning")
+        return redirect(url_for("dashboard"))
 
     if request.method == "POST":
         import uuid
@@ -2622,7 +2634,7 @@ def download(filename):
     if "user_id" not in session or session.get("role") not in ROLE_PERMISSIONS:
         return redirect(url_for("login"))
         
-    if session.get("role") in ["team_lead", "user"]:
+    if session.get("role") == "user" and session.get("download_access", 1) == 0:
         flash("Access denied.", "danger")
         return redirect(url_for("upload"))
     
@@ -2656,9 +2668,13 @@ def downloads():
     role = session.get("role")
     user_id = session.get("user_id")
 
-    if role not in ("admin", "manager"):
+    if role not in ("admin", "manager", "team_lead", "user"):
         flash("Access denied.", "warning")
         return redirect(url_for("upload"))
+
+    if role == "user" and session.get("download_access", 1) == 0:
+        flash("Access Denied: You do not have download permissions.", "warning")
+        return redirect(url_for("dashboard"))
 
     # --- Filter params ---
     selected_types = request.args.getlist("types") or ["cleaned", "invalid", "removed"]
@@ -2870,8 +2886,12 @@ def downloads():
 def download_selected():
     """Package selected Generated_Files into a ZIP and stream it."""
     role = session.get("role")
-    if role not in ("admin", "manager", "team_lead"):
+    if role not in ("admin", "manager", "team_lead", "user"):
         flash("Access denied.", "warning")
+        return redirect(url_for("dashboard"))
+
+    if role == "user" and session.get("download_access", 1) == 0:
+        flash("Access Denied: You do not have download permissions.", "warning")
         return redirect(url_for("dashboard"))
 
     filenames = request.form.getlist("filenames")
@@ -2929,8 +2949,12 @@ def download_selected():
 def download_admin(filename):
     """Re-download any Generated_File by relative path (admin/manager/team_lead only)."""
     role = session.get("role")
-    if role not in ("admin", "manager", "team_lead"):
+    if role not in ("admin", "manager", "team_lead", "user"):
         flash("Access denied.", "warning")
+        return redirect(url_for("dashboard"))
+
+    if role == "user" and session.get("download_access", 1) == 0:
+        flash("Access Denied: You do not have download permissions.", "warning")
         return redirect(url_for("dashboard"))
 
     abs_path = os.path.normpath(
@@ -3502,7 +3526,7 @@ def manage_users():
         base_select = """
             SELECT
                 u.id, u.username, u.role, u.is_active, u.status, u.email,
-                u.manager_id, u.export_limit, u.created_at,
+                u.manager_id, u.export_limit, u.created_at, u.upload_access, u.download_access,
                 mgr.username   AS manager_username,
                 mgr.role       AS manager_role
             FROM users u
@@ -3678,9 +3702,15 @@ def update_user_details(user_id):
             return jsonify({"ok": False, "error": "You cannot deactivate or delete your own account."}), 400
         is_active = 1 if new_status == "active" else 0
 
+    # Read access settings
+    upload_access_raw = request.form.get("upload_access", "1")
+    download_access_raw = request.form.get("download_access", "1")
+    upload_access = 1 if upload_access_raw in ["1", "true"] else 0
+    download_access = 1 if download_access_raw in ["1", "true"] else 0
+
     # Execute Update
-    update_fields = ["username = %s", "email = %s"]
-    params = [username, email]
+    update_fields = ["username = %s", "email = %s", "upload_access = %s", "download_access = %s"]
+    params = [username, email, upload_access, download_access]
 
     if caller_role == "admin" and role:
         update_fields.append("role = %s")
@@ -7870,4 +7900,25 @@ def admin_reject_api_key(key_id):
 
 
 if __name__ == "__main__":
+    def run_db_migrations():
+        try:
+            conn = get_db_connection()
+            cursor = conn.cursor(dictionary=True)
+            cursor.execute("SELECT column_name AS column_name FROM information_schema.columns WHERE table_name = 'users' AND table_schema = DATABASE()")
+            existing_columns = {row['column_name'] for row in cursor.fetchall()}
+            
+            if 'upload_access' not in existing_columns:
+                cursor.execute("ALTER TABLE users ADD COLUMN upload_access TINYINT NOT NULL DEFAULT 1")
+                print("Added upload_access column to users table.")
+                
+            if 'download_access' not in existing_columns:
+                cursor.execute("ALTER TABLE users ADD COLUMN download_access TINYINT NOT NULL DEFAULT 1")
+                print("Added download_access column to users table.")
+                
+            conn.commit()
+            conn.close()
+        except Exception as e:
+            print(f"Migration error: {e}")
+
+    run_db_migrations()
     app.run(debug=True)

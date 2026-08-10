@@ -706,11 +706,13 @@
     </a>
     {% endif %}
 
+    {% if session.role != "user" or session.get("upload_access", 1) == 1 %}
     <a href="{{ url_for('upload') }}"
       class="sidebar-link{% if request.endpoint in ['upload', 'choose_rules', 'preview_results'] %} active{% endif %}">
       <i class="bi bi-cloud-upload"></i>
       <span class="sidebar-text">Upload File</span>
     </a>
+    {% endif %}
 
     {% if session.role in ["admin"] %}
     <a href="{{ url_for('registry') }}" class="sidebar-link{% if request.endpoint == 'registry' %} active{% endif %}">
@@ -724,7 +726,7 @@
     </a>
     {% endif %}
 
-    {% if session.role in ["admin","manager"] %}
+    {% if session.role in ["admin", "manager", "team_lead"] or (session.role == "user" and session.get("download_access", 1) == 1) %}
     <a href="{{ url_for('downloads') }}"
       class="sidebar-link{% if request.endpoint in ['downloads','download_selected','download_admin'] %} active{% endif %}">
       <i class="bi bi-download"></i>
@@ -739,7 +741,7 @@
     </a>
     {% endif %}
 
-    {% if session.role in ["admin", "manager", "team_lead"] %}
+    {% if session.role in ["admin", "manager", "team_lead", "user"] %}
     <a href="{{ url_for('admin_logs') }}" class="sidebar-link{% if request.endpoint == 'admin_logs' %} active{% endif %}">
       <i class="bi bi-file-earmark-text"></i>
       <span class="sidebar-text">Activity Logs</span>
