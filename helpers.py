@@ -225,25 +225,18 @@ def get_visible_user_ids(cursor, role=None, user_id=None):
         cursor.execute("SELECT id FROM users")
         return [row["id"] for row in cursor.fetchall()]
     elif role == "manager":
-        #Step 1: get team leads directly under this manager
-        cursor.execute("SELECT id FROM users WHERE manager_id = %s AND role = 'team_lead'", (user_id,)
-                       )
-        tl_ids = [row["id"] for row in cursor.fetchall()]
-
-        #Step 2: get users under those team leads
-        visible = list(tl_ids)
-        if tl_ids:
-            placeholders=", ".join(["%s"]*len(tl_ids))
-            cursor.execute(f"SELECT id FROM users WHERE manager_id IN ({placeholders}) AND role = 'user'", tl_ids)
-            visible += [row["id"] for row in cursor.fetchall()]
+        cursor.execute("""
+            SELECT id FROM users 
+            WHERE manager_id = %s 
+               OR manager_id IN (SELECT id FROM users WHERE manager_id = %s AND role = 'team_lead')
+        """, (user_id, user_id))
+        visible = [row["id"] for row in cursor.fetchall()]
         if user_id not in visible:
             visible.append(user_id)
         return visible
     
-
     elif role == "team_lead":
-        cursor.execute("SELECT id FROM users WHERE manager_id = %s AND role = 'user'", (user_id,)
-                       )
+        cursor.execute("SELECT id FROM users WHERE manager_id = %s", (user_id,))
         visible = [row["id"] for row in cursor.fetchall()]
         if user_id not in visible:
             visible.append(user_id)
