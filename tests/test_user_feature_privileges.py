@@ -56,12 +56,17 @@ class MockCursor:
     def __init__(self, data):
         self.data = data
         self.queries = []
+        self.call_count = 0
     def execute(self, query, params=None):
         self.queries.append((query, params))
     def fetchall(self):
         return self.data
     def fetchone(self):
-        return {"manager_id": 10}
+        self.call_count += 1
+        if self.call_count == 1:
+            return {"manager_id": 10, "role": "user"}
+        else:
+            return {"manager_id": None, "role": "manager"}
 
 def test_get_visible_user_ids_scoped_by_manager():
     # Test standard user that reports to manager (manager_id = 10)

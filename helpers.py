@@ -224,38 +224,39 @@ def get_visible_user_ids(cursor, role=None, user_id=None):
     if role == "admin":
         cursor.execute("SELECT id FROM users")
         return [row["id"] for row in cursor.fetchall()]
-    # First, check if caller reports to a manager
-    mgr_id = None
-    if user_id:
-        cursor.execute("SELECT manager_id FROM users WHERE id = %s", (user_id,))
-        res = cursor.fetchone()
-        mgr_id = res["manager_id"] if res else None
+    # Helper to find the department manager (user with role 'manager') in the caller's hierarchy
+    def find_department_manager(uid):
+        curr = uid
+        visited = set()
+        while curr:
+            if curr in visited:
+                break
+            visited.add(curr)
+            cursor.execute("SELECT manager_id, role FROM users WHERE id = %s", (curr,))
+            row = cursor.fetchone()
+            if not row:
+                break
+            if row["role"] == "manager":
+                return curr
+            curr = row["manager_id"]
+        return None
 
-    if mgr_id is not None:
-        # User belongs to a manager's department: Can see own, manager's, and peer department files/logs
+    dept_mgr_id = find_department_manager(user_id) if user_id else None
+
+    if dept_mgr_id is not None:
+        # Restrict scope strictly to the department manager, their direct reports, and indirect reports
         cursor.execute("""
             SELECT id FROM users 
             WHERE id = %s
                OR manager_id = %s 
                OR manager_id IN (SELECT id FROM users WHERE manager_id = %s AND role = 'team_lead')
-        """, (mgr_id, mgr_id, mgr_id))
+        """, (dept_mgr_id, dept_mgr_id, dept_mgr_id))
         visible = [row["id"] for row in cursor.fetchall()]
         if user_id not in visible:
             visible.append(user_id)
         return visible
 
-    if role == "manager":
-        cursor.execute("""
-            SELECT id FROM users 
-            WHERE manager_id = %s 
-               OR manager_id IN (SELECT id FROM users WHERE manager_id = %s AND role = 'team_lead')
-        """, (user_id, user_id))
-        visible = [row["id"] for row in cursor.fetchall()]
-        if user_id not in visible:
-            visible.append(user_id)
-        return visible
-    
-    elif role == "team_lead":
+    if role == "team_lead":
         cursor.execute("SELECT id FROM users WHERE manager_id = %s", (user_id,))
         visible = [row["id"] for row in cursor.fetchall()]
         if user_id not in visible:
