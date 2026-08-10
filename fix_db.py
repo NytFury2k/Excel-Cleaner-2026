@@ -140,9 +140,11 @@ sql_statements = [
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         imported_by VARCHAR(255) NULL,
+        manager_id INT NULL,
         FOREIGN KEY (file_id) REFERENCES uploaded_files(id) ON DELETE CASCADE,
         KEY idx_first_name (first_name),
-        KEY idx_last_name (last_name)
+        KEY idx_last_name (last_name),
+        KEY idx_mr_manager_id (manager_id)
     )
     """,
     """

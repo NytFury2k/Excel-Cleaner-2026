@@ -2552,6 +2552,29 @@ def clean_data():
             # Dynamically fetch existing columns of master_records table
             cursor_store.execute("SELECT column_name AS column_name FROM information_schema.columns WHERE table_name = 'master_records' AND table_schema = DATABASE()")
             db_cols = {row['column_name'] for row in cursor_store.fetchall()}
+
+            # Resolve the department manager ID for the uploading user to tag rows
+            cursor_store.execute("SELECT id, role, manager_id FROM users WHERE id = %s", (session["user_id"],))
+            uploader_info = cursor_store.fetchone()
+            uploader_mgr_id = None
+            if uploader_info:
+                if uploader_info["role"] == "manager":
+                    uploader_mgr_id = uploader_info["id"]
+                else:
+                    curr_mgr_lookup = uploader_info["manager_id"]
+                    visited_mgrs = set()
+                    while curr_mgr_lookup:
+                        if curr_mgr_lookup in visited_mgrs:
+                            break
+                        visited_mgrs.add(curr_mgr_lookup)
+                        cursor_store.execute("SELECT id, role, manager_id FROM users WHERE id = %s", (curr_mgr_lookup,))
+                        next_user = cursor_store.fetchone()
+                        if not next_user:
+                            break
+                        if next_user["role"] == "manager":
+                            uploader_mgr_id = curr_mgr_lookup
+                            break
+                        curr_mgr_lookup = next_user["manager_id"]
             
             from datetime import datetime as _dt
             imported_by = session.get("username") or str(session.get("user_id", "unknown"))
@@ -2588,6 +2611,9 @@ def clean_data():
                     # Build dynamic insert columns and values
                     cols_to_insert = ['file_id', 'created_at', 'updated_at', 'imported_by']
                     vals_to_insert = [sheet.get("file_id", 0), now, now, imported_by]
+                    if 'manager_id' in db_cols:
+                        cols_to_insert.append('manager_id')
+                        vals_to_insert.append(uploader_mgr_id)
 
                     # Add mapped record fields that exist in the database table
                     for col_name, col_val in record.items():
@@ -5169,14 +5195,36 @@ def get_records():
         query_parts.append(f"({missing_field} IS NULL OR {missing_field} = '')")
 
     # Scoped database record visibility by department network permissions
-    visible_ids = get_visible_user_ids(cursor, role=session.get("role"), user_id=session.get("user_id"))
     if session.get("role") != "admin":
-        if visible_ids:
-            placeholders = ",".join(["%s"] * len(visible_ids))
-            query_parts.append(f"imported_by IN ({placeholders})")
-            params.extend(visible_ids)
+        # Resolve department manager ID for logged-in user
+        cursor.execute("SELECT id, role, manager_id FROM users WHERE id = %s", (session["user_id"],))
+        user_info = cursor.fetchone()
+        dept_mgr_id = None
+        if user_info:
+            if user_info["role"] == "manager":
+                dept_mgr_id = user_info["id"]
+            else:
+                curr_mgr = user_info["manager_id"]
+                visited_mgrs = set()
+                while curr_mgr:
+                    if curr_mgr in visited_mgrs:
+                        break
+                    visited_mgrs.add(curr_mgr)
+                    cursor.execute("SELECT id, role, manager_id FROM users WHERE id = %s", (curr_mgr,))
+                    next_user = cursor.fetchone()
+                    if not next_user:
+                        break
+                    if next_user["role"] == "manager":
+                        dept_mgr_id = curr_mgr
+                        break
+                    curr_mgr = next_user["manager_id"]
+                    
+        if dept_mgr_id is not None:
+            query_parts.append("manager_id = %s")
+            params.append(dept_mgr_id)
         else:
-            query_parts.append("1=0")
+            query_parts.append("imported_by = %s")
+            params.append(session.get("username") or str(session.get("user_id", "unknown")))
 
     where_clause = " AND ".join(query_parts)
 
@@ -5918,14 +5966,36 @@ def export_records():
             query_parts.append(f"({missing_field} IS NULL OR {missing_field} = '')")
 
         # Scoped database record visibility by department network permissions
-        visible_ids = get_visible_user_ids(cursor, role=session.get("role"), user_id=session.get("user_id"))
         if session.get("role") != "admin":
-            if visible_ids:
-                placeholders = ",".join(["%s"] * len(visible_ids))
-                query_parts.append(f"imported_by IN ({placeholders})")
-                params.extend(visible_ids)
+            # Resolve department manager ID for logged-in user
+            cursor.execute("SELECT id, role, manager_id FROM users WHERE id = %s", (session["user_id"],))
+            user_info = cursor.fetchone()
+            dept_mgr_id = None
+            if user_info:
+                if user_info["role"] == "manager":
+                    dept_mgr_id = user_info["id"]
+                else:
+                    curr_mgr = user_info["manager_id"]
+                    visited_mgrs = set()
+                    while curr_mgr:
+                        if curr_mgr in visited_mgrs:
+                            break
+                        visited_mgrs.add(curr_mgr)
+                        cursor.execute("SELECT id, role, manager_id FROM users WHERE id = %s", (curr_mgr,))
+                        next_user = cursor.fetchone()
+                        if not next_user:
+                            break
+                        if next_user["role"] == "manager":
+                            dept_mgr_id = curr_mgr
+                            break
+                        curr_mgr = next_user["manager_id"]
+                        
+            if dept_mgr_id is not None:
+                query_parts.append("manager_id = %s")
+                params.append(dept_mgr_id)
             else:
-                query_parts.append("1=0")
+                query_parts.append("imported_by = %s")
+                params.append(session.get("username") or str(session.get("user_id", "unknown")))
     
         where_clause = " AND ".join(query_parts)
         
@@ -6188,14 +6258,36 @@ def delete_filtered_records():
             query_parts.append(f"({missing_field} IS NULL OR {missing_field} = '')")
             
         # Scoped database record visibility by department network permissions
-        visible_ids = get_visible_user_ids(cursor, role=session.get("role"), user_id=session.get("user_id"))
         if session.get("role") != "admin":
-            if visible_ids:
-                placeholders = ",".join(["%s"] * len(visible_ids))
-                query_parts.append(f"imported_by IN ({placeholders})")
-                params.extend(visible_ids)
+            # Resolve department manager ID for logged-in user
+            cursor.execute("SELECT id, role, manager_id FROM users WHERE id = %s", (session["user_id"],))
+            user_info = cursor.fetchone()
+            dept_mgr_id = None
+            if user_info:
+                if user_info["role"] == "manager":
+                    dept_mgr_id = user_info["id"]
+                else:
+                    curr_mgr = user_info["manager_id"]
+                    visited_mgrs = set()
+                    while curr_mgr:
+                        if curr_mgr in visited_mgrs:
+                            break
+                        visited_mgrs.add(curr_mgr)
+                        cursor.execute("SELECT id, role, manager_id FROM users WHERE id = %s", (curr_mgr,))
+                        next_user = cursor.fetchone()
+                        if not next_user:
+                            break
+                        if next_user["role"] == "manager":
+                            dept_mgr_id = curr_mgr
+                            break
+                        curr_mgr = next_user["manager_id"]
+                        
+            if dept_mgr_id is not None:
+                query_parts.append("manager_id = %s")
+                params.append(dept_mgr_id)
             else:
-                query_parts.append("1=0")
+                query_parts.append("imported_by = %s")
+                params.append(session.get("username") or str(session.get("user_id", "unknown")))
 
         where_clause = " AND ".join(query_parts)
         
@@ -7994,6 +8086,14 @@ if __name__ == "__main__":
                 cursor.execute("ALTER TABLE users ADD COLUMN download_access TINYINT NOT NULL DEFAULT 1")
                 print("Added download_access column to users table.")
                 
+            # Migrate master_records to add manager_id
+            cursor.execute("SELECT column_name AS column_name FROM information_schema.columns WHERE table_name = 'master_records' AND table_schema = DATABASE()")
+            mr_columns = {row['column_name'] for row in cursor.fetchall()}
+            if 'manager_id' not in mr_columns:
+                cursor.execute("ALTER TABLE master_records ADD COLUMN manager_id INT NULL")
+                cursor.execute("ALTER TABLE master_records ADD INDEX idx_mr_manager_id (manager_id)")
+                print("Added manager_id column to master_records table.")
+
             conn.commit()
             conn.close()
         except Exception as e:
