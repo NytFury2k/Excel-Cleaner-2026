@@ -346,55 +346,66 @@ def admin_logs():
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
 
-    # Fetch all users for user selector (admin sees all, manager sees their team)
-    if session.get("role") == "admin":
-        cursor.execute("SELECT id, username, role, status FROM users WHERE status != 'deleted' ORDER BY username")
-    else:
-        cursor.execute("SELECT id, username, role, status FROM users WHERE (id = %s OR manager_id = %s) AND status != 'deleted' ORDER BY username",
-                       (session["user_id"], session["user_id"]))
+    # Fetch all users visible to caller for user selector dropdown
+    visible_user_ids = get_visible_user_ids(cursor, role=session.get("role"), user_id=session.get("user_id"))
+    placeholders = ",".join(["%s"] * len(visible_user_ids))
+    cursor.execute(f"SELECT id, username, role, status FROM users WHERE id IN ({placeholders}) AND status != 'deleted' ORDER BY username", tuple(visible_user_ids))
     all_users = cursor.fetchall()
 
-    # Build user filter clause
+    # Build user filter clause scoped by hierarchy
     user_filter_sql = ""
     user_filter_params = []
     selected_user = None
     deactivated_days = None
     active_dates = []
+    target_visible_uid = None
 
     if selected_user_id and selected_user_id.isdigit():
-        user_filter_sql = " AND l.user_id = %s"
-        user_filter_params = [int(selected_user_id)]
-        
-        # Fetch details for the selected user
-        cursor.execute("SELECT id, username, role, status, deactivated_at, is_active FROM users WHERE id = %s", (int(selected_user_id),))
-        selected_user = cursor.fetchone()
-        if selected_user:
-            if selected_user["status"] == "deactivated" and selected_user["deactivated_at"]:
-                from datetime import datetime
-                delta = datetime.utcnow() - selected_user["deactivated_at"]
-                deactivated_days = max(0, delta.days)
-                
-            # Fetch last active history dates
-            cursor.execute("""
-                SELECT DISTINCT DATE(created_at) as active_date
-                FROM logs
-                WHERE user_id = %s
-                ORDER BY active_date DESC
-                LIMIT 50
-            """, (int(selected_user_id),))
-            active_dates = [r["active_date"].strftime("%d %b %Y") for r in cursor.fetchall() if r.get("active_date")]
+        target_uid = int(selected_user_id)
+        if target_uid in visible_user_ids:
+            user_filter_sql = " AND l.user_id = %s"
+            user_filter_params = [target_uid]
+            target_visible_uid = target_uid
+            
+            # Fetch details for the selected user
+            cursor.execute("SELECT id, username, role, status, deactivated_at, is_active FROM users WHERE id = %s", (target_uid,))
+            selected_user = cursor.fetchone()
+            if selected_user:
+                if selected_user["status"] == "deactivated" and selected_user["deactivated_at"]:
+                    from datetime import datetime
+                    delta = datetime.utcnow() - selected_user["deactivated_at"]
+                    deactivated_days = max(0, delta.days)
+                    
+                # Fetch last active history dates
+                cursor.execute("""
+                    SELECT DISTINCT DATE(created_at) as active_date
+                    FROM logs
+                    WHERE user_id = %s
+                    ORDER BY active_date DESC
+                    LIMIT 50
+                """, (target_uid,))
+                active_dates = [r["active_date"].strftime("%d %b %Y") for r in cursor.fetchall() if r.get("active_date")]
+        else:
+            user_filter_sql = " AND l.user_id = -1"
+            user_filter_params = []
+            target_visible_uid = -1
+    else:
+        # No selected user: Aggregate stats only over the caller's visible team
+        user_filter_sql = f" AND l.user_id IN ({placeholders})"
+        user_filter_params = list(visible_user_ids)
+        target_visible_uid = None
 
     # --- ANALYTICS STATS ---
-    # Total counts per action category
+    # Total counts per action category (using LOCATE to bypass Python string formatting conflicts with MySQL %)
     cursor.execute(f"""
         SELECT
             COUNT(*) AS total_events,
-            SUM(CASE WHEN LOWER(l.action) LIKE '%%export%%' THEN 1 ELSE 0 END) AS total_exports,
-            SUM(CASE WHEN LOWER(l.action) LIKE '%%upload%%' OR LOWER(l.action) LIKE '%%ingest%%' OR (LOWER(l.action) LIKE '%%import%%' AND LOWER(l.action) NOT LIKE '%%export%%') THEN 1 ELSE 0 END) AS total_imports,
-            SUM(CASE WHEN LOWER(l.action) LIKE '%%cleaned file%%' THEN 1 ELSE 0 END) AS total_cleans,
-            SUM(CASE WHEN LOWER(l.action) LIKE '%%search%%' OR LOWER(l.action) LIKE '%%filter%%' THEN 1 ELSE 0 END) AS total_searches,
-            SUM(CASE WHEN LOWER(l.action) LIKE '%%login%%' THEN 1 ELSE 0 END) AS total_logins,
-            SUM(CASE WHEN LOWER(l.action) LIKE '%%delete%%' OR LOWER(l.action) LIKE '%%removed%%' THEN 1 ELSE 0 END) AS total_deletes,
+            SUM(CASE WHEN LOCATE('export', LOWER(l.action)) > 0 THEN 1 ELSE 0 END) AS total_exports,
+            SUM(CASE WHEN LOCATE('upload', LOWER(l.action)) > 0 OR LOCATE('ingest', LOWER(l.action)) > 0 OR (LOCATE('import', LOWER(l.action)) > 0 AND LOCATE('export', LOWER(l.action)) = 0) THEN 1 ELSE 0 END) AS total_imports,
+            SUM(CASE WHEN LOCATE('cleaned file', LOWER(l.action)) > 0 THEN 1 ELSE 0 END) AS total_cleans,
+            SUM(CASE WHEN LOCATE('search', LOWER(l.action)) > 0 OR LOCATE('filter', LOWER(l.action)) > 0 THEN 1 ELSE 0 END) AS total_searches,
+            SUM(CASE WHEN LOCATE('login', LOWER(l.action)) > 0 THEN 1 ELSE 0 END) AS total_logins,
+            SUM(CASE WHEN LOCATE('delete', LOWER(l.action)) > 0 OR LOCATE('removed', LOWER(l.action)) > 0 THEN 1 ELSE 0 END) AS total_deletes,
             COUNT(DISTINCT l.user_id) AS unique_users
         FROM logs l
         JOIN users u ON u.id = l.user_id
@@ -404,31 +415,40 @@ def admin_logs():
 
     # Today's export count (from user_daily_exports)
     try:
-        cursor.execute(f"""
-            SELECT COALESCE(SUM(ude.rows_count), 0) AS rows_today
-            FROM user_daily_exports ude
-            WHERE ude.export_date = CURRENT_DATE
-            {"AND ude.user_id = %s" if selected_user_id and selected_user_id.isdigit() else ""}
-        """, [int(selected_user_id)] if selected_user_id and selected_user_id.isdigit() else [])
+        if target_visible_uid is not None:
+            cursor.execute("""
+                SELECT COALESCE(SUM(ude.rows_count), 0) AS rows_today
+                FROM user_daily_exports ude
+                WHERE ude.export_date = CURRENT_DATE
+                  AND ude.user_id = %s
+            """, (target_visible_uid,))
+        else:
+            cursor.execute(f"""
+                SELECT COALESCE(SUM(ude.rows_count), 0) AS rows_today
+                FROM user_daily_exports ude
+                WHERE ude.export_date = CURRENT_DATE
+                  AND ude.user_id IN ({placeholders})
+            """, tuple(visible_user_ids))
         today_row = cursor.fetchone()
         rows_exported_today = int(today_row["rows_today"]) if today_row else 0
     except Exception:
         rows_exported_today = 0
 
-    # Top 5 most active users
-    cursor.execute("""
+    # Top 5 most active users within team
+    cursor.execute(f"""
         SELECT u.username, COUNT(l.id) AS event_count
         FROM logs l
         JOIN users u ON u.id = l.user_id
+        WHERE l.user_id IN ({placeholders})
         GROUP BY l.user_id, u.username
         ORDER BY event_count DESC
         LIMIT 5
-    """)
+    """, tuple(visible_user_ids))
     top_users = cursor.fetchall()
 
     logs, total_logs = fetch_visible_logs(cursor, search=search, from_date=from_date, to_date=to_date,
                                           log_type=log_type, page=page, per_page=per_page,
-                                          user_id=int(selected_user_id) if selected_user_id and selected_user_id.isdigit() else None)
+                                          user_id=target_visible_uid)
     conn.close()
 
     total_pages = (total_logs + per_page - 1) // per_page
@@ -597,21 +617,31 @@ def logs_chart_data():
     if not all_dates:
         return jsonify({"labels": [], "totals": [], "exports": [], "imports": [], "searches": [], "logins": []})
 
-    user_clause = ""
-    params = [str(all_dates[0]), str(end_date if period != "custom" else to_date_str)]
-    if user_id_filter and user_id_filter.isdigit():
-        user_clause = " AND l.user_id = %s"
-        params.append(int(user_id_filter))
-
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
 
-    if group_by == "day":
-        date_expr = "DATE(l.created_at AT TIME ZONE 'Asia/Kolkata')"
-    elif group_by == "week":
-        date_expr = "DATE_TRUNC('week', l.created_at AT TIME ZONE 'Asia/Kolkata')::date"
+    visible_user_ids = get_visible_user_ids(cursor, role=session.get("role"), user_id=session.get("user_id"))
+
+    user_clause = ""
+    params = [str(all_dates[0]), str(end_date if period != "custom" else to_date_str)]
+    if user_id_filter and user_id_filter.isdigit():
+        target_uid = int(user_id_filter)
+        if target_uid in visible_user_ids:
+            user_clause = " AND l.user_id = %s"
+            params.append(target_uid)
+        else:
+            user_clause = " AND l.user_id = -1"
     else:
-        date_expr = "DATE_TRUNC('month', l.created_at AT TIME ZONE 'Asia/Kolkata')::date"
+        placeholders = ",".join(["%s"] * len(visible_user_ids))
+        user_clause = f" AND l.user_id IN ({placeholders})"
+        params.extend(visible_user_ids)
+
+    if group_by == "day":
+        date_expr = "DATE(l.created_at)"
+    elif group_by == "week":
+        date_expr = "DATE_SUB(DATE(l.created_at), INTERVAL WEEKDAY(l.created_at) DAY)"
+    else:
+        date_expr = "STR_TO_DATE(DATE_FORMAT(l.created_at, '%Y-%m-01'), '%Y-%m-%d')"
 
     query = f"""
         SELECT
@@ -623,7 +653,7 @@ def logs_chart_data():
             SUM(CASE WHEN LOWER(l.action) LIKE '%%search%%' OR LOWER(l.action) LIKE '%%filter%%' THEN 1 ELSE 0 END) AS searches,
             SUM(CASE WHEN LOWER(l.action) LIKE '%%login%%' THEN 1 ELSE 0 END) AS logins
         FROM logs l
-        WHERE DATE(l.created_at AT TIME ZONE 'Asia/Kolkata') BETWEEN %s AND %s
+        WHERE DATE(l.created_at) BETWEEN %s AND %s
         {user_clause}
         GROUP BY period_date
         ORDER BY period_date ASC
@@ -711,28 +741,38 @@ def logs_period_stats():
         start_date = today - timedelta(days=6)
         end_date = today
 
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    visible_user_ids = get_visible_user_ids(cursor, role=session.get("role"), user_id=session.get("user_id"))
+
     user_clause = ""
     params = [str(start_date), str(end_date)]
     if user_id_filter and user_id_filter.isdigit():
-        user_clause = " AND l.user_id = %s"
-        params.append(int(user_id_filter))
-
-    conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
+        target_uid = int(user_id_filter)
+        if target_uid in visible_user_ids:
+            user_clause = " AND l.user_id = %s"
+            params.append(target_uid)
+        else:
+            user_clause = " AND l.user_id = -1"
+    else:
+        placeholders = ",".join(["%s"] * len(visible_user_ids))
+        user_clause = f" AND l.user_id IN ({placeholders})"
+        params.extend(visible_user_ids)
 
     try:
         cursor.execute(f"""
             SELECT
                 COUNT(*) AS total_events,
-                SUM(CASE WHEN LOWER(l.action) LIKE '%%export%%' THEN 1 ELSE 0 END) AS total_exports,
-                SUM(CASE WHEN LOWER(l.action) LIKE '%%upload%%' OR LOWER(l.action) LIKE '%%ingest%%' OR (LOWER(l.action) LIKE '%%import%%' AND LOWER(l.action) NOT LIKE '%%export%%') THEN 1 ELSE 0 END) AS total_imports,
-                SUM(CASE WHEN LOWER(l.action) LIKE '%%cleaned file%%' THEN 1 ELSE 0 END) AS total_cleans,
-                SUM(CASE WHEN LOWER(l.action) LIKE '%%search%%' OR LOWER(l.action) LIKE '%%filter%%' THEN 1 ELSE 0 END) AS total_searches,
-                SUM(CASE WHEN LOWER(l.action) LIKE '%%login%%' THEN 1 ELSE 0 END) AS total_logins,
-                SUM(CASE WHEN LOWER(l.action) LIKE '%%delete%%' OR LOWER(l.action) LIKE '%%removed%%' THEN 1 ELSE 0 END) AS total_deletes,
+                SUM(CASE WHEN LOCATE('export', LOWER(l.action)) > 0 THEN 1 ELSE 0 END) AS total_exports,
+                SUM(CASE WHEN LOCATE('upload', LOWER(l.action)) > 0 OR LOCATE('ingest', LOWER(l.action)) > 0 OR (LOCATE('import', LOWER(l.action)) > 0 AND LOCATE('export', LOWER(l.action)) = 0) THEN 1 ELSE 0 END) AS total_imports,
+                SUM(CASE WHEN LOCATE('cleaned file', LOWER(l.action)) > 0 THEN 1 ELSE 0 END) AS total_cleans,
+                SUM(CASE WHEN LOCATE('search', LOWER(l.action)) > 0 OR LOCATE('filter', LOWER(l.action)) > 0 THEN 1 ELSE 0 END) AS total_searches,
+                SUM(CASE WHEN LOCATE('login', LOWER(l.action)) > 0 THEN 1 ELSE 0 END) AS total_logins,
+                SUM(CASE WHEN LOCATE('delete', LOWER(l.action)) > 0 OR LOCATE('removed', LOWER(l.action)) > 0 THEN 1 ELSE 0 END) AS total_deletes,
                 COUNT(DISTINCT l.user_id) AS unique_users
             FROM logs l
-            WHERE DATE(l.created_at AT TIME ZONE 'Asia/Kolkata') BETWEEN %s AND %s
+            WHERE DATE(l.created_at) BETWEEN %s AND %s
             {user_clause}
         """, params)
         stats = cursor.fetchone() or {}
@@ -741,8 +781,17 @@ def logs_period_stats():
         ue_params = [str(start_date), str(end_date)]
         ue_clause = ""
         if user_id_filter and user_id_filter.isdigit():
-            ue_clause = " AND user_id = %s"
-            ue_params.append(int(user_id_filter))
+            target_uid = int(user_id_filter)
+            if target_uid in visible_user_ids:
+                ue_clause = " AND user_id = %s"
+                ue_params.append(target_uid)
+            else:
+                ue_clause = " AND user_id = -1"
+        else:
+            ue_placeholders = ",".join(["%s"] * len(visible_user_ids))
+            ue_clause = f" AND user_id IN ({ue_placeholders})"
+            ue_params.extend(visible_user_ids)
+
         cursor.execute(f"""
             SELECT COALESCE(SUM(rows_count), 0) AS rows_exported
             FROM user_daily_exports
