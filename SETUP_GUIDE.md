@@ -34,7 +34,7 @@ Before beginning, ensure the following software is installed on your laptop:
 Open a terminal or command prompt and clone the repository, or copy the project files to the target laptop:
 
 ```bash
-git clone <your-repository-url>
+git clone https://github.com/NytFury2k/Excel-Cleaner-2026.git
 cd Excel-Cleaner-2026
 ```
 
@@ -56,14 +56,6 @@ python -m venv .venv
 python -m venv .venv
 \.venv\Scripts\activate.bat
 ```
-
-### On macOS / Linux:
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-```
-
----
 
 ## Step 3: Install Required Dependencies
 
