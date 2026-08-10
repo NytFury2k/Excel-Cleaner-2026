@@ -152,3 +152,17 @@ Use the default administrative credentials to log in:
 | Port 5000 already in use | Another application or Flask instance is using port 5000. | Stop the process using port 5000 or change port in `app.py`. |
 
 ---
+
+
+
+
+
+
+Code-  NytFury2k/Excel-Cleaner-2026 at rishikesh-development 
+
+
+Go to this url and download in zip file and then extract NytFury2k/Excel-Cleaner-2026 at rishikesh-development  and open it into vs code 
+
+
+Download python from here https://www.python.org/downloads/release/pymanager-263/
+
