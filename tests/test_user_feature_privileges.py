@@ -49,3 +49,27 @@ def test_upload_downloads_privilege_enforcement(client):
     res = client.get("/downloads")
     assert res.status_code == 302 # Redirected / blocked
     assert "/dashboard" in res.headers["Location"]
+
+from helpers import get_visible_user_ids
+
+class MockCursor:
+    def __init__(self, data):
+        self.data = data
+        self.queries = []
+    def execute(self, query, params=None):
+        self.queries.append((query, params))
+    def fetchall(self):
+        return self.data
+    def fetchone(self):
+        return {"manager_id": 10}
+
+def test_get_visible_user_ids_scoped_by_manager():
+    # Test standard user that reports to manager (manager_id = 10)
+    cursor = MockCursor([{"id": 10}, {"id": 20}, {"id": 30}])
+    visible = get_visible_user_ids(cursor, role="user", user_id=99)
+    # The visible list should include 99 (self), 10 (manager), 20 and 30 (peers/sub-reports)
+    assert 99 in visible
+    assert 10 in visible
+    assert 20 in visible
+    assert 30 in visible
+

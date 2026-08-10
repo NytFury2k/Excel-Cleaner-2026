@@ -224,7 +224,27 @@ def get_visible_user_ids(cursor, role=None, user_id=None):
     if role == "admin":
         cursor.execute("SELECT id FROM users")
         return [row["id"] for row in cursor.fetchall()]
-    elif role == "manager":
+    # First, check if caller reports to a manager
+    mgr_id = None
+    if user_id:
+        cursor.execute("SELECT manager_id FROM users WHERE id = %s", (user_id,))
+        res = cursor.fetchone()
+        mgr_id = res["manager_id"] if res else None
+
+    if mgr_id is not None:
+        # User belongs to a manager's department: Can see own, manager's, and peer department files/logs
+        cursor.execute("""
+            SELECT id FROM users 
+            WHERE id = %s
+               OR manager_id = %s 
+               OR manager_id IN (SELECT id FROM users WHERE manager_id = %s AND role = 'team_lead')
+        """, (mgr_id, mgr_id, mgr_id))
+        visible = [row["id"] for row in cursor.fetchall()]
+        if user_id not in visible:
+            visible.append(user_id)
+        return visible
+
+    if role == "manager":
         cursor.execute("""
             SELECT id FROM users 
             WHERE manager_id = %s 
