@@ -647,11 +647,11 @@ def logs_chart_data():
         SELECT
             {date_expr} AS period_date,
             COUNT(*) AS total,
-            SUM(CASE WHEN LOWER(l.action) LIKE '%%export%%' THEN 1 ELSE 0 END) AS exports,
-            SUM(CASE WHEN LOWER(l.action) LIKE '%%upload%%' OR LOWER(l.action) LIKE '%%ingest%%' OR (LOWER(l.action) LIKE '%%import%%' AND LOWER(l.action) NOT LIKE '%%export%%') THEN 1 ELSE 0 END) AS imports,
-            SUM(CASE WHEN LOWER(l.action) LIKE '%%cleaned file%%' THEN 1 ELSE 0 END) AS cleans,
-            SUM(CASE WHEN LOWER(l.action) LIKE '%%search%%' OR LOWER(l.action) LIKE '%%filter%%' THEN 1 ELSE 0 END) AS searches,
-            SUM(CASE WHEN LOWER(l.action) LIKE '%%login%%' THEN 1 ELSE 0 END) AS logins
+            SUM(CASE WHEN LOCATE('export', LOWER(l.action)) > 0 THEN 1 ELSE 0 END) AS exports,
+            SUM(CASE WHEN LOCATE('upload', LOWER(l.action)) > 0 OR LOCATE('ingest', LOWER(l.action)) > 0 OR (LOCATE('import', LOWER(l.action)) > 0 AND LOCATE('export', LOWER(l.action)) = 0) THEN 1 ELSE 0 END) AS imports,
+            SUM(CASE WHEN LOCATE('cleaned file', LOWER(l.action)) > 0 THEN 1 ELSE 0 END) AS cleans,
+            SUM(CASE WHEN LOCATE('search', LOWER(l.action)) > 0 OR LOCATE('filter', LOWER(l.action)) > 0 THEN 1 ELSE 0 END) AS searches,
+            SUM(CASE WHEN LOCATE('login', LOWER(l.action)) > 0 THEN 1 ELSE 0 END) AS logins
         FROM logs l
         WHERE DATE(l.created_at) BETWEEN %s AND %s
         {user_clause}
