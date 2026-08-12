@@ -8149,6 +8149,13 @@ if __name__ == "__main__":
                 cursor.execute("ALTER TABLE user_change_requests ADD COLUMN rejection_reason TEXT NULL")
                 print("Added rejection_reason column to user_change_requests table.")
 
+            # Migrate client_api_keys to add rows_retrieved
+            cursor.execute("SELECT column_name AS column_name FROM information_schema.columns WHERE table_name = 'client_api_keys' AND table_schema = DATABASE()")
+            cak_columns = {row['column_name'] for row in cursor.fetchall()}
+            if 'rows_retrieved' not in cak_columns:
+                cursor.execute("ALTER TABLE client_api_keys ADD COLUMN rows_retrieved INT NOT NULL DEFAULT 0")
+                print("Added rows_retrieved column to client_api_keys table.")
+
             conn.commit()
             conn.close()
         except Exception as e:

@@ -1973,8 +1973,20 @@ def api_client_export():
 
     output_format = (params.get("format") or params.get("export") or "json").lower()
     page = max(1, int(params.get("page", 1)))
-    approved_max = key_row.get("max_rows_limit") or MAX_PAGE_SIZE
-    per_page = max(1, min(int(params.get("per_page", approved_max)), approved_max))
+
+    # Calculate remaining row limit for this API Key
+    rows_retrieved = key_row.get("rows_retrieved") or 0
+    max_rows_limit = key_row.get("max_rows_limit") or 0
+    remaining_limit = max_rows_limit - rows_retrieved if max_rows_limit > 0 else 999999999
+
+    if remaining_limit <= 0:
+        return jsonify({
+            "error": f"Total export row limit ({max_rows_limit}) for this API key has been fully reached."
+        }), 400
+
+    # Cap page size to a maximum of 1000, and ensure it does not exceed the remaining limit
+    requested_per_page = int(params.get("per_page", 100))
+    per_page = max(1, min(requested_per_page, remaining_limit, 1000))
 
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
@@ -2001,9 +2013,17 @@ def api_client_export():
         total_records = cursor.fetchone()["total"]
 
         if output_format in ("excel", "xlsx", "csv"):
-            query_sql = f"SELECT * FROM master_records{where_sql} ORDER BY {sort_col} {sort_dir} LIMIT 50000"
+            limit_val = min(50000, remaining_limit)
+            query_sql = f"SELECT * FROM master_records{where_sql} ORDER BY {sort_col} {sort_dir} LIMIT {limit_val}"
             cursor.execute(query_sql, sql_params)
             rows = cursor.fetchall()
+
+            if rows:
+                cursor.execute(
+                    "UPDATE client_api_keys SET rows_retrieved = rows_retrieved + %s WHERE id = %s",
+                    (len(rows), key_row["id"])
+                )
+                conn.commit()
 
             clean_rows = []
             for r in rows:
@@ -2039,6 +2059,13 @@ def api_client_export():
         query_sql = f"SELECT * FROM master_records{where_sql} ORDER BY {sort_col} {sort_dir} LIMIT %s OFFSET %s"
         cursor.execute(query_sql, sql_params + [per_page, offset])
         rows = cursor.fetchall()
+
+        if rows:
+            cursor.execute(
+                "UPDATE client_api_keys SET rows_retrieved = rows_retrieved + %s WHERE id = %s",
+                (len(rows), key_row["id"])
+            )
+            conn.commit()
 
         serialised = []
         for r in rows:
