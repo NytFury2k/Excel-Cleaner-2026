@@ -1750,7 +1750,7 @@
           alert("Passwords do not match.");
         }
         var phoneVal = phoneInput ? phoneInput.value : "";
-        if (!/^\d{10}$/.test(phoneVal)) {
+        if (phoneVal.length > 0 && !/^\d{10}$/.test(phoneVal)) {
           e.preventDefault();
           showPhoneError(true);
         }

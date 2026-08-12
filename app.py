@@ -1075,6 +1075,9 @@ def register():
         form_role        = request.form.get("role", req_role).strip().lower()
         role             = form_role if form_role in ("client", "user") else "client"
         email            = request.form.get("email", "").strip() or None
+        phone_num        = request.form.get("phone_number", "").strip()
+        country_code     = request.form.get("country_code", "").strip()
+        phone            = f"{country_code} {phone_num}".strip() if phone_num else None
 
         if email and _email_already_exists(email):
             flash("That email address is already registered to another account.","danger")
@@ -1096,8 +1099,8 @@ def register():
             cursor = conn.cursor(dictionary=True)
 
             cursor.execute(
-                "INSERT INTO users (username, password, role, email, manager_id, created_by) VALUES (%s, %s, %s, %s, NULL, NULL)",
-                (username, hashed, role, email)
+                "INSERT INTO users (username, password, role, email, phone_number, manager_id, created_by) VALUES (%s, %s, %s, %s, %s, NULL, NULL)",
+                (username, hashed, role, email, phone)
             )
             new_user_id = cursor.lastrowid
 
@@ -1184,6 +1187,9 @@ def admin_create_user():
         confirm_password = request.form.get("confirm_password", "")
         role             = request.form.get("role", "")
         email            = request.form.get("email", "").strip() or None
+        phone_num        = request.form.get("phone_number", "").strip()
+        country_code     = request.form.get("country_code", "").strip()
+        phone            = f"{country_code} {phone_num}".strip() if phone_num else None
         selected_role = role
 
         if not username:
@@ -1270,8 +1276,8 @@ def admin_create_user():
             cursor = conn.cursor(dictionary=True)
 
             cursor.execute(
-                "INSERT INTO users (username, password, role, email, manager_id, created_by) VALUES (%s, %s, %s, %s, %s, %s)",
-                (username, hashed, role, email, new_manager_id, created_by)
+                "INSERT INTO users (username, password, role, email, phone_number, manager_id, created_by) VALUES (%s, %s, %s, %s, %s, %s, %s)",
+                (username, hashed, role, email, phone, new_manager_id, created_by)
             )
             conn.commit()
             new_user_id = cursor.lastrowid
