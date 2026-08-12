@@ -9,7 +9,7 @@ import bcrypt
 import mysql.connector
 import mysql.connector.pooling
 import pandas as pd
-from flask import session, redirect, url_for, flash, request, jsonify, g
+from flask import session, redirect, url_for, flash, request, jsonify, g, has_app_context
 import logging
 
 _logger=logging.getLogger(__name__)
@@ -24,20 +24,30 @@ INACTIVITY_LIMIT = timedelta(minutes=60)
 class MySqlConnectionWrapper:
     def __init__(self, conn):
         self.conn = conn
+        self.is_closed = False
 
     def cursor(self, dictionary=False, dict=False):
         return MySqlCursorWrapper(self.conn.cursor(dictionary=dictionary or dict))
 
     def commit(self):
-        self.conn.commit()
+        if not self.is_closed:
+            self.conn.commit()
 
     def rollback(self):
-        self.conn.rollback()
+        if not self.is_closed:
+            self.conn.rollback()
 
     def close(self):
-        self.conn.close()
+        if not self.is_closed:
+            self.is_closed = True
+            try:
+                self.conn.close()
+            except Exception:
+                pass
 
     def is_connected(self):
+        if self.is_closed:
+            return False
         try:
             return self.conn.is_connected()
         except Exception:
@@ -127,7 +137,14 @@ def get_db_connection():
         )
     
     conn = _db_pool.get_connection()
-    return MySqlConnectionWrapper(conn)
+    wrapper = MySqlConnectionWrapper(conn)
+    
+    if has_app_context():
+        if 'db_conns' not in g:
+            g.db_conns = []
+        g.db_conns.append(wrapper)
+        
+    return wrapper
 
 
 # ── Logging ───────────────────────────────────────────────────────────────────

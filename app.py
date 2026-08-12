@@ -228,6 +228,18 @@ def add_response_headers(response):
     return response
 
 
+@app.teardown_appcontext
+def teardown_db(exception):
+    from flask import g
+    db_conns = g.pop('db_conns', None)
+    if db_conns:
+        for conn in db_conns:
+            try:
+                conn.close()
+            except Exception:
+                pass
+
+
 def _send_lockout_alert(username):
     """
     Sends an email to the user's admin/manager when their account gets locked
