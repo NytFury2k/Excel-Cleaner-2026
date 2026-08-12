@@ -104,7 +104,7 @@ from helpers import(get_db_connection, log_action, fetch_visible_logs, detect_id
                     generate_api_token, resolve_token, revoke_api_token, refresh_api_token,
                     api_login_required, validate_password, check_login_rate_limit,
                       record_login_attempt, get_job_state, set_job_state, clear_job_files,
-                       MAX_PAGE_SIZE )
+                       MAX_PAGE_SIZE, drop_unnamed_columns)
 
 
 # ── Response helpers ──────────────────────────────────────────────────────────
@@ -2121,6 +2121,7 @@ def api_client_import():
             try:
                 fb = base64.b64decode(payload["file_b64"])
                 df = pd.read_excel(BytesIO(fb)) if payload.get("filename", "").endswith((".xls", ".xlsx")) else pd.read_csv(BytesIO(fb))
+                df = drop_unnamed_columns(df)
                 records_data = df.to_dict(orient="records")
             except Exception as e:
                 return jsonify({"error": f"Failed to parse Base64 file: {e}"}), 422
@@ -2128,6 +2129,7 @@ def api_client_import():
         try:
             up_file = request.files["file"]
             df = pd.read_excel(up_file) if up_file.filename.endswith((".xls", ".xlsx")) else pd.read_csv(up_file)
+            df = drop_unnamed_columns(df)
             records_data = df.to_dict(orient="records")
         except Exception as e:
             return jsonify({"error": f"Failed to parse uploaded file: {e}"}), 422

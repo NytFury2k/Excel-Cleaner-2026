@@ -914,6 +914,21 @@ def normalize_header(header_name):
     name = re.sub(r'[\s_\-]+', '_', name)
     return name.strip('_')
 
+def drop_unnamed_columns(df):
+    """
+    Drops any columns that are null/empty, or start with 'Unnamed:' (case-insensitive).
+    """
+    if df is None or df.empty:
+        return df
+    to_drop = []
+    for col in df.columns:
+        col_str = str(col).strip()
+        if not col_str or col_str.lower().startswith('unnamed') or col_str.lower().startswith('unnamed:'):
+            to_drop.append(col)
+    if to_drop:
+        df = df.drop(columns=to_drop)
+    return df
+
 def ingest_uploaded_file(file_id, file_path, username):
     import pandas as pd
     conn = get_db_connection()
@@ -928,6 +943,8 @@ def ingest_uploaded_file(file_id, file_path, username):
                 df = pd.read_csv(file_path, sep=None, engine='python')
         else:
             df = pd.read_excel(file_path)
+            
+        df = drop_unnamed_columns(df)
             
         headers = df.columns.tolist()
         if not headers:
@@ -1091,6 +1108,8 @@ def ingest_uploaded_file_with_mapping(file_id, file_path, username, mapping_conf
                 df = pd.read_csv(file_path, sep=None, engine='python')
         else:
             df = pd.read_excel(file_path)
+            
+        df = drop_unnamed_columns(df)
             
         headers = df.columns.tolist()
         if not headers:

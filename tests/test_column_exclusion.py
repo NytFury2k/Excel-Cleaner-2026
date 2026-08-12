@@ -197,3 +197,19 @@ def test_clean_multiple_sheets_and_files(client, tmp_path):
     # Clean up
     if os.path.exists(cleaned_file_path):
         os.remove(cleaned_file_path)
+
+def test_drop_unnamed_columns():
+    from helpers import drop_unnamed_columns
+    df = pd.DataFrame({
+        "first_name": ["Alice", "Bob"],
+        "Unnamed: 0": ["x", "y"],
+        "Unnamed: 1": [1, 2],
+        "unnamed": [3, 4],
+        "": ["a", "b"]
+    })
+    df_cleaned = drop_unnamed_columns(df)
+    assert "first_name" in df_cleaned.columns
+    assert "Unnamed: 0" not in df_cleaned.columns
+    assert "Unnamed: 1" not in df_cleaned.columns
+    assert "unnamed" not in df_cleaned.columns
+    assert "" not in df_cleaned.columns

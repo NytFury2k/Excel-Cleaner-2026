@@ -51,7 +51,7 @@ from helpers import (
     login_required, INACTIVITY_LIMIT, generate_api_token, 
     resolve_token, revoke_api_token, api_login_required,
     refresh_api_token, check_login_rate_limit, record_login_attempt,
-    load_permissions_from_db, log_search
+    load_permissions_from_db, log_search, drop_unnamed_columns
 )
 
 import logging
@@ -1944,6 +1944,7 @@ def upload():
                         df = pd.read_csv(temp_file_path)
                     except Exception:
                         df = pd.read_csv(temp_file_path, sep=None, engine="python")
+                    df = drop_unnamed_columns(df)
                     
                     sheet_name = "CSV"
                     safe_sheet_name = os.path.splitext(safe_filename)[0][:30]
@@ -1982,6 +1983,7 @@ def upload():
                     sheet_dict = pd.read_excel(temp_file_path, sheet_name=None)
                     sheet_idx = 0
                     for sheet_name, df in sheet_dict.items():
+                        df = drop_unnamed_columns(df)
                         if df.empty or len(df.columns) == 0:
                             continue # skip empty sheets
                             
