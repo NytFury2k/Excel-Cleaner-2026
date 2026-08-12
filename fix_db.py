@@ -203,6 +203,9 @@ sql_statements = [
         requested_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         approved_by INT NULL,
         approved_at TIMESTAMP NULL,
+        reviewed_by INT NULL,
+        reviewed_at TIMESTAMP NULL,
+        rejection_reason TEXT NULL,
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     )
     """,

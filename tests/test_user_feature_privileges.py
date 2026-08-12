@@ -78,3 +78,37 @@ def test_get_visible_user_ids_scoped_by_manager():
     assert 20 in visible
     assert 30 in visible
 
+def test_inbox_access_for_all_roles(client):
+    # Test admin role can access /inbox
+    with client.session_transaction() as sess:
+        sess["user_id"] = 1
+        sess["username"] = "admin"
+        sess["role"] = "admin"
+    res = client.get("/inbox")
+    assert res.status_code == 200
+
+    # Test manager role can access /inbox
+    with client.session_transaction() as sess:
+        sess["user_id"] = 2
+        sess["username"] = "manager1"
+        sess["role"] = "manager"
+    res = client.get("/inbox")
+    assert res.status_code == 200
+
+    # Test team_lead role can access /inbox
+    with client.session_transaction() as sess:
+        sess["user_id"] = 3
+        sess["username"] = "lead1"
+        sess["role"] = "team_lead"
+    res = client.get("/inbox")
+    assert res.status_code == 200
+
+    # Test standard user role can access /inbox
+    with client.session_transaction() as sess:
+        sess["user_id"] = 4
+        sess["username"] = "user1"
+        sess["role"] = "user"
+    res = client.get("/inbox")
+    assert res.status_code == 200
+
+

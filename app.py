@@ -4231,29 +4231,35 @@ def inject_pending_requests_count():
     if "user_id" not in session:
         return {}
     role = session.get("role")
-    if role not in ["admin", "team_lead"]:
-        return {}
+    user_id = session.get("user_id")
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # Pending requests count
+        # Pending requests count based on role visibility
+        from helpers import get_visible_user_ids
+        visible_ids = get_visible_user_ids(cursor, role=role, user_id=user_id)
+        
+        req_count = 0
         if role == "admin":
             cursor.execute("SELECT COUNT(*) FROM  user_change_requests WHERE status = 'pending'")
-        else: # team_lead
-            cursor.execute("""
+            row_req = cursor.fetchone()
+            req_count = row_req[0] if row_req else 0
+        elif role in ["manager", "team_lead"] and visible_ids:
+            placeholders = ",".join(["%s"] * len(visible_ids))
+            cursor.execute(f"""
                 SELECT COUNT(*) FROM  user_change_requests r
                 JOIN  users u ON r.user_id = u.id
-                WHERE u.manager_id = %s AND r.status = 'pending'
-            """, (session["user_id"],))
-        row_req = cursor.fetchone()
-        req_count = row_req[0] if row_req else 0
+                WHERE r.user_id IN ({placeholders}) AND r.status = 'pending'
+            """, tuple(visible_ids))
+            row_req = cursor.fetchone()
+            req_count = row_req[0] if row_req else 0
 
         # Unread notifications count
         cursor.execute("""
             SELECT COUNT(*) FROM  user_notifications 
             WHERE recipient_id = %s AND is_read = FALSE
-        """, (session["user_id"],))
+        """, (user_id,))
         row_notif = cursor.fetchone()
         notif_count = row_notif[0] if row_notif else 0
         
@@ -4271,13 +4277,15 @@ def inject_pending_requests_count():
 @login_required()
 def inbox_preview():
     role = session.get("role")
-    if role not in ["admin", "team_lead"]:
-        return jsonify({"ok": False, "error": "Unauthorized"}), 403
+    user_id = session.get("user_id")
 
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
 
-    # 1. Fetch pending requests
+    # 1. Fetch pending requests based on role visibility
+    from helpers import get_visible_user_ids
+    visible_ids = get_visible_user_ids(cursor, role=role, user_id=user_id)
+
     if role == "admin":
         cursor.execute("""
             SELECT r.id, r.username, r.requested_at, u.username as current_username
@@ -4286,15 +4294,19 @@ def inbox_preview():
             WHERE r.status = 'pending'
             ORDER BY r.requested_at DESC
         """)
-    else: # team_lead
-        cursor.execute("""
+        requests_list = cursor.fetchall()
+    elif role in ["manager", "team_lead"] and visible_ids:
+        placeholders = ",".join(["%s"] * len(visible_ids))
+        cursor.execute(f"""
             SELECT r.id, r.username, r.requested_at, u.username as current_username
             FROM  user_change_requests r
             JOIN  users u ON r.user_id = u.id
-            WHERE u.manager_id = %s AND r.status = 'pending'
+            WHERE r.user_id IN ({placeholders}) AND r.status = 'pending'
             ORDER BY r.requested_at DESC
-        """, (session["user_id"],))
-    requests_list = cursor.fetchall()
+        """, tuple(visible_ids))
+        requests_list = cursor.fetchall()
+    else:
+        requests_list = []
 
     # 2. Fetch notifications
     cursor.execute("""
@@ -4303,7 +4315,7 @@ def inbox_preview():
         JOIN  users u ON n.sender_id = u.id
         WHERE n.recipient_id = %s
         ORDER BY n.created_at DESC LIMIT 15
-    """, (session["user_id"],))
+    """, (user_id,))
     notifications_list = cursor.fetchall()
 
     conn.close()
@@ -4443,13 +4455,15 @@ def profile_update():
 @login_required()
 def inbox():
     role = session.get("role")
-    if role not in ["admin", "team_lead"]:
-        abort(403)
+    user_id = session.get("user_id")
 
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
 
-    # 1. Fetch change requests
+    # 1. Fetch change requests based on role visibility
+    from helpers import get_visible_user_ids
+    visible_ids = get_visible_user_ids(cursor, role=role, user_id=user_id)
+
     if role == "admin":
         cursor.execute("""
             SELECT r.*, u.username AS current_username, u.email AS current_email, 
@@ -4461,18 +4475,22 @@ def inbox():
             WHERE r.status = 'pending'
             ORDER BY r.requested_at DESC
         """)
-    else: # team_lead
-        cursor.execute("""
+        requests_raw = cursor.fetchall()
+    elif role in ["manager", "team_lead"] and visible_ids:
+        placeholders = ",".join(["%s"] * len(visible_ids))
+        cursor.execute(f"""
             SELECT r.*, u.username AS current_username, u.email AS current_email, 
                    u.phone_number AS current_phone_number, u.address AS current_address,
                    u.role AS user_role, reviewer.username AS reviewer_name
             FROM  user_change_requests r
             JOIN  users u ON r.user_id = u.id
             LEFT JOIN  users reviewer ON r.reviewed_by = reviewer.id
-            WHERE u.manager_id = %s AND r.status = 'pending'
+            WHERE r.user_id IN ({placeholders}) AND r.status = 'pending'
             ORDER BY r.requested_at DESC
-        """, (session["user_id"],))
-    requests_raw = cursor.fetchall()
+        """, tuple(visible_ids))
+        requests_raw = cursor.fetchall()
+    else:
+        requests_raw = []
 
     # 2. Fetch notifications
     cursor.execute("""
@@ -4482,7 +4500,7 @@ def inbox():
         JOIN  users u ON n.sender_id = u.id
         WHERE n.recipient_id = %s
         ORDER BY n.created_at DESC
-    """, (session["user_id"],))
+    """, (user_id,))
     notifications_raw = cursor.fetchall()
 
     # 3. Fetch pending API key requests (for Admin view)
@@ -4599,7 +4617,7 @@ def inbox():
 @login_required()
 def approve_request(req_id):
     role = session.get("role")
-    if role not in ["admin", "team_lead"]:
+    if role not in ["admin", "manager", "team_lead"]:
         return jsonify({"ok": False, "error": "Unauthorized"}), 403
 
     conn = get_db_connection()
@@ -4618,10 +4636,13 @@ def approve_request(req_id):
         conn.close()
         return jsonify({"ok": False, "error": "Request not found or already processed."})
 
-    # If team_lead, check if user is in their team
-    if role == "team_lead" and req["manager_id"] != session["user_id"]:
-        conn.close()
-        return jsonify({"ok": False, "error": "Unauthorized to approve this request."}), 403
+    # If not admin, verify user is in visible department network
+    if role != "admin":
+        from helpers import get_visible_user_ids
+        visible_ids = get_visible_user_ids(cursor, role=role, user_id=session["user_id"])
+        if req["user_id"] not in visible_ids:
+            conn.close()
+            return jsonify({"ok": False, "error": "Unauthorized to approve this request."}), 403
 
     # Update user details
     cursor.execute("""
@@ -4650,7 +4671,7 @@ def approve_request(req_id):
 @login_required()
 def reject_request(req_id):
     role = session.get("role")
-    if role not in ["admin", "team_lead"]:
+    if role not in ["admin", "manager", "team_lead"]:
         return jsonify({"ok": False, "error": "Unauthorized"}), 403
 
     reason = request.form.get("reason", "").strip()
@@ -4671,10 +4692,13 @@ def reject_request(req_id):
         conn.close()
         return jsonify({"ok": False, "error": "Request not found or already processed."})
 
-    # If team_lead, check if user is in their team
-    if role == "team_lead" and req["manager_id"] != session["user_id"]:
-        conn.close()
-        return jsonify({"ok": False, "error": "Unauthorized to reject this request."}), 403
+    # If not admin, verify user is in visible department network
+    if role != "admin":
+        from helpers import get_visible_user_ids
+        visible_ids = get_visible_user_ids(cursor, role=role, user_id=session["user_id"])
+        if req["user_id"] not in visible_ids:
+            conn.close()
+            return jsonify({"ok": False, "error": "Unauthorized to reject this request."}), 403
 
     # Update change request status
     cursor.execute("""
@@ -8093,6 +8117,19 @@ if __name__ == "__main__":
                 cursor.execute("ALTER TABLE master_records ADD COLUMN manager_id INT NULL")
                 cursor.execute("ALTER TABLE master_records ADD INDEX idx_mr_manager_id (manager_id)")
                 print("Added manager_id column to master_records table.")
+
+            # Migrate user_change_requests to add reviewed_by, reviewed_at, and rejection_reason
+            cursor.execute("SELECT column_name AS column_name FROM information_schema.columns WHERE table_name = 'user_change_requests' AND table_schema = DATABASE()")
+            ucr_columns = {row['column_name'] for row in cursor.fetchall()}
+            if 'reviewed_by' not in ucr_columns:
+                cursor.execute("ALTER TABLE user_change_requests ADD COLUMN reviewed_by INT NULL")
+                print("Added reviewed_by column to user_change_requests table.")
+            if 'reviewed_at' not in ucr_columns:
+                cursor.execute("ALTER TABLE user_change_requests ADD COLUMN reviewed_at TIMESTAMP NULL")
+                print("Added reviewed_at column to user_change_requests table.")
+            if 'rejection_reason' not in ucr_columns:
+                cursor.execute("ALTER TABLE user_change_requests ADD COLUMN rejection_reason TEXT NULL")
+                print("Added rejection_reason column to user_change_requests table.")
 
             conn.commit()
             conn.close()
