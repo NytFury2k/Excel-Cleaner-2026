@@ -6214,6 +6214,10 @@ def export_records():
         cursor.execute("SELECT id, field_name FROM field_registry WHERE is_active = 1")
         custom_registry = {str(r['id']): r['field_name'] for r in cursor.fetchall()}
         
+        # Fetch users map to resolve imported_by IDs to usernames
+        cursor.execute("SELECT id, username FROM users")
+        user_map = {str(row['id']): row['username'] for row in cursor.fetchall()}
+
         # Parse selected export columns
         export_cols_param = request.args.get('export_cols', '').strip()
         if export_cols_param:
@@ -6244,7 +6248,8 @@ def export_records():
             'date_of_birth': 'Date of Birth',
             'gender': 'Gender',
             'company_size': 'Company Size',
-            'annual_revenue': 'Annual Revenue'
+            'annual_revenue': 'Annual Revenue',
+            'imported_by': 'Imported By'
         }
 
         flat_rows = []
@@ -6266,7 +6271,11 @@ def export_records():
                         col_name = col_id.split('master:')[1]
                         if col_name in r:
                             pretty_name = display_names.get(col_name, col_name.replace('_', ' ').title())
-                            flat_r[pretty_name] = r[col_name]
+                            val = r[col_name]
+                            if col_name == 'imported_by':
+                                if val and str(val).isdigit() and str(val) in user_map:
+                                    val = user_map[str(val)]
+                            flat_r[pretty_name] = val
                     elif col_id.startswith('custom:'):
                         fid = col_id.split('custom:')[1]
                         header_name = custom_registry.get(str(fid), f"Custom Field {fid}")
@@ -6277,7 +6286,11 @@ def export_records():
                     if col == 'custom_fields':
                         continue
                     pretty_name = display_names.get(col, col.replace('_', ' ').title())
-                    flat_r[pretty_name] = r[col]
+                    val = r[col]
+                    if col == 'imported_by':
+                        if val and str(val).isdigit() and str(val) in user_map:
+                            val = user_map[str(val)]
+                    flat_r[pretty_name] = val
                 
                 for fid, val in cf_dict.items():
                     header_name = custom_registry.get(str(fid), f"Custom Field {fid}")
