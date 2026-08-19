@@ -2672,7 +2672,7 @@ def clean_data():
 
                     # Add mapped record fields that exist in the database table
                     for col_name, col_val in record.items():
-                        if col_name in db_cols and col_name not in ('id', 'file_id', 'created_at', 'updated_at', 'imported_by', 'custom_fields'):
+                        if col_name in db_cols and col_name not in ('id', 'file_id', 'created_at', 'updated_at', 'imported_by', 'custom_fields', 'manager_id'):
                             cols_to_insert.append(col_name)
                             vals_to_insert.append(col_val)
 
