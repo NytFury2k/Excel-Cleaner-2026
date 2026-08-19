@@ -2162,7 +2162,7 @@ def choose_rules():
         
         for col in db_cols:
             c_name = col['column_name']
-            if c_name in ('id', 'file_id', 'custom_fields', 'created_at', 'updated_at', 'imported_by'):
+            if c_name in ('id', 'file_id', 'custom_fields', 'created_at', 'updated_at', 'imported_by', 'manager_id'):
                 continue
             
             c_type = col['data_type'].lower()
@@ -2947,7 +2947,7 @@ def downloads():
     # Fetch first 5 physical columns of master_records table (excluding system ones)
     cursor.execute("SELECT column_name AS column_name FROM information_schema.columns WHERE table_name = 'master_records' AND table_schema = DATABASE()")
     all_db_cols = [r['column_name'] for r in cursor.fetchall()]
-    system_cols = {'id', 'file_id', 'custom_fields', 'created_at', 'updated_at', 'imported_by'}
+    system_cols = {'id', 'file_id', 'custom_fields', 'created_at', 'updated_at', 'imported_by', 'manager_id'}
     
     # Filter out system columns
     master_cols_only = [c for c in all_db_cols if c not in system_cols]
@@ -2957,7 +2957,7 @@ def downloads():
     db_cols = cursor.fetchall()
     
     # Exclude system columns
-    system_cols = ('id', 'file_id', 'custom_fields', 'created_at', 'updated_at', 'imported_by')
+    system_cols = ('id', 'file_id', 'custom_fields', 'created_at', 'updated_at', 'imported_by', 'manager_id')
     active_cols = []
     for col in db_cols:
         c_name = col.get('column_name') or col.get('COLUMN_NAME')
@@ -5447,7 +5447,7 @@ def get_records():
     # Calculate missing stats over matching records dynamically
     missing_stats = {}
     if total > 0:
-        missing_cols = [c for c in cols if c not in ('id', 'file_id', 'custom_fields', 'created_at', 'updated_at', 'imported_by')]
+        missing_cols = [c for c in cols if c not in ('id', 'file_id', 'custom_fields', 'created_at', 'updated_at', 'imported_by', 'manager_id')]
         cases = ", ".join([f"COUNT(CASE WHEN `{col}` IS NULL OR `{col}` = '' THEN 1 END) AS `{col}`" for col in missing_cols])
         stats_query = f"SELECT {cases} FROM master_records WHERE {where_clause}"
         
@@ -5496,7 +5496,7 @@ def dataset_completeness():
     needs_attention = 0
 
     if total > 0:
-        missing_cols = [c for c in cols if c not in ('id', 'file_id', 'custom_fields', 'created_at', 'updated_at', 'imported_by')]
+        missing_cols = [c for c in cols if c not in ('id', 'file_id', 'custom_fields', 'created_at', 'updated_at', 'imported_by', 'manager_id')]
         cases = ", ".join([f"COUNT(CASE WHEN `{col}` IS NULL OR `{col}` = '' THEN 1 END) AS `{col}`" for col in missing_cols])
         stats_query = f"SELECT {cases} FROM master_records"
         
@@ -5990,7 +5990,7 @@ def get_export_columns():
         db_cols = [row['column_name'] for row in cursor.fetchall()]
         
         # Exclude internal system columns
-        db_cols = [c for c in db_cols if c not in ('id', 'file_id', 'custom_fields', 'created_at', 'updated_at', 'imported_by')]
+        db_cols = [c for c in db_cols if c not in ('id', 'file_id', 'custom_fields', 'created_at', 'updated_at', 'imported_by', 'manager_id')]
         
         columns_list = []
         
@@ -6296,7 +6296,7 @@ def export_records():
             else:
                 # Default: Export all columns
                 for col in cols:
-                    if col == 'custom_fields':
+                    if col in ('custom_fields', 'manager_id'):
                         continue
                     pretty_name = display_names.get(col, col.replace('_', ' ').title())
                     val = r[col]
@@ -6683,7 +6683,7 @@ def registry():
         c_type = col['data_type']
         
         # Exclude system fields
-        if c_name in ('id', 'file_id', 'custom_fields', 'created_at', 'updated_at', 'imported_by'):
+        if c_name in ('id', 'file_id', 'custom_fields', 'created_at', 'updated_at', 'imported_by', 'manager_id'):
             continue
             
         # Get usage count dynamically
@@ -6743,7 +6743,7 @@ def aliases_view():
     master_fields = []
     for col in db_cols:
         c_name = col['column_name']
-        if c_name in ('id', 'file_id', 'custom_fields', 'created_at', 'updated_at'):
+        if c_name in ('id', 'file_id', 'custom_fields', 'created_at', 'updated_at', 'imported_by', 'manager_id'):
             continue
         master_fields.append({
             "identifier": c_name,
@@ -7670,7 +7670,7 @@ def api_delete_master_column(col_name):
         return jsonify({"error": "Unauthorized"}), 403
     try:
         col_name = col_name.strip().lower()
-        if col_name in ('id', 'file_id', 'custom_fields', 'created_at', 'updated_at', 'imported_by'):
+        if col_name in ('id', 'file_id', 'custom_fields', 'created_at', 'updated_at', 'imported_by', 'manager_id'):
             return jsonify({"error": "Cannot delete system column"}), 400
             
         conn = get_db_connection()
@@ -7710,7 +7710,7 @@ def api_move_to_custom(col_name):
         return jsonify({"error": "Unauthorized"}), 403
     try:
         col_name = col_name.strip().lower()
-        if col_name in ('id', 'file_id', 'custom_fields', 'created_at', 'updated_at', 'imported_by'):
+        if col_name in ('id', 'file_id', 'custom_fields', 'created_at', 'updated_at', 'imported_by', 'manager_id'):
             return jsonify({"error": "Cannot move system column"}), 400
             
         conn = get_db_connection()
@@ -7901,14 +7901,14 @@ def api_rename_field():
         
         if field_type == 'master':
             old_db_name = str(field_id).strip().lower()
-            if old_db_name in ('id', 'file_id', 'custom_fields', 'created_at', 'updated_at', 'imported_by'):
+            if old_db_name in ('id', 'file_id', 'custom_fields', 'created_at', 'updated_at', 'imported_by', 'manager_id'):
                 conn.close()
                 return jsonify({"error": "Cannot rename system columns"}), 400
                 
             if not new_db_name:
                 new_db_name = re.sub(r'[\s_\-]+', '_', new_name).lower().strip('_')
                 
-            if new_db_name in ('id', 'file_id', 'custom_fields', 'created_at', 'updated_at', 'imported_by'):
+            if new_db_name in ('id', 'file_id', 'custom_fields', 'created_at', 'updated_at', 'imported_by', 'manager_id'):
                 conn.close()
                 return jsonify({"error": "Cannot rename to reserved system names"}), 400
                 
