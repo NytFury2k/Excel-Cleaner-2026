@@ -1562,6 +1562,10 @@ def dashboard():
         trend_class = "text-muted"
         trend_icon = "bi-dash"
 
+    # Fetch active approved client API keys as integrations
+    cursor.execute("SELECT key_name, key_type, is_active FROM client_api_keys WHERE status='approved' ORDER BY id DESC LIMIT 5")
+    integrations = cursor.fetchall()
+
     conn.close()
 
     total_pages = (total_logs + per_page -1 )//per_page # ceiling division
@@ -1605,7 +1609,8 @@ def dashboard():
                            api_calls_today=api_calls_today,
                            trend_icon=trend_icon,
                            trend_class=trend_class,
-                           trend_text=trend_text
+                           trend_text=trend_text,
+                           integrations=integrations
                            )
 
 

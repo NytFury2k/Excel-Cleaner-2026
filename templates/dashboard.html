@@ -608,62 +608,37 @@
           <div class="col-12">
             <div class="card shadow-sm">
               <div class="card-header d-flex justify-content-between align-items-center">
-                <span>Active integrations</span>
-                <a href="#" class="btn btn-sm btn-danger py-0 px-2"
+                <span>Active Integrations &amp; API Connections</span>
+                <a href="{{ url_for('admin_api_key_requests') if session.role in ('admin', 'manager') else '#' }}" class="btn btn-sm btn-danger py-0 px-2"
                   style="font-size: 0.75rem; border-radius: 3px;">Manage</a>
               </div>
               <div class="card-body p-0">
                 <table class="table table-hover align-middle mb-0" style="font-size: 0.85rem;">
                   <tbody>
-                    <tr>
-                      <td>
-                        <i class="bi bi-circle-fill text-success me-2" style="font-size: 0.65rem;"></i>
-                        ERP — SAP Business One
-                      </td>
-                      <td class="text-end text-muted font-monospace" style="font-size: 0.78rem;">live</td>
-                    </tr>
-                    <tr>
-                      <td>
-                        <i class="bi bi-circle-fill text-success me-2" style="font-size: 0.65rem;"></i>
-                        Tally Prime (Accounts)
-                      </td>
-                      <td class="text-end text-muted font-monospace" style="font-size: 0.78rem;">live</td>
-                    </tr>
-                    <tr>
-                      <td>
-                        <i class="bi bi-circle-fill text-warning me-2" style="font-size: 0.65rem;"></i>
-                        WhatsApp Business API
-                      </td>
-                      <td class="text-end text-muted font-monospace" style="font-size: 0.78rem;">lag 4m</td>
-                    </tr>
-                    <tr>
-                      <td>
-                        <i class="bi bi-circle-fill text-success me-2" style="font-size: 0.65rem;"></i>
-                        Email (SMTP outbound)
-                      </td>
-                      <td class="text-end text-muted font-monospace" style="font-size: 0.78rem;">live</td>
-                    </tr>
-                    <tr>
-                      <td>
-                        <i class="bi bi-circle-fill text-warning me-2" style="font-size: 0.65rem;"></i>
-                        3rd-party Marketplace API
-                      </td>
-                      <td class="text-end text-muted font-monospace" style="font-size: 0.78rem;">lag 12m</td>
-                    </tr>
-                    <tr>
-                      <td>
-                        <i class="bi bi-circle-fill text-secondary me-2" style="font-size: 0.65rem;"></i>
-                        IoT Sensor feed
-                      </td>
-                      <td class="text-end text-muted font-monospace" style="font-size: 0.78rem;">paused</td>
-                    </tr>
-                    <tr>
-                      <td>
-                        <i class="bi bi-circle-fill text-success me-2" style="font-size: 0.65rem;"></i>
-                        Razorpay (Payments)
-                      </td>
-                      <td class="text-end text-muted font-monospace" style="font-size: 0.78rem;">live</td>
-                    </tr>
+                    {% if integrations %}
+                      {% for integration in integrations %}
+                      <tr>
+                        <td>
+                          {% if integration.is_active %}
+                          <i class="bi bi-circle-fill text-success me-2" style="font-size: 0.65rem;"></i>
+                          {% else %}
+                          <i class="bi bi-circle-fill text-secondary me-2" style="font-size: 0.65rem;"></i>
+                          {% endif %}
+                          {{ integration.key_name }} ({{ integration.key_type|upper }} Key)
+                        </td>
+                        <td class="text-end text-muted font-monospace" style="font-size: 0.78rem;">
+                          {{ 'live' if integration.is_active else 'paused' }}
+                        </td>
+                      </tr>
+                      {% endfor %}
+                    {% else %}
+                      <tr>
+                        <td colspan="2" class="text-center py-3 text-muted">
+                          <i class="bi bi-link-45deg fs-4 d-block mb-1"></i>
+                          No active API connections configured.
+                        </td>
+                      </tr>
+                    {% endif %}
                   </tbody>
                 </table>
               </div>
