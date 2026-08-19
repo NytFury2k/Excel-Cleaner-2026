@@ -2939,11 +2939,35 @@ def downloads():
     # Filter out system columns
     master_cols_only = [c for c in all_db_cols if c not in system_cols]
     
-    # Get the display name for each column from master_columns_registry
-    cursor.execute("SELECT column_name, display_name FROM master_columns_registry")
-    all_fields = cursor.fetchall()
-    registry_map = {row['column_name']: row['display_name'] for row in all_fields}
+    # Fetch physical columns of master_records dynamically from information_schema
+    cursor.execute("SELECT column_name AS column_name FROM information_schema.columns WHERE table_name = 'master_records' AND table_schema = DATABASE()")
+    db_cols = cursor.fetchall()
     
+    # Exclude system columns
+    system_cols = ('id', 'file_id', 'custom_fields', 'created_at', 'updated_at', 'imported_by')
+    active_cols = []
+    for col in db_cols:
+        c_name = col.get('column_name') or col.get('COLUMN_NAME')
+        if c_name and c_name not in system_cols:
+            active_cols.append(c_name)
+            
+    # Get the display name for each column from master_columns_registry or default to title case
+    cursor.execute("SELECT column_name, display_name FROM master_columns_registry")
+    registry_map = {}
+    for row in cursor.fetchall():
+        c_key = row.get('column_name') or row.get('COLUMN_NAME')
+        d_val = row.get('display_name') or row.get('DISPLAY_NAME')
+        if c_key:
+            registry_map[c_key] = d_val
+            
+    all_fields = []
+    for c_name in active_cols:
+        display_name = registry_map.get(c_name, c_name.replace('_', ' ').title())
+        all_fields.append({
+            "column_name": c_name,
+            "display_name": display_name
+        })
+
     active_master_cols = []
     # Take at most 5 master columns
     for c in master_cols_only[:5]:

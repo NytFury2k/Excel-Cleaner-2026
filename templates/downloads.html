@@ -469,10 +469,12 @@
                            placeholder="{{ f.display_name }}...">
                   </div>
                   {% endfor %}
+                  {% if other_fields %}
                   <div class="col-md-2 d-flex align-items-end">
                     <button type="button" class="btn btn-danger btn-sm w-100 py-1 fw-semibold"
                       id="toggleMoreFiltersBtn">Filter More</button>
                   </div>
+                  {% endif %}
                   <div class="col-md-2 d-flex align-items-end">
                     <button type="submit" class="btn btn-danger btn-sm w-100 py-1 fw-semibold">
                       <i class="bi bi-search me-2"></i>Query Records
