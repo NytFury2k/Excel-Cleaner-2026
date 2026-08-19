@@ -7758,8 +7758,8 @@ def api_delete_custom_field(field_id):
             
         f_name = field['field_name']
         
-        # 1. Cleanse records' JSONB values
-        cursor.execute("SELECT id, custom_fields FROM master_records WHERE custom_fields ->> %s IS NOT NULL", (str(field_id),))
+        # 1. Cleanse records' JSON values
+        cursor.execute("SELECT id, custom_fields FROM master_records WHERE custom_fields IS NOT NULL")
         records = cursor.fetchall()
         for r in records:
             cfields = r['custom_fields']
@@ -7771,9 +7771,10 @@ def api_delete_custom_field(field_id):
             elif not cfields:
                 cfields = {}
                 
-            cfields.pop(str(field_id), None)
-            new_json = json.dumps(cfields) if cfields else None
-            cursor.execute("UPDATE master_records SET custom_fields = %s WHERE id = %s", (new_json, r['id']))
+            if str(field_id) in cfields:
+                cfields.pop(str(field_id), None)
+                new_json = json.dumps(cfields) if cfields else None
+                cursor.execute("UPDATE master_records SET custom_fields = %s WHERE id = %s", (new_json, r['id']))
             
         # 2. Delete aliases
         cursor.execute("DELETE FROM field_aliases WHERE target_type = 'custom' AND target_identifier = %s", (str(field_id),))
@@ -8190,6 +8191,32 @@ if __name__ == "__main__":
             if 'rows_retrieved' not in cak_columns:
                 cursor.execute("ALTER TABLE client_api_keys ADD COLUMN rows_retrieved INT NOT NULL DEFAULT 0")
                 print("Added rows_retrieved column to client_api_keys table.")
+
+            # Self-healing: Cleanse deleted custom field IDs from master_records.custom_fields
+            cursor.execute("SELECT id FROM field_registry")
+            registered_ids = {str(row['id']) for row in cursor.fetchall()}
+            
+            cursor.execute("SELECT id, custom_fields FROM master_records WHERE custom_fields IS NOT NULL")
+            records = cursor.fetchall()
+            updated_count = 0
+            for r in records:
+                cfields = r['custom_fields']
+                if isinstance(cfields, str):
+                    try:
+                        cfields = json.loads(cfields)
+                    except Exception:
+                        continue
+                if not cfields:
+                    continue
+                
+                # Filter out keys that are not registered
+                cleaned_cfields = {k: v for k, v in cfields.items() if k in registered_ids}
+                if len(cleaned_cfields) != len(cfields):
+                    new_json = json.dumps(cleaned_cfields) if cleaned_cfields else None
+                    cursor.execute("UPDATE master_records SET custom_fields = %s WHERE id = %s", (new_json, r['id']))
+                    updated_count += 1
+            if updated_count > 0:
+                print(f"Self-healing: Cleansed orphaned custom field references from {updated_count} master_records.")
 
             conn.commit()
             conn.close()
