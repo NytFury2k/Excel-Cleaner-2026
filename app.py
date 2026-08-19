@@ -2939,9 +2939,10 @@ def downloads():
     # Filter out system columns
     master_cols_only = [c for c in all_db_cols if c not in system_cols]
     
-    # Get the display name for each column from master_columns_registry or default to title case
+    # Get the display name for each column from master_columns_registry
     cursor.execute("SELECT column_name, display_name FROM master_columns_registry")
-    registry_map = {row['column_name']: row['display_name'] for row in cursor.fetchall()}
+    all_fields = cursor.fetchall()
+    registry_map = {row['column_name']: row['display_name'] for row in all_fields}
     
     active_master_cols = []
     # Take at most 5 master columns
@@ -2951,6 +2952,31 @@ def downloads():
             "column_name": c,
             "display_name": display_name
         })
+
+    # Prepare dynamic master column search inputs
+    primary_names = ['first_name', 'last_name', 'email_address', 'primary_phone_number']
+    primary_fields = []
+    other_fields = []
+    added_names = set()
+    
+    # Add primary names if they exist
+    for name in primary_names:
+        for f in all_fields:
+            if f['column_name'] == name:
+                primary_fields.append(f)
+                added_names.add(name)
+                break
+                
+    # Fill primary_fields up to 4 elements if needed, then other_fields
+    for f in all_fields:
+        if f['column_name'] not in added_names:
+            if len(primary_fields) < 4:
+                primary_fields.append(f)
+                added_names.add(f['column_name'])
+            else:
+                other_fields.append(f)
+                
+    other_fields.sort(key=lambda x: x['display_name'])
 
     # Fetch custom attributes registry for search filters
     cursor.execute("SELECT id, field_name FROM field_registry WHERE is_active = 1")
@@ -2999,6 +3025,8 @@ def downloads():
         hist_end=hist_end,
         custom_fields=custom_fields,
         active_master_cols=active_master_cols,
+        primary_fields=primary_fields,
+        other_fields=other_fields,
         hist_page_url=lambda p: url_for(
             "downloads",
             hist_page=p,
