@@ -724,67 +724,69 @@
         <!-- Column cards form -->
         <form method="POST" action="{{ url_for('clean_data') }}" id="cleanForm">
           <!-- 1. Column Alignment -->
-          <h5 class="fw-bold mb-3 text-dark"><i class="bi bi-shuffle me-2 text-danger"></i>1. Match Spreadsheet Columns to System Schema</h5>
+          <div class="{% if is_existing_db %}d-none{% endif %}">
+            <h5 class="fw-bold mb-3 text-dark"><i class="bi bi-shuffle me-2 text-danger"></i>1. Match Spreadsheet Columns to System Schema</h5>
 
-          {% for sheet in sheet_data %}
-          {% set sheet_idx = loop.index %}
-          <div class="card shadow-sm mb-4">
-            <div
-              class="card-header sheet-card-header fw-bold py-2 d-flex justify-content-between align-items-center flex-wrap gap-2"
-              style="cursor:pointer;"
-              data-bs-toggle="collapse"
-              data-bs-target="#sheetBody_{{ sheet_idx }}"
-              aria-expanded="true"
-              aria-controls="sheetBody_{{ sheet_idx }}">
-              <div>
-                <i class="bi bi-file-earmark-spreadsheet-fill me-2"></i>File: <strong>{{ sheet.original_filename }}</strong>
-                {% if sheet.sheet_name and sheet.sheet_name != 'CSV' %}
-                &nbsp;|&nbsp; Sheet: <strong>{{ sheet.sheet_name }}</strong>
-                {% endif %}
+            {% for sheet in sheet_data %}
+            {% set sheet_idx = loop.index %}
+            <div class="card shadow-sm mb-4">
+              <div
+                class="card-header sheet-card-header fw-bold py-2 d-flex justify-content-between align-items-center flex-wrap gap-2"
+                style="cursor:pointer;"
+                data-bs-toggle="collapse"
+                data-bs-target="#sheetBody_{{ sheet_idx }}"
+                aria-expanded="true"
+                aria-controls="sheetBody_{{ sheet_idx }}">
+                <div>
+                  <i class="bi bi-file-earmark-spreadsheet-fill me-2"></i>File: <strong>{{ sheet.original_filename }}</strong>
+                  {% if sheet.sheet_name and sheet.sheet_name != 'CSV' %}
+                  &nbsp;|&nbsp; Sheet: <strong>{{ sheet.sheet_name }}</strong>
+                  {% endif %}
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                  <span class="badge bg-danger" style="font-size:0.75rem;">{{ sheet.columns|length }} columns</span>
+                  <i class="bi bi-chevron-up sheet-collapse-chevron" style="font-size:0.85rem; transition: transform 0.25s ease;"></i>
+                </div>
               </div>
-              <div class="d-flex align-items-center gap-2">
-                <span class="badge bg-danger" style="font-size:0.75rem;">{{ sheet.columns|length }} columns</span>
-                <i class="bi bi-chevron-up sheet-collapse-chevron" style="font-size:0.85rem; transition: transform 0.25s ease;"></i>
-              </div>
-            </div>
-            <div class="collapse show" id="sheetBody_{{ sheet_idx }}">
-              <div class="card-body">
-                <p class="text-muted small">Align each column in this sheet to either a Master column or a Custom field to
-                  apply its cleaning rules.</p>
-                <div class="row g-3">
-                  {% for col in sheet.columns %}
-                  <div class="col-md-4 col-mapping-card" data-column-name="{{ col }}">
-                    <label class="form-label small fw-bold text-truncate d-block" title="{{ col }}">{{ col }}</label>
-                    <div class="input-group input-group-sm">
-                      <select class="form-select form-select-sm mapping-select"
-                        name="map_col_{{ sheet.sheet_id }}_{{ col|replace(' ', '_') }}"
-                        data-original-val="{% if sheet.suggestions[col] %}{{ sheet.suggestions[col] }}{% else %}ignore{% endif %}">
-                        <option value="ignore">[Ignore / Keep As Is]</option>
-                        <option value="__discard__" class="text-danger">[Ignore & Discard Column]</option>
-                        <optgroup label="Master Columns">
-                          {% for m in master_fields %}
-                          <option value="master:{{ m.identifier }}" {% if sheet.suggestions[col]=='master:' ~ m.identifier
-                            %}selected{% endif %}>{{ m.name }}</option>
-                          {% endfor %}
-                        </optgroup>
-                        <optgroup label="Custom Fields">
-                          {% for c in custom_fields_registry %}
-                          <option value="custom:{{ c.id }}" {% if sheet.suggestions[col]=='custom:' ~ c.id %}selected{%
-                            endif %}>{{ c.field_name }}</option>
-                          {% endfor %}
-                        </optgroup>
-                      </select>
-                      <button class="btn btn-outline-secondary btn-ignore-column" type="button" title="Ignore & Discard Column">
-                        <i class="bi bi-eye-slash"></i> Ignore
-                      </button>
+              <div class="collapse show" id="sheetBody_{{ sheet_idx }}">
+                <div class="card-body">
+                  <p class="text-muted small">Align each column in this sheet to either a Master column or a Custom field to
+                    apply its cleaning rules.</p>
+                  <div class="row g-3">
+                    {% for col in sheet.columns %}
+                    <div class="col-md-4 col-mapping-card" data-column-name="{{ col }}">
+                      <label class="form-label small fw-bold text-truncate d-block" title="{{ col }}">{{ col }}</label>
+                      <div class="input-group input-group-sm">
+                        <select class="form-select form-select-sm mapping-select"
+                          name="map_col_{{ sheet.sheet_id }}_{{ col|replace(' ', '_') }}"
+                          data-original-val="{% if sheet.suggestions[col] %}{{ sheet.suggestions[col] }}{% else %}ignore{% endif %}">
+                          <option value="ignore">[Ignore / Keep As Is]</option>
+                          <option value="__discard__" class="text-danger">[Ignore & Discard Column]</option>
+                          <optgroup label="Master Columns">
+                            {% for m in master_fields %}
+                            <option value="master:{{ m.identifier }}" {% if sheet.suggestions[col]=='master:' ~ m.identifier
+                              %}selected{% endif %}>{{ m.name }}</option>
+                            {% endfor %}
+                          </optgroup>
+                          <optgroup label="Custom Fields">
+                            {% for c in custom_fields_registry %}
+                            <option value="custom:{{ c.id }}" {% if sheet.suggestions[col]=='custom:' ~ c.id %}selected{%
+                              endif %}>{{ c.field_name }}</option>
+                            {% endfor %}
+                          </optgroup>
+                        </select>
+                        <button class="btn btn-outline-secondary btn-ignore-column" type="button" title="Ignore & Discard Column">
+                          <i class="bi bi-eye-slash"></i> Ignore
+                        </button>
+                      </div>
                     </div>
+                    {% endfor %}
                   </div>
-                  {% endfor %}
                 </div>
               </div>
             </div>
+            {% endfor %}
           </div>
-          {% endfor %}
 
           <h5 class="fw-bold mb-3 text-dark mt-4"><i class="bi bi-shield-check me-2 text-danger"></i>2. Configure Master
             Column Rules</h5>

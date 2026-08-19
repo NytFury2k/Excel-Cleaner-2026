@@ -2228,7 +2228,9 @@ def choose_rules():
     # Backwards compatibility fields for first sheet
     first_sheet = sheet_data[0] if sheet_data else {}
     
+    is_existing_db = (session.get("uploaded_file") == "Existing Database Records")
     return render_template("choose_rules.html",
+                           is_existing_db=is_existing_db,
                            columns=first_sheet.get("columns", []),
                            selected_rule_map=column_rule_map,
                            selected_rules=selected_rules,
