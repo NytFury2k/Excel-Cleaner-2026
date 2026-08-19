@@ -1538,6 +1538,30 @@ def dashboard():
     cursor.execute("SELECT id, field_name FROM field_registry WHERE is_active = 1")
     custom_fields = cursor.fetchall()
 
+    # Query API calls today and yesterday
+    cursor.execute("SELECT COUNT(*) as count FROM logs WHERE action LIKE '%[API KEY]%' AND DATE(created_at) = CURRENT_DATE")
+    api_calls_today_row = cursor.fetchone()
+    api_calls_today = api_calls_today_row['count'] if api_calls_today_row else 0
+
+    cursor.execute("SELECT COUNT(*) as count FROM logs WHERE action LIKE '%[API KEY]%' AND DATE(created_at) = DATE_SUB(CURRENT_DATE, INTERVAL 1 DAY)")
+    api_calls_yesterday_row = cursor.fetchone()
+    api_calls_yesterday = api_calls_yesterday_row['count'] if api_calls_yesterday_row else 0
+
+    if api_calls_yesterday > 0:
+        pct_change = round(((api_calls_today - api_calls_yesterday) / api_calls_yesterday) * 100, 1)
+        if pct_change >= 0:
+            trend_text = f"+{pct_change}% calls volume vs yesterday"
+            trend_class = "text-success"
+            trend_icon = "bi-arrow-up-short"
+        else:
+            trend_text = f"{pct_change}% calls volume vs yesterday"
+            trend_class = "text-danger"
+            trend_icon = "bi-arrow-down-short"
+    else:
+        trend_text = "No call volume yesterday"
+        trend_class = "text-muted"
+        trend_icon = "bi-dash"
+
     conn.close()
 
     total_pages = (total_logs + per_page -1 )//per_page # ceiling division
@@ -1577,7 +1601,11 @@ def dashboard():
                            active_users=active_users,
                            uploads_today=uploads_today,
                            last_upload=last_upload,
-                           custom_fields=custom_fields
+                           custom_fields=custom_fields,
+                           api_calls_today=api_calls_today,
+                           trend_icon=trend_icon,
+                           trend_class=trend_class,
+                           trend_text=trend_text
                            )
 
 
