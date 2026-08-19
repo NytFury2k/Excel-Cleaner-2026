@@ -1811,6 +1811,10 @@ def api_clean_existing_data():
         cursor.execute("SELECT id, field_name FROM field_registry WHERE is_active = 1")
         custom_registry = {str(r['id']): r['field_name'] for r in cursor.fetchall()}
         
+        # Fetch users map to resolve imported_by IDs to usernames
+        cursor.execute("SELECT id, username FROM users")
+        user_map = {str(row['id']): row['username'] for row in cursor.fetchall()}
+        
         flat_rows = []
         for r in rows:
             flat_r = {}
@@ -1819,7 +1823,11 @@ def api_clean_existing_data():
                     continue
                 # Map to human-readable names for master fields so automapping works
                 master_pretty = col.replace('_', ' ').title()
-                flat_r[master_pretty] = r[col]
+                val = r[col]
+                if col == 'imported_by':
+                    if val and str(val).isdigit() and str(val) in user_map:
+                        val = user_map[str(val)]
+                flat_r[master_pretty] = val
             if r['custom_fields']:
                 try:
                     cf_dict = json.loads(r['custom_fields']) if isinstance(r['custom_fields'], str) else r['custom_fields']
@@ -6601,6 +6609,12 @@ def get_record_custom_fields(record_id):
         if col in ('id', 'file_id', 'custom_fields', 'created_at', 'updated_at'):
             continue
         if val is not None and str(val).strip() not in ('', 'None', 'nan', 'NaT', '--'):
+            if col == 'imported_by':
+                if val and str(val).isdigit():
+                    cursor.execute("SELECT username FROM users WHERE id = %s", (int(val),))
+                    user_row = cursor.fetchone()
+                    if user_row:
+                        val = user_row['username']
             display_names = get_master_columns_display_names(cursor)
             label = display_names.get(col, " ".join([w.capitalize() for w in col.split("_")]))
             resolved_data[label] = val
