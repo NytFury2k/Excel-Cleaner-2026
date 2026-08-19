@@ -1512,26 +1512,26 @@ def dashboard():
     logs, total_logs= fetch_visible_logs(cursor,search=search, from_date=from_date, to_date=to_date, page=page, per_page=per_page)
 
     # Fetch dashboard metrics
-    cursor.execute("SELECT COUNT(*) as count FROM logs WHERE action LIKE 'Cleaned file%'")
+    cursor.execute("SELECT COUNT(*) as count FROM uploaded_files")
     total_files_row = cursor.fetchone()
     total_files = total_files_row['count'] if total_files_row else 0
 
-    cursor.execute("SELECT SUM(total_rows) as total FROM logs")
+    cursor.execute("SELECT COUNT(*) as count FROM master_records")
     row_stats = cursor.fetchone()
-    total_rows = (row_stats['total'] or 0) if row_stats else 0
+    total_rows = row_stats['count'] if row_stats else 0
 
     cursor.execute("SELECT COUNT(*) as count FROM users WHERE is_active = 1")
     active_users_row = cursor.fetchone()
     active_users = active_users_row['count'] if active_users_row else 0
 
-    cursor.execute("SELECT COUNT(*) as count FROM logs WHERE action LIKE 'Uploaded file%' AND DATE(created_at) = CURRENT_DATE")
+    cursor.execute("SELECT COUNT(*) as count FROM uploaded_files WHERE DATE(uploaded_at) = CURRENT_DATE")
     uploads_today_row = cursor.fetchone()
     uploads_today = uploads_today_row['count'] if uploads_today_row else 0
 
-    cursor.execute("SELECT created_at FROM logs WHERE action LIKE 'Uploaded file%' ORDER BY id DESC LIMIT 1")
+    cursor.execute("SELECT uploaded_at FROM uploaded_files ORDER BY id DESC LIMIT 1")
     last_upload_row = cursor.fetchone()
-    if last_upload_row and last_upload_row['created_at']:
-        last_upload = last_upload_row['created_at'].strftime("%Y-%m-%d %H:%M")
+    if last_upload_row and last_upload_row['uploaded_at']:
+        last_upload = last_upload_row['uploaded_at'].strftime("%Y-%m-%d %H:%M")
     else:
         last_upload = "No recent uploads"
 
