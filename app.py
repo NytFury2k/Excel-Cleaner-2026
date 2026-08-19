@@ -2640,7 +2640,12 @@ def clean_data():
                         curr_mgr_lookup = next_user["manager_id"]
             
             from datetime import datetime as _dt
-            imported_by = session.get("username") or str(session.get("user_id", "unknown"))
+            imported_by = "unknown"
+            if "user_id" in session:
+                cursor_store.execute("SELECT username FROM users WHERE id = %s", (session["user_id"],))
+                u_row = cursor_store.fetchone()
+                if u_row:
+                    imported_by = u_row["username"]
             now = _dt.utcnow()
 
             for sheet, res in zip(uploaded_sheets, results):
@@ -8298,6 +8303,22 @@ if __name__ == "__main__":
                     updated_count += 1
             if updated_count > 0:
                 print(f"Self-healing: Cleansed orphaned custom field references from {updated_count} master_records.")
+
+            # Self-healing: Convert numeric imported_by user IDs to usernames in master_records
+            cursor.execute("SELECT id, username FROM users")
+            user_map = {str(row['id']): row['username'] for row in cursor.fetchall()}
+            
+            cursor.execute("SELECT id, imported_by FROM master_records WHERE imported_by IS NOT NULL AND imported_by != ''")
+            records_imp = cursor.fetchall()
+            imp_updated = 0
+            for r in records_imp:
+                val = r['imported_by']
+                if val and str(val).isdigit() and str(val) in user_map:
+                    username_val = user_map[str(val)]
+                    cursor.execute("UPDATE master_records SET imported_by = %s WHERE id = %s", (username_val, r['id']))
+                    imp_updated += 1
+            if imp_updated > 0:
+                print(f"Self-healing: Converted {imp_updated} numeric user IDs to usernames in master_records.imported_by.")
 
             conn.commit()
             conn.close()
