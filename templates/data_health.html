@@ -365,6 +365,46 @@
           </div>
         </div>
 
+        <!-- Master Dataset Completeness & Health -->
+        <div class="card shadow-sm mb-4">
+          <div class="card-header bg-white border-bottom py-3 px-4 d-flex flex-wrap justify-content-between align-items-center gap-3">
+            <div>
+              <h5 class="fw-bold mb-1" style="font-size: 1.12rem; color: var(--text);">
+                <i class="bi bi-shield-check me-2 text-danger"></i>Master Dataset Completeness &amp; Health
+              </h5>
+              <p class="text-muted mb-0" style="font-size: 0.82rem;">
+                Field-by-field completeness breakdown across all master database records.
+              </p>
+            </div>
+            <div class="d-flex flex-wrap align-items-center gap-2" id="dhCompletenessSummaryPills">
+              <span class="badge px-3 py-2 fs-6 fw-semibold rounded-pill bg-success-subtle text-success border border-success-subtle">
+                <i class="bi bi-heart-pulse-fill me-1"></i><span id="dhOverallScoreText">--% Complete</span>
+              </span>
+              <span class="badge px-3 py-2 fs-6 fw-semibold rounded-pill bg-primary-subtle text-primary border border-primary-subtle">
+                <i class="bi bi-columns-gap me-1"></i><span id="dhTotalFieldsText">-- Fields</span>
+              </span>
+              <span class="badge px-3 py-2 fs-6 fw-semibold rounded-pill bg-warning-subtle text-warning border border-warning-subtle"
+                id="dhNeedsAttentionBadge" style="display:none;">
+                <i class="bi bi-exclamation-triangle-fill me-1"></i><span id="dhNeedsAttentionText">0 Needs Attention</span>
+              </span>
+            </div>
+          </div>
+          <div class="card-body p-4">
+            <div class="row g-3" id="dhDatasetCompletenessContainer">
+              <div class="col-12 text-center py-4 text-muted">
+                <div class="spinner-border text-danger" role="status"></div>
+                <p class="mt-2 mb-0" style="font-size: 0.85rem;">Calculating dataset completeness...</p>
+              </div>
+            </div>
+            <div class="text-center mt-3" id="dhExpandCompletenessBtnWrapper" style="display:none;">
+              <button type="button" class="btn btn-sm btn-outline-danger px-4 py-2 fw-semibold"
+                id="dhToggleCompletenessGridBtn" style="border-radius: 999px; font-size: 0.82rem;">
+                <i class="bi bi-chevron-down me-1"></i>Show All Fields
+              </button>
+            </div>
+          </div>
+        </div>
+
         <div class="card shadow-sm">
           <div class="card-header">
             <span>Processed File Health Overview</span>
@@ -461,6 +501,187 @@
       </div>
     </main>
   </div>
+
+  <style>
+    .field-health-card {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px 16px;
+      cursor: pointer;
+      transition: box-shadow 0.18s, transform 0.18s;
+      box-shadow: 0 1px 3px rgba(17,24,39,0.05);
+    }
+    .field-health-card:hover {
+      box-shadow: 0 6px 18px rgba(17,24,39,0.11);
+      transform: translateY(-2px);
+    }
+    .health-progress-bar {
+      background: #f3f4f6;
+      border-radius: 999px;
+      overflow: hidden;
+      height: 5px;
+    }
+    .health-progress-fill {
+      height: 100%;
+      border-radius: 999px;
+      transition: width 0.6s ease;
+    }
+  </style>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      const container    = document.getElementById("dhDatasetCompletenessContainer");
+      const overallText  = document.getElementById("dhOverallScoreText");
+      const totalText    = document.getElementById("dhTotalFieldsText");
+      const attBadge     = document.getElementById("dhNeedsAttentionBadge");
+      const attText      = document.getElementById("dhNeedsAttentionText");
+      const toggleBtn    = document.getElementById("dhToggleCompletenessGridBtn");
+      const toggleWrap   = document.getElementById("dhExpandCompletenessBtnWrapper");
+
+      if (!container) return;
+
+      let allStatsEntries = [];
+      let isExpanded = false;
+
+      const iconColorMap = {
+        first_name:             { bg:"#e0e7ff", color:"#4f46e5", icon:"bi-person-fill" },
+        last_name:              { bg:"#e0e7ff", color:"#4f46e5", icon:"bi-person-fill" },
+        email_address:          { bg:"#dbeafe", color:"#2563eb", icon:"bi-envelope-fill" },
+        primary_phone_number:   { bg:"#dcfce7", color:"#16a34a", icon:"bi-telephone-fill" },
+        alternate_phone_number: { bg:"#ccfbf1", color:"#0d9488", icon:"bi-phone-fill" },
+        company_name:           { bg:"#fef3c7", color:"#d97706", icon:"bi-building-fill" },
+        job_title:              { bg:"#fae8ff", color:"#c084fc", icon:"bi-briefcase-fill" },
+        department:             { bg:"#f3e8ff", color:"#9333ea", icon:"bi-diagram-3-fill" },
+        website_url:            { bg:"#cff4fc", color:"#0891b2", icon:"bi-link-45deg" },
+        address_line_1:         { bg:"#fee2e2", color:"#e11d48", icon:"bi-house-door-fill" },
+        address_line_2:         { bg:"#ffedd5", color:"#ea580c", icon:"bi-house-fill" },
+        city:                   { bg:"#e0f2fe", color:"#0284c7", icon:"bi-geo-alt-fill" },
+        state_province:         { bg:"#fce7f3", color:"#db2777", icon:"bi-map-fill" },
+        postal_zip_code:        { bg:"#f1f5f9", color:"#475569", icon:"bi-mailbox2" },
+        country:                { bg:"#dbeafe", color:"#1d4ed8", icon:"bi-globe2" },
+        linkedin_profile_url:   { bg:"#e0e7ff", color:"#0284c7", icon:"bi-linkedin" },
+        industry:               { bg:"#fef9c3", color:"#ca8a04", icon:"bi-buildings-fill" },
+        lead_source:            { bg:"#f1f5f9", color:"#64748b", icon:"bi-funnel-fill" },
+        record_status:          { bg:"#fee2e2", color:"#dc2626", icon:"bi-flag-fill" },
+        date_of_birth:          { bg:"#fae8ff", color:"#a21caf", icon:"bi-calendar-event-fill" },
+        gender:                 { bg:"#fce7f3", color:"#e11d48", icon:"bi-gender-ambiguous" },
+        company_size:           { bg:"#dcfce7", color:"#059669", icon:"bi-people-fill" },
+        annual_revenue:         { bg:"#d1fae5", color:"#15803d", icon:"bi-currency-dollar" }
+      };
+
+      function formatTitle(col) {
+        return col.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+      }
+
+      function renderGrid() {
+        if (!allStatsEntries.length) {
+          container.innerHTML = `
+            <div class="col-12 text-center py-4 text-muted">
+              <i class="bi bi-inbox fs-3 d-block mb-2"></i>
+              No database columns found to analyze completeness.
+            </div>`;
+          return;
+        }
+
+        const visible = isExpanded ? allStatsEntries : allStatsEntries.slice(0, 8);
+        let html = "";
+
+        visible.forEach(([col, info]) => {
+          const completePct = info.complete_percentage;
+          const missingPct  = info.missing_percentage;
+          const filledCnt   = info.filled_count;
+          const missingCnt  = info.missing_count;
+          const label       = formatTitle(col);
+          const im          = iconColorMap[col] || { bg:"#f3f4f6", color:"#ef4444", icon:"bi-card-list" };
+
+          let theme = { fill:"linear-gradient(90deg,#10b981,#059669)", badge:"bg-success-subtle text-success border-success-subtle", textColor:"text-success" };
+          if (completePct < 50)      theme = { fill:"linear-gradient(90deg,#ef4444,#b91c1c)", badge:"bg-danger-subtle text-danger border-danger-subtle",   textColor:"text-danger" };
+          else if (completePct < 70) theme = { fill:"linear-gradient(90deg,#f59e0b,#d97706)", badge:"bg-warning-subtle text-warning border-warning-subtle", textColor:"text-warning" };
+          else if (completePct < 85) theme = { fill:"linear-gradient(90deg,#06b6d4,#0284c7)", badge:"bg-info-subtle text-info border-info-subtle",          textColor:"text-info" };
+
+          html += `
+            <div class="col-xl-3 col-lg-4 col-md-6 col-sm-6">
+              <div class="field-health-card h-100 d-flex flex-column">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                  <div class="d-flex align-items-center gap-2">
+                    <div style="width:28px;height:28px;border-radius:8px;background:${im.bg};color:${im.color};display:flex;align-items:center;justify-content:center;font-size:0.85rem;flex-shrink:0;box-shadow:0 2px 6px rgba(0,0,0,0.06);">
+                      <i class="bi ${im.icon}"></i>
+                    </div>
+                    <div style="min-width:0;">
+                      <span class="fw-bold text-truncate d-block" style="font-size:0.75rem;color:var(--text);" title="${label}">${label}</span>
+                      <div class="d-flex align-items-center gap-2">
+                        <span class="text-muted text-truncate" style="font-size:0.65rem;">${filledCnt.toLocaleString()} / ${(filledCnt+missingCnt).toLocaleString()} rows</span>
+                        <span class="badge px-2 py-1 ${theme.badge} rounded-pill" style="font-size:0.6rem;flex-shrink:0;">${missingPct}% miss</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="health-progress-bar" style="margin:8px 0 4px 0;">
+                  <div class="health-progress-fill" style="width:${completePct}%;background:${theme.fill};"></div>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mt-auto pt-1" style="font-size:0.65rem;">
+                  <span class="fw-bold ${theme.textColor}">${completePct}%</span>
+                  <span class="text-muted" style="font-weight:500;">Complete</span>
+                </div>
+              </div>
+            </div>`;
+        });
+
+        container.innerHTML = html;
+
+        if (allStatsEntries.length > 8 && toggleWrap) {
+          toggleWrap.style.display = "block";
+          if (toggleBtn) {
+            toggleBtn.innerHTML = isExpanded
+              ? '<i class="bi bi-chevron-up me-1"></i>Collapse Grid'
+              : `<i class="bi bi-chevron-down me-1"></i>Show All Fields (${allStatsEntries.length})`;
+          }
+        } else if (toggleWrap) {
+          toggleWrap.style.display = "none";
+        }
+      }
+
+      if (toggleBtn) {
+        toggleBtn.addEventListener("click", function () {
+          isExpanded = !isExpanded;
+          renderGrid();
+        });
+      }
+
+      fetch("/api/dataset/completeness")
+        .then(res => {
+          if (!res.ok) throw new Error("Failed to load completeness data");
+          return res.json();
+        })
+        .then(data => {
+          if (overallText) overallText.textContent = `${data.overall_health_score}% Complete`;
+          if (totalText)   totalText.textContent   = `${data.total_fields} Fields`;
+          if (attBadge && attText) {
+            if (data.needs_attention_count > 0) {
+              attText.textContent   = `${data.needs_attention_count} Needs Attention`;
+              attBadge.style.display = "inline-flex";
+            } else {
+              attBadge.style.display = "none";
+            }
+          }
+          if (data.completeness_stats) {
+            allStatsEntries = Object.entries(data.completeness_stats);
+            allStatsEntries.sort((a, b) => a[1].complete_percentage - b[1].complete_percentage);
+            renderGrid();
+          }
+        })
+        .catch(err => {
+          console.error(err);
+          container.innerHTML = `
+            <div class="col-12 text-center py-4 text-danger">
+              <i class="bi bi-exclamation-triangle-fill fs-3 mb-2 d-block"></i>
+              Could not fetch dataset completeness statistics.
+            </div>`;
+        });
+    });
+  </script>
 </body>
 
 </html>
