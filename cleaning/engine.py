@@ -108,6 +108,38 @@ def attach_error_columns(df, errors):
     return df
 
 
+def load_predefined_rules_from_db():
+    default_config = {
+        "email": {"validate_email": True, "lowercase_email": True},
+        "phone": {"validate_phone": True, "remove_phone_91_prefix": False, "format_phone_number": False},
+        "numeric": {"validate_numeric": True, "normalize_currency": False},
+        "text": {"clean_special_chars": True, "title_case_text": True, "trim_whitespace": True},
+        "url": {"validate_url": True, "normalize_url_protocol": False},
+        "date": {"validate_date": True}
+    }
+    try:
+        from helpers import get_db_connection
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute("SELECT rule_type, rules_config FROM predefined_cleaning_rules")
+        rows = cursor.fetchall()
+        import json
+        config = {}
+        for row in rows:
+            config[row["rule_type"]] = json.loads(row["rules_config"])
+        for k, v in default_config.items():
+            if k not in config:
+                config[k] = v
+            else:
+                for subk, subv in v.items():
+                    if subk not in config[k]:
+                        config[k][subk] = subv
+        return config
+    except Exception as e:
+        print("Failed to load predefined rules from DB, using defaults:", e)
+        return default_config
+
+
 def run_cleaning_pipeline(df, selected_rules, duplicate_columns=None, duplicate_mode="composite", type_overrides=None):
     # print("NEW PIPELINE CALL")                                            #debug statements
     # print("SELECTED RULES AT FUNCTION START:", selected_rules)
@@ -139,6 +171,25 @@ def run_cleaning_pipeline(df, selected_rules, duplicate_columns=None, duplicate_
         (r[0], r[1], r[2] if len(r) > 2 else {})
         for r in selected_rules
     ]
+
+    # Fetch predefined rules configuration and expand predefined rules
+    predefined_config = load_predefined_rules_from_db()
+    expanded_rules = []
+    for r in selected_rules:
+        rule_name = r[0]
+        column = r[1]
+        extras = r[2]
+        
+        if rule_name.startswith("predefined_"):
+            rule_type = rule_name.replace("predefined_", "")
+            sub_rules = predefined_config.get(rule_type, {})
+            for sub_rule_name, enabled in sub_rules.items():
+                if enabled:
+                    expanded_rules.append((sub_rule_name, column, extras))
+        else:
+            expanded_rules.append(r)
+            
+    selected_rules = expanded_rules
 
     # 1. Infer column types
     def _build_column_type_map(df, overrides=None):

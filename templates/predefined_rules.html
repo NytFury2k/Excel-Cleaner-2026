@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Predefined Rules — Paramantra</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    :root {
+      --border: #e5e7eb;
+      --surface: #f9fafb;
+      --bg: #f4f5f7;
+      --text: #111827;
+      --text-muted: #6b7280;
+      --input-bg: #ffffff;
+      --red-accent: #b91c1c;
+      --red-hover: #991b1b;
+      --red-light: #fee2e2;
+    }
+
+    [data-theme="dark"] {
+      --border: #2d2d34;
+      --surface: #18181c;
+      --bg: #0f0f12;
+      --text: #f3f4f6;
+      --text-muted: #9ca3af;
+      --input-bg: #222227;
+      --red-light: #451a1a;
+    }
+
+    body {
+      background: var(--bg);
+      font-family: system-ui, -apple-system, sans-serif;
+      color: var(--text);
+    }
+
+    .app-layout {
+      display: flex;
+      min-height: 100vh;
+    }
+
+    .content-area {
+      flex: 1;
+      margin-left: 260px;
+      padding: 24px;
+    }
+
+    .card {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--input-bg);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+      transition: transform 0.15s, box-shadow 0.15s;
+    }
+
+    .card-header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 20px;
+      font-weight: 600;
+    }
+
+    .form-check-input:checked {
+      background-color: var(--red-accent);
+      border-color: var(--red-accent);
+    }
+
+    .rule-group-title {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .rule-group-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1rem;
+      font-weight: bold;
+    }
+
+    .btn-danger {
+      background-color: var(--red-accent) !important;
+      border-color: var(--red-accent) !important;
+      color: #fff !important;
+    }
+
+    .btn-danger:hover {
+      background-color: var(--red-hover) !important;
+      border-color: var(--red-hover) !important;
+    }
+
+    .badge-predefined {
+      font-size: 0.72rem;
+      font-weight: 600;
+      background-color: var(--red-light);
+      color: var(--red-accent);
+      border: 1px solid rgba(185, 28, 28, 0.25);
+    }
+  </style>
+</head>
+
+<body>
+  <div class="app-layout">
+    {% include '_sidebar.html' %}
+
+    <main class="content-area">
+      <div class="container-fluid">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        {% for category, message in messages %}
+        <div class="alert alert-{{ category }} alert-dismissible fade show">
+          {{ message|safe }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        {% endfor %}
+        {% endif %}
+        {% endwith %}
+
+        <div class="d-flex align-items-center justify-content-between mb-4">
+          <div>
+            <h3 style="font-size:1.35rem;font-weight:700;margin-bottom:4px;">Predefined Cleaning Rules</h3>
+            <p class="text-muted mb-0" style="font-size:0.875rem;">Manage predefined rules and operations automatically applied for each field type</p>
+          </div>
+        </div>
+
+        <form method="post" action="{{ url_for('predefined_rules_view') }}">
+          <div class="row g-4">
+            <!-- Email Rules -->
+            <div class="col-md-6">
+              <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                  <div class="rule-group-title">
+                    <div class="rule-group-icon bg-primary-subtle text-primary">
+                      <i class="bi bi-envelope-fill"></i>
+                    </div>
+                    <span>Email Rules</span>
+                  </div>
+                  <span class="badge badge-predefined rounded-pill">Email Type</span>
+                </div>
+                <div class="card-body p-4">
+                  <div class="form-check mb-3">
+                    <input class="form-check-input" type="checkbox" name="email_validate_email" id="email_validate_email" value="1" {% if config.email.validate_email %}checked{% endif %}>
+                    <label class="form-check-label fw-semibold" for="email_validate_email">Valid Email Format</label>
+                    <p class="text-muted small mb-0">Flag records that do not conform to standard RFC 5322 email syntax.</p>
+                  </div>
+                  <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="email_lowercase_email" id="email_lowercase_email" value="1" {% if config.email.lowercase_email %}checked{% endif %}>
+                    <label class="form-check-label fw-semibold" for="email_lowercase_email">Convert to Lowercase</label>
+                    <p class="text-muted small mb-0">Automatically transform email values to lowercase during cleanup.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Phone Rules -->
+            <div class="col-md-6">
+              <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                  <div class="rule-group-title">
+                    <div class="rule-group-icon bg-success-subtle text-success">
+                      <i class="bi bi-telephone-fill"></i>
+                    </div>
+                    <span>Phone Rules</span>
+                  </div>
+                  <span class="badge badge-predefined rounded-pill">Phone Type</span>
+                </div>
+                <div class="card-body p-4">
+                  <div class="form-check mb-3">
+                    <input class="form-check-input" type="checkbox" name="phone_validate_phone" id="phone_validate_phone" value="1" {% if config.phone.validate_phone %}checked{% endif %}>
+                    <label class="form-check-label fw-semibold" for="phone_validate_phone">Valid Phone Number</label>
+                    <p class="text-muted small mb-0">Validate that phone numbers contain only valid length digits (7-15).</p>
+                  </div>
+                  <div class="form-check mb-3">
+                    <input class="form-check-input" type="checkbox" name="phone_remove_phone_91_prefix" id="phone_remove_phone_91_prefix" value="1" {% if config.phone.remove_phone_91_prefix %}checked{% endif %}>
+                    <label class="form-check-label fw-semibold" for="phone_remove_phone_91_prefix">Remove +91 or 91 Prefix</label>
+                    <p class="text-muted small mb-0">Automatically strip Indian country code (+91 / 91) prefixes from the phone number.</p>
+                  </div>
+                  <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="phone_format_phone_number" id="phone_format_phone_number" value="1" {% if config.phone.format_phone_number %}checked{% endif %}>
+                    <label class="form-check-label fw-semibold" for="phone_format_phone_number">Convert to valid phone number format</label>
+                    <p class="text-muted small mb-0">Format standard 10 digit numbers into standard readable style: (XXX) XXX-XXXX.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Numeric Rules -->
+            <div class="col-md-6">
+              <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                  <div class="rule-group-title">
+                    <div class="rule-group-icon bg-warning-subtle text-warning">
+                      <i class="bi bi-hash"></i>
+                    </div>
+                    <span>Numeric Rules</span>
+                  </div>
+                  <span class="badge badge-predefined rounded-pill">Numeric Type</span>
+                </div>
+                <div class="card-body p-4">
+                  <div class="form-check mb-3">
+                    <input class="form-check-input" type="checkbox" name="numeric_validate_numeric" id="numeric_validate_numeric" value="1" {% if config.numeric.validate_numeric %}checked{% endif %}>
+                    <label class="form-check-label fw-semibold" for="numeric_validate_numeric">Valid Number Format</label>
+                    <p class="text-muted small mb-0">Validate that values contain valid floating point or integer representation.</p>
+                  </div>
+                  <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="numeric_normalize_currency" id="numeric_normalize_currency" value="1" {% if config.numeric.normalize_currency %}checked{% endif %}>
+                    <label class="form-check-label fw-semibold" for="numeric_normalize_currency">Normalize Currency / Number shorthand</label>
+                    <p class="text-muted small mb-0">Pre-convert values with currency prefixes (₹, $, €) or scale suffixes (K, M, Lakhs, Crores).</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Text Rules -->
+            <div class="col-md-6">
+              <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                  <div class="rule-group-title">
+                    <div class="rule-group-icon bg-secondary-subtle text-secondary">
+                      <i class="bi bi-blockquote-left"></i>
+                    </div>
+                    <span>Text Rules</span>
+                  </div>
+                  <span class="badge badge-predefined rounded-pill">Text Type</span>
+                </div>
+                <div class="card-body p-4">
+                  <div class="form-check mb-3">
+                    <input class="form-check-input" type="checkbox" name="text_clean_special_chars" id="text_clean_special_chars" value="1" {% if config.text.clean_special_chars %}checked{% endif %}>
+                    <label class="form-check-label fw-semibold" for="text_clean_special_chars">Clean Special Characters</label>
+                    <p class="text-muted small mb-0">Strip non-essential punctuation and special marks from string fields.</p>
+                  </div>
+                  <div class="form-check mb-3">
+                    <input class="form-check-input" type="checkbox" name="text_title_case_text" id="text_title_case_text" value="1" {% if config.text.title_case_text %}checked{% endif %}>
+                    <label class="form-check-label fw-semibold" for="text_title_case_text">Convert to Title Case</label>
+                    <p class="text-muted small mb-0">Transform text to Title Case (e.g. "john doe" becomes "John Doe").</p>
+                  </div>
+                  <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="text_trim_whitespace" id="text_trim_whitespace" value="1" {% if config.text.trim_whitespace %}checked{% endif %}>
+                    <label class="form-check-label fw-semibold" for="text_trim_whitespace">Trim Whitespace</label>
+                    <p class="text-muted small mb-0">Remove duplicate spacing and leading/trailing whitespace.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- URL Rules -->
+            <div class="col-md-6">
+              <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                  <div class="rule-group-title">
+                    <div class="rule-group-icon bg-info-subtle text-info">
+                      <i class="bi bi-link-45deg"></i>
+                    </div>
+                    <span>URL Rules</span>
+                  </div>
+                  <span class="badge badge-predefined rounded-pill">URL Type</span>
+                </div>
+                <div class="card-body p-4">
+                  <div class="form-check mb-3">
+                    <input class="form-check-input" type="checkbox" name="url_validate_url" id="url_validate_url" value="1" {% if config.url.validate_url %}checked{% endif %}>
+                    <label class="form-check-label fw-semibold" for="url_validate_url">Valid URL Format</label>
+                    <p class="text-muted small mb-0">Validate website domain patterns and protocols.</p>
+                  </div>
+                  <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="url_normalize_url_protocol" id="url_normalize_url_protocol" value="1" {% if config.url.normalize_url_protocol %}checked{% endif %}>
+                    <label class="form-check-label fw-semibold" for="url_normalize_url_protocol">Prepend https:// Protocol</label>
+                    <p class="text-muted small mb-0">Automatically prepends standard HTTPS protocol scheme if missing from URL.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Date Rules -->
+            <div class="col-md-6">
+              <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                  <div class="rule-group-title">
+                    <div class="rule-group-icon bg-danger-subtle text-danger">
+                      <i class="bi bi-calendar-event"></i>
+                    </div>
+                    <span>Date Rules</span>
+                  </div>
+                  <span class="badge badge-predefined rounded-pill">Date Type</span>
+                </div>
+                <div class="card-body p-4">
+                  <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="date_validate_date" id="date_validate_date" value="1" {% if config.date.validate_date %}checked{% endif %}>
+                    <label class="form-check-label fw-semibold" for="date_validate_date">Valid Date Format</label>
+                    <p class="text-muted small mb-0">Verify that the date values can be successfully parsed into ISO structure.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="d-flex align-items-center gap-3 mt-4 mb-5">
+            <button type="submit" class="btn btn-danger px-5 py-2.5 fw-bold" style="border-radius:8px;">
+              <i class="bi bi-save2 me-2"></i>Save Configuration
+            </button>
+          </div>
+        </form>
+
+      </div>
+    </main>
+  </div>
+</body>
+
+</html>

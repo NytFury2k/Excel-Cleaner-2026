@@ -212,6 +212,20 @@
       font-weight: 600;
     }
 
+    .rule-check-wrap.predefined-highlight {
+      background: #fff5f5 !important;
+      border: 1.5px solid #fecaca !important;
+      border-radius: 8px !important;
+    }
+    .rule-check-wrap.predefined-highlight:hover {
+      background: #fef2f2 !important;
+      border-color: #fca5a5 !important;
+    }
+    .rule-check-wrap.predefined-highlight input:checked+.rule-label {
+      color: var(--red-accent, #b91c1c) !important;
+      font-weight: 700 !important;
+    }
+
     .rule-label {
       font-size: 0.82rem;
       color: var(--text-main, #374151);
@@ -463,6 +477,18 @@
 
     [data-theme="dark"] .rule-check-wrap input:checked+.rule-label {
       color: var(--red-accent);
+    }
+
+    [data-theme="dark"] .rule-check-wrap.predefined-highlight {
+      background: #3a1c1c !important;
+      border: 1.5px solid #7f1d1d !important;
+    }
+    [data-theme="dark"] .rule-check-wrap.predefined-highlight:hover {
+      background: #451a1a !important;
+      border-color: #f87171 !important;
+    }
+    [data-theme="dark"] .rule-check-wrap.predefined-highlight input:checked+.rule-label {
+      color: #f87171 !important;
     }
 
     [data-theme="dark"] .form-check-label {
@@ -817,12 +843,17 @@
                 <div class="col-md-3 col-sm-4 rule-option" id="ruleoption_master_{{ m.identifier }}_{{ rule_key }}"
                   data-col="master_{{ m.identifier }}" data-allowed="{{ allowed|join(',') }}" {% if match_type not in
                   allowed %}style="display:none;" {% endif %}>
-                  <label class="rule-check-wrap" style="width:100%;">
+                  <label class="rule-check-wrap {% if rule_key.startswith('predefined_') %}predefined-highlight{% endif %}" style="width:100%;">
                     <input type="checkbox" class="form-check-input" name="rules_master_{{ m.identifier }}[]"
                       value="{{ rule_key }}" id="{{ rule_key }}_master_{{ m.identifier }}" {% if 'master_' ~
                       m.identifier in column_rule_map and rule_key in column_rule_map['master_' ~ m.identifier]
                       %}checked{% endif %}>
-                    <span class="rule-label">{{ rule_meta["label"] }}</span>
+                    <span class="rule-label">
+                      {% if rule_key.startswith('predefined_') %}
+                      <span class="badge text-white rounded-pill px-2 py-0.5 me-1" style="background-color:var(--red-accent, #b91c1c); font-size: 0.6rem;">Predefined</span>
+                      {% endif %}
+                      {{ rule_meta["label"] }}
+                    </span>
                   </label>
                 </div>
                 {% endfor %}
@@ -950,46 +981,26 @@
               optionsHtml += `<option value="${cf.id}" ${selected}>${cf.field_name}</option>`;
             });
 
-            const rulesToRender = [
-              { key: "trim_whitespace", label: "Trim Whitespace" },
-              { key: "clean_special_chars", label: "Clean Special Chars" },
-              { key: "validate_not_empty", label: "Validate Not Empty" },
-              { key: "handle_missing", label: "Handle Missing Values" }
-            ];
-
-            let checkboxesHtml = "";
-            rulesToRender.forEach(r => {
-              const checked = activeRules.includes(r.key) ? "checked" : "";
-              checkboxesHtml += `
-                      <div class="col-md-3 col-sm-4">
-                          <label class="rule-check-wrap" style="width:100%;">
-                              <input type="checkbox" class="form-check-input custom-rule-checkbox" data-index="${index}" data-rule="${r.key}" name="rules_custom_${index}[]" value="${r.key}" ${checked}>
-                              <span class="rule-label">${r.label}</span>
-                          </label>
-                      </div>
-                  `;
-            });
-
             const cardDiv = document.createElement("div");
             cardDiv.className = "col-card custom-rule-card";
             cardDiv.id = `custom_rule_card_${index}`;
             cardDiv.innerHTML = `
                   <div class="col-card-header d-flex justify-content-between align-items-center">
                       <div class="d-flex align-items-center gap-2">
-                          <select class="form-select form-select-sm" name="custom_field_target_${index}" style="min-width: 220px;" required>
+                          <select class="form-select form-select-sm custom-field-select" name="custom_field_target_${index}" data-index="${index}" style="min-width: 220px;" required>
                               ${optionsHtml}
                           </select>
-                          <span class="type-badge badge-text">VARCHAR</span>
+                          <span class="type-badge badge-text" id="custom_type_badge_${index}">VARCHAR</span>
                       </div>
                       <button type="button" class="btn btn-sm btn-outline-danger py-0 px-2 btn-remove-custom-card">
                           <i class="bi bi-trash-fill me-1"></i>Remove
                       </button>
                   </div>
                   <div class="col-card-body">
-                      <div class="row g-2">
-                          ${checkboxesHtml}
+                      <div class="row g-2" id="custom_rules_checkboxes_${index}">
+                          <!-- Dynamic checkboxes -->
                       </div>
-                      <div class="strategy-row mt-3 pt-3 border-top" id="strategy_wrapper_custom_${index}" style="display: ${activeRules.includes("handle_missing") ? "flex" : "none"};">
+                      <div class="strategy-row mt-3 pt-3 border-top" id="strategy_wrapper_custom_${index}" style="display: none;">
                           <small class="text-muted fw-semibold text-nowrap" style="font-size:0.8rem;">
                               <i class="bi bi-funnel me-1"></i>Missing value strategy:
                           </small>
@@ -1004,21 +1015,82 @@
 
             wrapper.appendChild(cardDiv);
 
-            // Attach delete handler
-            cardDiv.querySelector(".btn-remove-custom-card").addEventListener("click", function () {
-              cardDiv.remove();
+            const selectEl = cardDiv.querySelector(".custom-field-select");
+            const checkboxesContainer = cardDiv.querySelector(`#custom_rules_checkboxes_${index}`);
+            const badgeEl = cardDiv.querySelector(`#custom_type_badge_${index}`);
+
+            function renderCustomCheckboxes(fieldId, currentActiveRules) {
+              const cf = customFieldsRegistry.find(item => String(item.id) === String(fieldId));
+              const fieldType = cf ? cf.data_type : "text";
+
+              // Update badge class & text
+              badgeEl.className = "type-badge " + (badgeClasses[fieldType] || "badge-text");
+              badgeEl.textContent = fieldType.toUpperCase();
+
+              const rulesToRender = [
+                { key: "trim_whitespace", label: "Trim Whitespace" },
+                { key: "clean_special_chars", label: "Clean Special Chars" },
+                { key: "validate_not_empty", label: "Validate Not Empty" },
+                { key: "handle_missing", label: "Handle Missing Values" }
+              ];
+
+              if (fieldType === "email") {
+                rulesToRender.push({ key: "predefined_email", label: "Predefined Email Rule", isPredefined: true });
+              } else if (fieldType === "phone") {
+                rulesToRender.push({ key: "predefined_phone", label: "Predefined Phone Rule", isPredefined: true });
+              } else if (fieldType === "numeric") {
+                rulesToRender.push({ key: "predefined_numeric", label: "Predefined Numeric Rule", isPredefined: true });
+              } else if (fieldType === "text") {
+                rulesToRender.push({ key: "predefined_text", label: "Predefined Text Rule", isPredefined: true });
+              } else if (fieldType === "url") {
+                rulesToRender.push({ key: "predefined_url", label: "Predefined URL Rule", isPredefined: true });
+              } else if (fieldType === "date") {
+                rulesToRender.push({ key: "predefined_date", label: "Predefined Date Rule", isPredefined: true });
+              }
+
+              let html = "";
+              rulesToRender.forEach(r => {
+                const checked = currentActiveRules.includes(r.key) ? "checked" : "";
+                const predefinedClass = r.isPredefined ? "predefined-highlight" : "";
+                const predefinedBadge = r.isPredefined ? `<span class="badge text-white rounded-pill px-2 py-0.5 me-1" style="background-color:var(--red-accent, #b91c1c); font-size: 0.6rem;">Predefined</span>` : "";
+                html += `
+                  <div class="col-md-3 col-sm-4">
+                      <label class="rule-check-wrap ${predefinedClass}" style="width:100%;">
+                          <input type="checkbox" class="form-check-input custom-rule-checkbox" data-index="${index}" data-rule="${r.key}" name="rules_custom_${index}[]" value="${r.key}" ${checked}>
+                          <span class="rule-label">${predefinedBadge}${r.label}</span>
+                      </label>
+                  </div>
+                `;
+              });
+              checkboxesContainer.innerHTML = html;
+
+              checkboxesContainer.querySelectorAll(".custom-rule-checkbox").forEach(cb => {
+                cb.addEventListener("change", function () {
+                  if (this.dataset.rule === "handle_missing") {
+                    const stratWrapper = document.getElementById(`strategy_wrapper_custom_${index}`);
+                    if (stratWrapper) {
+                      stratWrapper.style.display = this.checked ? "flex" : "none";
+                    }
+                  }
+                });
+              });
+
+              const stratWrapper = document.getElementById(`strategy_wrapper_custom_${index}`);
+              if (stratWrapper) {
+                const missingChecked = Array.from(checkboxesContainer.querySelectorAll(".custom-rule-checkbox"))
+                  .some(c => c.dataset.rule === "handle_missing" && c.checked);
+                stratWrapper.style.display = missingChecked ? "flex" : "none";
+              }
+            }
+
+            renderCustomCheckboxes(selectedFieldId, activeRules);
+
+            selectEl.addEventListener("change", function () {
+              renderCustomCheckboxes(this.value, []);
             });
 
-            // Attach checkbox handler to show/hide missing strategy dropdown
-            cardDiv.querySelectorAll(".custom-rule-checkbox").forEach(cb => {
-              cb.addEventListener("change", function () {
-                if (this.dataset.rule === "handle_missing") {
-                  const stratWrapper = document.getElementById(`strategy_wrapper_custom_${index}`);
-                  if (stratWrapper) {
-                    stratWrapper.style.display = this.checked ? "flex" : "none";
-                  }
-                }
-              });
+            cardDiv.querySelector(".btn-remove-custom-card").addEventListener("click", function () {
+              cardDiv.remove();
             });
           };
 

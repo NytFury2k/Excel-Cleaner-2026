@@ -23,6 +23,16 @@ RULES_REGISTRY = {
     "title_case_text": {"label": "Convert Text to Title Case", "function": title_case_text, "type": "cleaning", "allowed_types": ["text"]},
     "normalize_url_protocol": {"label": "Prepend https:// Protocol", "function": normalize_url_protocol, "type": "cleaning", "allowed_types": ["url"]},
     "remove_non_alphanumeric": {"label": "Remove Non-Alphanumeric Characters", "function": remove_non_alphanumeric, "type": "cleaning", "allowed_types": ["text"]},
+    "remove_phone_91_prefix": {"label": "Remove +91 or 91 Prefix", "function": remove_phone_91_prefix, "type": "cleaning", "allowed_types": ["phone"]},
+    "format_phone_number": {"label": "Standardize Phone Format", "function": format_phone_number, "type": "cleaning", "allowed_types": ["phone"]},
+
+    # Predefined rules (expanded dynamically in engine.py)
+    "predefined_email": {"label": "Predefined Email Rule", "function": lambda df, col, col_t=None: (df, []), "type": "cleaning", "allowed_types": ["email"]},
+    "predefined_phone": {"label": "Predefined Phone Rule", "function": lambda df, col, col_t=None: (df, []), "type": "cleaning", "allowed_types": ["phone"]},
+    "predefined_numeric": {"label": "Predefined Numeric Rule", "function": lambda df, col, col_t=None: (df, []), "type": "cleaning", "allowed_types": ["numeric"]},
+    "predefined_text": {"label": "Predefined Text Rule", "function": lambda df, col, col_t=None: (df, []), "type": "cleaning", "allowed_types": ["text"]},
+    "predefined_url": {"label": "Predefined URL Rule", "function": lambda df, col, col_t=None: (df, []), "type": "cleaning", "allowed_types": ["url"]},
+    "predefined_date": {"label": "Predefined Date Rule", "function": lambda df, col, col_t=None: (df, []), "type": "cleaning", "allowed_types": ["date"]},
 
     #dedupe
     "drop_duplicates": {"label":"Remove Duplicates", "function": drop_duplicates, "type": "dedupe", "allowed_types": ["email", "phone", "url", "numeric", "date", "text"]},

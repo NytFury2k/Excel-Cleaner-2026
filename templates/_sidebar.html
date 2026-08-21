@@ -714,6 +714,13 @@
     </a>
     {% endif %}
 
+    {% if session.role in ["admin", "manager"] %}
+    <a href="{{ url_for('predefined_rules_view') }}" class="sidebar-link{% if request.endpoint == 'predefined_rules_view' %} active{% endif %}">
+      <i class="bi bi-sliders"></i>
+      <span class="sidebar-text">Predefined Rules</span>
+    </a>
+    {% endif %}
+
     {% if session.role in ["admin"] %}
     <a href="{{ url_for('registry') }}" class="sidebar-link{% if request.endpoint == 'registry' %} active{% endif %}">
       <i class="bi bi-tags"></i>

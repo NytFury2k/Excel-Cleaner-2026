@@ -2151,7 +2151,7 @@ def choose_rules():
         presets = cursor.fetchall()
         
         # Load active custom fields
-        cursor.execute("SELECT id, field_name FROM field_registry WHERE is_active = 1")
+        cursor.execute("SELECT id, field_name, data_type FROM field_registry WHERE is_active = 1")
         custom_fields_registry = cursor.fetchall()
         
         # Fetch Master Columns dynamically from master_records table
@@ -6720,6 +6720,69 @@ def registry():
         pagination_url=pagination_url
     )
 
+@app.route('/predefined-rules', methods=['GET', 'POST'])
+@login_required()
+def predefined_rules_view():
+    if session.get("role") not in ("admin", "manager"):
+        flash("Access denied.", "warning")
+        return redirect(url_for("upload"))
+        
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    
+    if request.method == 'POST':
+        import json
+        categories = {
+            "email": ["validate_email", "lowercase_email"],
+            "phone": ["validate_phone", "remove_phone_91_prefix", "format_phone_number"],
+            "numeric": ["validate_numeric", "normalize_currency"],
+            "text": ["clean_special_chars", "title_case_text", "trim_whitespace"],
+            "url": ["validate_url", "normalize_url_protocol"],
+            "date": ["validate_date"]
+        }
+        
+        for category, keys in categories.items():
+            category_config = {}
+            for key in keys:
+                val = request.form.get(f"{category}_{key}") == "1"
+                category_config[key] = val
+                
+            cursor.execute(
+                "INSERT INTO predefined_cleaning_rules (rule_type, rules_config) VALUES (%s, %s) ON DUPLICATE KEY UPDATE rules_config = %s",
+                (category, json.dumps(category_config), json.dumps(category_config))
+            )
+        conn.commit()
+        conn.close()
+        flash("Predefined cleaning rules updated successfully.", "success")
+        return redirect(url_for("predefined_rules_view"))
+        
+    cursor.execute("SELECT rule_type, rules_config FROM predefined_cleaning_rules")
+    rows = cursor.fetchall()
+    conn.close()
+    
+    import json
+    config = {}
+    for row in rows:
+        config[row["rule_type"]] = json.loads(row["rules_config"])
+        
+    default_config = {
+        "email": {"validate_email": True, "lowercase_email": True},
+        "phone": {"validate_phone": True, "remove_phone_91_prefix": False, "format_phone_number": False},
+        "numeric": {"validate_numeric": True, "normalize_currency": False},
+        "text": {"clean_special_chars": True, "title_case_text": True, "trim_whitespace": True},
+        "url": {"validate_url": True, "normalize_url_protocol": False},
+        "date": {"validate_date": True}
+    }
+    for k, v in default_config.items():
+        if k not in config:
+            config[k] = v
+        else:
+            for subk, subv in v.items():
+                if subk not in config[k]:
+                    config[k][subk] = subv
+                    
+    return render_template('predefined_rules.html', config=config)
+
 @app.route('/aliases')
 @login_required()
 def aliases_view():
@@ -8319,6 +8382,29 @@ if __name__ == "__main__":
                     imp_updated += 1
             if imp_updated > 0:
                 print(f"Self-healing: Converted {imp_updated} numeric user IDs to usernames in master_records.imported_by.")
+
+            # Create predefined_cleaning_rules if not exists and seed it
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS predefined_cleaning_rules (
+                    rule_type VARCHAR(50) PRIMARY KEY,
+                    rules_config TEXT NOT NULL
+                )
+            """)
+            default_predefined_rules = {
+                "email": {"validate_email": True, "lowercase_email": True},
+                "phone": {"validate_phone": True, "remove_phone_91_prefix": False, "format_phone_number": False},
+                "numeric": {"validate_numeric": True, "normalize_currency": False},
+                "text": {"clean_special_chars": True, "title_case_text": True, "trim_whitespace": True},
+                "url": {"validate_url": True, "normalize_url_protocol": False},
+                "date": {"validate_date": True}
+            }
+            for r_type, config in default_predefined_rules.items():
+                cursor.execute("SELECT rule_type FROM predefined_cleaning_rules WHERE rule_type = %s", (r_type,))
+                if not cursor.fetchone():
+                    cursor.execute(
+                        "INSERT INTO predefined_cleaning_rules (rule_type, rules_config) VALUES (%s, %s)",
+                        (r_type, json.dumps(config))
+                    )
 
             conn.commit()
             conn.close()

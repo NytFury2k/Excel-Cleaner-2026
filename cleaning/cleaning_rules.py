@@ -223,3 +223,34 @@ def remove_non_alphanumeric(df, column, column_type=None):
     df[column] = df[column].apply(clean_val)
     return df, []
 
+
+def remove_phone_91_prefix(df, column, column_type=None):
+    df = df.copy()
+    def clean_val(val):
+        if pd.isna(val):
+            return val
+        s = str(val).strip()
+        if s.startswith("+91"):
+            s = s[3:].strip()
+        elif s.startswith("91") and len(s) > 10 and s[2:].isdigit():
+            s = s[2:].strip()
+        return s
+    df[column] = df[column].apply(clean_val)
+    return df, []
+
+
+def format_phone_number(df, column, column_type=None):
+    df = df.copy()
+    def format_val(val):
+        if pd.isna(val):
+            return val
+        s = str(val).strip()
+        # Remove spaces, dashes, parentheses
+        cleaned = re.sub(r"[\s\-\(\)]", "", s)
+        if len(cleaned) == 10 and cleaned.isdigit():
+            return f"({cleaned[:3]}) {cleaned[3:6]}-{cleaned[6:]}"
+        return cleaned
+    df[column] = df[column].apply(format_val)
+    return df, []
+
+

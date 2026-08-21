@@ -262,6 +262,12 @@ sql_statements = [
         column_name VARCHAR(150) PRIMARY KEY,
         display_name VARCHAR(150) NOT NULL
     )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS predefined_cleaning_rules (
+        rule_type VARCHAR(50) PRIMARY KEY,
+        rules_config TEXT NOT NULL
+    )
     """
 ]
 
@@ -469,6 +475,26 @@ try:
                 cur.execute(
                     "INSERT INTO field_aliases (alias, normalized_alias, target_type, target_identifier) VALUES (%s, %s, %s, %s)",
                     (alias, norm, t_type, resolved_id)
+                )
+            except Error:
+                conn.rollback()
+    # Seed Default Predefined Cleaning Rules
+    import json
+    default_predefined_rules = {
+        "email": {"validate_email": True, "lowercase_email": True},
+        "phone": {"validate_phone": True, "remove_phone_91_prefix": False, "format_phone_number": False},
+        "numeric": {"validate_numeric": True, "normalize_currency": False},
+        "text": {"clean_special_chars": True, "title_case_text": True, "trim_whitespace": True},
+        "url": {"validate_url": True, "normalize_url_protocol": False},
+        "date": {"validate_date": True}
+    }
+    for r_type, config in default_predefined_rules.items():
+        cur.execute("SELECT rule_type FROM predefined_cleaning_rules WHERE rule_type = %s", (r_type,))
+        if not cur.fetchone():
+            try:
+                cur.execute(
+                    "INSERT INTO predefined_cleaning_rules (rule_type, rules_config) VALUES (%s, %s)",
+                    (r_type, json.dumps(config))
                 )
             except Error:
                 conn.rollback()
