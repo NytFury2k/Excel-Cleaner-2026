@@ -8,6 +8,7 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="icon" href="https://paramantra.us/aldius/images/favicon.png" type="image/gif">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
   <style>
     :root {
       --red-accent: #b91c1c;
@@ -561,6 +562,106 @@
               </div>
 
             </div>
+        </div>
+
+        <!-- Analytics & Ingestion Insights Section -->
+        <div class="row g-3 mb-4">
+          <!-- Monthly Lead Growth Trend -->
+          <div class="col-xl-8 col-lg-7">
+            <div class="card shadow-sm border-0 h-100" style="border-radius: 14px;">
+              <div class="card-header bg-white py-3 px-4 d-flex justify-content-between align-items-center" style="border-radius: 14px 14px 0 0;">
+                <div>
+                  <h5 class="fw-bold mb-1" style="font-size: 1.05rem; color: var(--text-main); margin: 0;">
+                    <i class="bi bi-graph-up text-danger me-2"></i>Leads Ingestion Growth
+                  </h5>
+                  <small class="text-muted" style="font-size: 0.78rem;">Monthly progression of cleaned leads added to the master database</small>
+                </div>
+              </div>
+              <div class="card-body p-4 position-relative" style="min-height: 350px;">
+                <div class="chart-container" style="position: relative; height: 100%; width: 100%;">
+                  <canvas id="monthlyLeadsChart" style="max-height: 280px;"></canvas>
+                </div>
+                <!-- Loading Spinner -->
+                <div class="position-absolute top-50 start-50 translate-middle text-center chart-spinner" id="monthlyLeadsSpinner">
+                  <div class="spinner-border text-danger" role="status"></div>
+                  <p class="text-muted small mt-2">Loading ingestion growth stats...</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Leads Added User-wise -->
+          <div class="col-xl-4 col-lg-5">
+            <div class="card shadow-sm border-0 h-100" style="border-radius: 14px;">
+              <div class="card-header bg-white py-3 px-4 d-flex justify-content-between align-items-center" style="border-radius: 14px 14px 0 0;">
+                <div>
+                  <h5 class="fw-bold mb-1" style="font-size: 1.05rem; color: var(--text-main); margin: 0;">
+                    <i class="bi bi-people-fill text-danger me-2"></i>Leads by User
+                  </h5>
+                  <small class="text-muted" style="font-size: 0.78rem;">Cleaned leads grouped by importing operator</small>
+                </div>
+              </div>
+              <div class="card-body p-4 position-relative d-flex align-items-center justify-content-center" style="min-height: 350px;">
+                <div class="chart-container" style="position: relative; height: 100%; width: 100%;">
+                  <canvas id="leadsUserwiseChart" style="max-height: 280px;"></canvas>
+                </div>
+                <!-- Loading Spinner -->
+                <div class="position-absolute top-50 start-50 translate-middle text-center chart-spinner" id="leadsUserwiseSpinner">
+                  <div class="spinner-border text-danger" role="status"></div>
+                  <p class="text-muted small mt-2">Loading user distribution...</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="row g-3 mb-4">
+          <!-- User Uploads & Cleaned Leads comparative -->
+          <div class="col-xl-6 col-lg-6">
+            <div class="card shadow-sm border-0 h-100" style="border-radius: 14px;">
+              <div class="card-header bg-white py-3 px-4 d-flex justify-content-between align-items-center" style="border-radius: 14px 14px 0 0;">
+                <div>
+                  <h5 class="fw-bold mb-1" style="font-size: 1.05rem; color: var(--text-main); margin: 0;">
+                    <i class="bi bi-cloud-upload-fill text-danger me-2"></i>Operator Upload Performance
+                  </h5>
+                  <small class="text-muted" style="font-size: 0.78rem;">Comparison of total rows uploaded vs successfully imported by user</small>
+                </div>
+              </div>
+              <div class="card-body p-4 position-relative" style="min-height: 350px;">
+                <div class="chart-container" style="position: relative; height: 100%; width: 100%;">
+                  <canvas id="userUploadsChart" style="max-height: 280px;"></canvas>
+                </div>
+                <!-- Loading Spinner -->
+                <div class="position-absolute top-50 start-50 translate-middle text-center chart-spinner" id="userUploadsSpinner">
+                  <div class="spinner-border text-danger" role="status"></div>
+                  <p class="text-muted small mt-2">Loading user upload performance...</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Monthly Upload vs Import Ingestion Efficiency -->
+          <div class="col-xl-6 col-lg-6">
+            <div class="card shadow-sm border-0 h-100" style="border-radius: 14px;">
+              <div class="card-header bg-white py-3 px-4 d-flex justify-content-between align-items-center" style="border-radius: 14px 14px 0 0;">
+                <div>
+                  <h5 class="fw-bold mb-1" style="font-size: 1.05rem; color: var(--text-main); margin: 0;">
+                    <i class="bi bi-shield-check text-danger me-2"></i>Monthly Ingestion & Cleansing Efficiency
+                  </h5>
+                  <small class="text-muted" style="font-size: 0.78rem;">Monthly comparison of total rows processed vs successfully imported</small>
+                </div>
+              </div>
+              <div class="card-body p-4 position-relative" style="min-height: 350px;">
+                <div class="chart-container" style="position: relative; height: 100%; width: 100%;">
+                  <canvas id="monthlyUploadsChart" style="max-height: 280px;"></canvas>
+                </div>
+                <!-- Loading Spinner -->
+                <div class="position-absolute top-50 start-50 translate-middle text-center chart-spinner" id="monthlyUploadsSpinner">
+                  <div class="spinner-border text-danger" role="status"></div>
+                  <p class="text-muted small mt-2">Loading efficiency statistics...</p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -885,6 +986,208 @@
               Could not fetch dataset completeness statistics.
             </div>
           `;
+        });
+
+      // --- Dashboard Analytics Charts ---
+      fetch("/api/dashboard/analytics")
+        .then(res => {
+          if (!res.ok) throw new Error("Failed to load analytics data");
+          return res.json();
+        })
+        .then(data => {
+          // Hide spinners
+          document.querySelectorAll('.chart-spinner').forEach(el => el.style.display = 'none');
+
+          // Chart 1: Monthly Leads Added (Line Chart)
+          const monthlyLeadsData = data.monthly_leads || [];
+          const labelsMonthly = monthlyLeadsData.map(item => item.month);
+          const countsMonthly = monthlyLeadsData.map(item => item.count);
+
+          const ctxMonthly = document.getElementById('monthlyLeadsChart').getContext('2d');
+          new Chart(ctxMonthly, {
+            type: 'line',
+            data: {
+              labels: labelsMonthly.length ? labelsMonthly : ['No Data'],
+              datasets: [{
+                label: 'Cleaned Leads Added',
+                data: countsMonthly.length ? countsMonthly : [0],
+                borderColor: '#b91c1c',
+                backgroundColor: 'rgba(185, 28, 28, 0.05)',
+                borderWidth: 3,
+                fill: true,
+                tension: 0.35,
+                pointBackgroundColor: '#b91c1c',
+                pointHoverRadius: 7
+              }]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: { display: false }
+              },
+              scales: {
+                y: {
+                  beginAtZero: true,
+                  grid: { color: '#f3f4f6' },
+                  ticks: { font: { size: 10 } }
+                },
+                x: {
+                  grid: { display: false },
+                  ticks: { font: { size: 10 } }
+                }
+              }
+            }
+          });
+
+          // Chart 2: Leads Added User-Wise (Doughnut Chart)
+          const leadsUserwiseData = data.leads_userwise || [];
+          const labelsUser = leadsUserwiseData.map(item => item.user);
+          const countsUser = leadsUserwiseData.map(item => item.count);
+          
+          // Generate nice harmonious colors
+          const palette = [
+            '#b91c1c', '#dc2626', '#ef4444', '#f87171', '#fca5a5', 
+            '#fecaca', '#0ea5e9', '#0d9488', '#2563eb', '#4f46e5'
+          ];
+          const colorsUser = labelsUser.map((_, i) => palette[i % palette.length]);
+
+          const ctxUser = document.getElementById('leadsUserwiseChart').getContext('2d');
+          new Chart(ctxUser, {
+            type: 'doughnut',
+            data: {
+              labels: labelsUser.length ? labelsUser : ['No Operators'],
+              datasets: [{
+                data: countsUser.length ? countsUser : [0],
+                backgroundColor: colorsUser.length ? colorsUser : ['#e5e7eb'],
+                borderWidth: 2,
+                borderColor: '#ffffff',
+                hoverOffset: 4
+              }]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: {
+                  position: 'bottom',
+                  labels: {
+                    boxWidth: 12,
+                    font: { size: 10 }
+                  }
+                }
+              },
+              cutout: '60%'
+            }
+          });
+
+          // Chart 3: Operator Upload Performance (Grouped Bar Chart)
+          const userUploadsData = data.user_uploads || [];
+          const labelsUploads = userUploadsData.map(item => item.user);
+          const totalRowsUploads = userUploadsData.map(item => item.total_rows);
+          const importedRowsUploads = userUploadsData.map(item => item.rows_imported);
+
+          const ctxUploads = document.getElementById('userUploadsChart').getContext('2d');
+          new Chart(ctxUploads, {
+            type: 'bar',
+            data: {
+              labels: labelsUploads.length ? labelsUploads : ['No Operators'],
+              datasets: [
+                {
+                  label: 'Total Uploaded Rows',
+                  data: totalRowsUploads.length ? totalRowsUploads : [0],
+                  backgroundColor: '#94a3b8',
+                  borderRadius: 4
+                },
+                {
+                  label: 'Cleaned & Imported',
+                  data: importedRowsUploads.length ? importedRowsUploads : [0],
+                  backgroundColor: '#b91c1c',
+                  borderRadius: 4
+                }
+              ]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              scales: {
+                y: {
+                  beginAtZero: true,
+                  grid: { color: '#f3f4f6' },
+                  ticks: { font: { size: 10 } }
+                },
+                x: {
+                  grid: { display: false },
+                  ticks: { font: { size: 10 } }
+                }
+              },
+              plugins: {
+                legend: {
+                  position: 'bottom',
+                  labels: { boxWidth: 12, font: { size: 10 } }
+                }
+              }
+            }
+          });
+
+          // Chart 4: Monthly Ingestion & Cleansing Efficiency (Grouped Bar Chart)
+          const monthlyUploadsData = data.monthly_uploads || [];
+          const labelsMonthlyUploads = monthlyUploadsData.map(item => item.month);
+          const totalRowsMonthly = monthlyUploadsData.map(item => item.total_rows);
+          const importedRowsMonthly = monthlyUploadsData.map(item => item.rows_imported);
+
+          const ctxMonthlyUploads = document.getElementById('monthlyUploadsChart').getContext('2d');
+          new Chart(ctxMonthlyUploads, {
+            type: 'bar',
+            data: {
+              labels: labelsMonthlyUploads.length ? labelsMonthlyUploads : ['No Data'],
+              datasets: [
+                {
+                  label: 'Processed Rows',
+                  data: totalRowsMonthly.length ? totalRowsMonthly : [0],
+                  backgroundColor: '#cbd5e1',
+                  borderRadius: 4
+                },
+                {
+                  label: 'Successfully Imported',
+                  data: importedRowsMonthly.length ? importedRowsMonthly : [0],
+                  backgroundColor: '#dc2626',
+                  borderRadius: 4
+                }
+              ]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              scales: {
+                y: {
+                  beginAtZero: true,
+                  grid: { color: '#f3f4f6' },
+                  ticks: { font: { size: 10 } }
+                },
+                x: {
+                  grid: { display: false },
+                  ticks: { font: { size: 10 } }
+                }
+              },
+              plugins: {
+                legend: {
+                  position: 'bottom',
+                  labels: { boxWidth: 12, font: { size: 10 } }
+                }
+              }
+            }
+          });
+
+        })
+        .catch(err => {
+          console.error("Dashboard analytics error:", err);
+          document.querySelectorAll('.chart-spinner').forEach(el => {
+            el.innerHTML = `
+              <i class="bi bi-exclamation-triangle text-danger fs-4 mb-2 d-block"></i>
+              <span class="text-danger small">Failed to load chart data</span>
+            `;
+          });
         });
     });
   </script>

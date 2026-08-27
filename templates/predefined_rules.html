@@ -176,8 +176,8 @@
                 <div class="card-body p-4">
                   <div class="form-check mb-3">
                     <input class="form-check-input" type="checkbox" name="phone_validate_phone" id="phone_validate_phone" value="1" {% if config.phone.validate_phone %}checked{% endif %}>
-                    <label class="form-check-label fw-semibold" for="phone_validate_phone">Valid Phone Number</label>
-                    <p class="text-muted small mb-0">Validate that phone numbers contain only valid length digits (7-15).</p>
+                    <label class="form-check-label fw-semibold" for="phone_validate_phone">Validate and Flag Invalid Phone Numbers</label>
+                    <p class="text-muted small mb-0">Validate phone number format and length (7-15 digits), and flag invalid numbers as invalid.</p>
                   </div>
                   <div class="form-check mb-3">
                     <input class="form-check-input" type="checkbox" name="phone_remove_phone_91_prefix" id="phone_remove_phone_91_prefix" value="1" {% if config.phone.remove_phone_91_prefix %}checked{% endif %}>

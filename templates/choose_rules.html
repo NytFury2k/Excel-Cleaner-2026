@@ -642,6 +642,7 @@
     <p class="text-muted">Please wait while your data is being handled.</p>
   </div>
   <div id="chooseRulesData" data-custom-fields='{{ (custom_fields_registry|default({}))|tojson }}'
+    data-master-fields='{{ (master_fields|default([]))|tojson }}'
     data-saved-custom-rules='{{ session.get("custom_rules_saved", {})|tojson }}' style="display:none;"></div>
   <div class="app-layout">
 
@@ -749,141 +750,224 @@
 
         <!-- Column cards form -->
         <form method="POST" action="{{ url_for('clean_data') }}" id="cleanForm">
-          <!-- 1. Column Alignment -->
-          <div class="{% if is_existing_db %}d-none{% endif %}">
-            <h5 class="fw-bold mb-3 text-dark"><i class="bi bi-shuffle me-2 text-danger"></i>1. Match Spreadsheet Columns to System Schema</h5>
+          {% if is_existing_db %}
+            <!-- --- EXISTING DATABASE CLEANING VIEW --- -->
+            <h5 class="fw-bold mb-3 text-dark"><i class="bi bi-shield-check me-2 text-danger"></i>Configure Database Column Rules</h5>
+            <p class="text-muted small mb-4">Set validation and cleaning rules to apply to existing master records in the database.</p>
 
-            {% for sheet in sheet_data %}
-            {% set sheet_idx = loop.index %}
-            <div class="card shadow-sm mb-4">
-              <div
-                class="card-header sheet-card-header fw-bold py-2 d-flex justify-content-between align-items-center flex-wrap gap-2"
-                style="cursor:pointer;"
-                data-bs-toggle="collapse"
-                data-bs-target="#sheetBody_{{ sheet_idx }}"
-                aria-expanded="true"
-                aria-controls="sheetBody_{{ sheet_idx }}">
-                <div>
-                  <i class="bi bi-file-earmark-spreadsheet-fill me-2"></i>File: <strong>{{ sheet.original_filename }}</strong>
-                  {% if sheet.sheet_name and sheet.sheet_name != 'CSV' %}
-                  &nbsp;|&nbsp; Sheet: <strong>{{ sheet.sheet_name }}</strong>
-                  {% endif %}
-                </div>
-                <div class="d-flex align-items-center gap-2">
-                  <span class="badge bg-danger" style="font-size:0.75rem;">{{ sheet.columns|length }} columns</span>
-                  <i class="bi bi-chevron-up sheet-collapse-chevron" style="font-size:0.85rem; transition: transform 0.25s ease;"></i>
+            <!-- Master columns rule list -->
+            {% for m in master_fields %}
+            <div class="col-card" id="master_rule_card_{{ m.identifier }}">
+              <!-- Card header: name + type badge -->
+              <div class="col-card-header">
+                <h6>
+                  {{ m.name }}
+                  <span class="type-badge badge-{{ m.type }}">{{ m.type }}</span>
+                </h6>
+                <div class="form-check mb-0 d-flex align-items-center gap-2">
+                  <input type="checkbox" class="form-check-input select-all-col" data-col="master_{{ m.identifier }}"
+                    id="selectall_master_{{ m.identifier }}">
+                  <label class="form-check-label" style="font-size:0.78rem;color:#6b7280;cursor:pointer;"
+                    for="selectall_master_{{ m.identifier }}">Select all</label>
                 </div>
               </div>
-              <div class="collapse show" id="sheetBody_{{ sheet_idx }}">
-                <div class="card-body">
-                  <p class="text-muted small">Align each column in this sheet to either a Master column or a Custom field to
-                    apply its cleaning rules.</p>
-                  <div class="row g-3">
-                    {% for col in sheet.columns %}
-                    <div class="col-md-4 col-mapping-card" data-column-name="{{ col }}">
-                      <label class="form-label small fw-bold text-truncate d-block" title="{{ col }}">{{ col }}</label>
-                      <div class="input-group input-group-sm">
-                        <select class="form-select form-select-sm mapping-select"
-                          name="map_col_{{ sheet.sheet_id }}_{{ col|replace(' ', '_') }}"
-                          data-original-val="{% if sheet.suggestions[col] %}{{ sheet.suggestions[col] }}{% else %}ignore{% endif %}">
-                          <option value="ignore">[Ignore / Keep As Is]</option>
-                          <option value="__discard__" class="text-danger">[Ignore & Discard Column]</option>
-                          <optgroup label="Master Columns">
-                            {% for m in master_fields %}
-                            <option value="master:{{ m.identifier }}" {% if sheet.suggestions[col]=='master:' ~ m.identifier
-                              %}selected{% endif %}>{{ m.name }}</option>
-                            {% endfor %}
-                          </optgroup>
-                          <optgroup label="Custom Fields">
-                            {% for c in custom_fields_registry %}
-                            <option value="custom:{{ c.id }}" {% if sheet.suggestions[col]=='custom:' ~ c.id %}selected{%
-                              endif %}>{{ c.field_name }}</option>
-                            {% endfor %}
-                          </optgroup>
-                        </select>
-                        <button class="btn btn-outline-secondary btn-ignore-column" type="button" title="Ignore & Discard Column">
-                          <i class="bi bi-eye-slash"></i> Ignore
-                        </button>
-                      </div>
-                    </div>
-                    {% endfor %}
+
+              <!-- Card body -->
+              <div class="col-card-body">
+                <div class="row g-2" id="rules_grid_master_{{ m.identifier }}">
+                  {% for rule_key, rule_meta in RULES_REGISTRY.items() %}
+                  {% set allowed = rule_meta.get('allowed_types', []) %}
+                  {% set match_type = m.type if m.type != 'company' and m.type != 'name' else 'text' %}
+                  <div class="col-md-3 col-sm-4 rule-option" id="ruleoption_master_{{ m.identifier }}_{{ rule_key }}"
+                    data-col="master_{{ m.identifier }}" data-allowed="{{ allowed|join(',') }}" {% if match_type not in
+                    allowed %}style="display:none;" {% endif %}>
+                    <label class="rule-check-wrap {% if rule_key.startswith('predefined_') %}predefined-highlight{% endif %}" style="width:100%;">
+                      <input type="checkbox" class="form-check-input" name="rules_master_{{ m.identifier }}[]"
+                        value="{{ rule_key }}" id="{{ rule_key }}_master_{{ m.identifier }}" {% if 'master_' ~
+                        m.identifier in selected_rule_map and rule_key in selected_rule_map['master_' ~ m.identifier]
+                        %}checked{% endif %}>
+                      <span class="rule-label">
+                        {% if rule_key.startswith('predefined_') %}
+                        <span class="badge text-white rounded-pill px-2 py-0.5 me-1" style="background-color:var(--red-accent, #b91c1c); font-size: 0.6rem;">Predefined</span>
+                        {% endif %}
+                        {{ rule_meta["label"] }}
+                      </span>
+                    </label>
                   </div>
+                  {% endfor %}
+                </div>
+
+                <!-- Strategy dropdown for handle_missing -->
+                {% set is_checked = 'master_' ~ m.identifier in selected_rule_map and "handle_missing" in
+                selected_rule_map['master_' ~ m.identifier] %}
+                {% set saved_strategy = selected_strategy_map.get('master_' ~ m.identifier, "") %}
+                <div class="strategy-row" id="strategy_wrapper_master_{{ m.identifier }}"
+                  data-initially-visible="{{ 'true' if is_checked else 'false' }}" data-col-type="{{ m.type }}">
+                  <small class="text-muted fw-semibold text-nowrap" style="font-size:0.8rem;">
+                    <i class="bi bi-funnel me-1"></i>Missing value strategy:
+                  </small>
+                  <select class="form-select form-select-sm" style="width:auto;min-width:210px;"
+                    name="strategy_master_{{ m.identifier }}" id="strategy_select_master_{{ m.identifier }}">
+                    <option value="flag" {% if saved_strategy in ("flag","") %}selected{% endif %}>Flag as invalid
+                      (default)</option>
+                    <option value="drop" {% if saved_strategy=="drop" %}selected{% endif %}>Drop row</option>
+                    <option value="mean" {% if saved_strategy=="mean" %}selected{% endif %}>Fill with mean (numeric)
+                      </option>
+                    <option value="median" {% if saved_strategy=="median" %}selected{% endif %}>Fill with median (numeric)
+                      </option>
+                    <option value="placeholder" {% if saved_strategy=="placeholder" %}selected{% endif %}>Fill with
+                      "Unknown" (text)</option>
+                  </select>
                 </div>
               </div>
             </div>
             {% endfor %}
-          </div>
 
-          <h5 class="fw-bold mb-3 text-dark mt-4"><i class="bi bi-shield-check me-2 text-danger"></i>2. Configure Master
-            Column Rules</h5>
+          {% else %}
+            <!-- --- EXCEL/SPREADSHEET CLEANING VIEW --- -->
+            <h5 class="fw-bold mb-3 text-dark"><i class="bi bi-file-earmark-spreadsheet-fill me-2 text-danger"></i>Configure Rules for Uploaded Columns</h5>
+            <p class="text-muted small mb-4">Select system mapping and configure cleaning/validation rules for each column in the uploaded file.</p>
 
-          <!-- 2. Master columns rule list -->
-          {% for m in master_fields %}
-          <div class="col-card" id="master_rule_card_{{ m.identifier }}">
-            <!-- Card header: name + type badge -->
-            <div class="col-card-header">
-              <h6>
-                {{ m.name }}
-                <span class="type-badge badge-{{ m.type }}">{{ m.type }}</span>
-              </h6>
-              <div class="form-check mb-0 d-flex align-items-center gap-2">
-                <input type="checkbox" class="form-check-input select-all-col" data-col="master_{{ m.identifier }}"
-                  id="selectall_master_{{ m.identifier }}">
-                <label class="form-check-label" style="font-size:0.78rem;color:#6b7280;cursor:pointer;"
-                  for="selectall_master_{{ m.identifier }}">Select all</label>
-              </div>
-            </div>
+            {% for sheet in sheet_data %}
+            {% set sheet_idx = loop.index %}
+              <div class="mb-4">
+                <div class="alert alert-danger py-2 px-3 mb-3 border-0" style="border-radius: 8px; background: #fef2f2; color: #b91c1c; font-weight: 500;">
+                  <i class="bi bi-file-earmark-excel-fill me-2"></i>File: <strong>{{ sheet.original_filename }}</strong> 
+                  {% if sheet.sheet_name and sheet.sheet_name != 'CSV' %}
+                  &nbsp;|&nbsp; Sheet: <strong>{{ sheet.sheet_name }}</strong>
+                  {% endif %}
+                  &nbsp;({{ sheet.columns|length }} columns found)
+                </div>
 
-            <!-- Card body -->
-            <div class="col-card-body">
-              <div class="row g-2" id="rules_grid_master_{{ m.identifier }}">
-                {% for rule_key, rule_meta in RULES_REGISTRY.items() %}
-                {% set allowed = rule_meta.get('allowed_types', []) %}
-                {% set match_type = m.type if m.type != 'company' and m.type != 'name' else 'text' %}
-                <div class="col-md-3 col-sm-4 rule-option" id="ruleoption_master_{{ m.identifier }}_{{ rule_key }}"
-                  data-col="master_{{ m.identifier }}" data-allowed="{{ allowed|join(',') }}" {% if match_type not in
-                  allowed %}style="display:none;" {% endif %}>
-                  <label class="rule-check-wrap {% if rule_key.startswith('predefined_') %}predefined-highlight{% endif %}" style="width:100%;">
-                    <input type="checkbox" class="form-check-input" name="rules_master_{{ m.identifier }}[]"
-                      value="{{ rule_key }}" id="{{ rule_key }}_master_{{ m.identifier }}" {% if 'master_' ~
-                      m.identifier in column_rule_map and rule_key in column_rule_map['master_' ~ m.identifier]
-                      %}checked{% endif %}>
-                    <span class="rule-label">
-                      {% if rule_key.startswith('predefined_') %}
-                      <span class="badge text-white rounded-pill px-2 py-0.5 me-1" style="background-color:var(--red-accent, #b91c1c); font-size: 0.6rem;">Predefined</span>
+                {% for col in sheet.columns %}
+                {% set col_type = sheet.column_type_map[col] %}
+                {% set safe_col = col|replace(' ', '_') %}
+                <div class="col-card" id="excel_rule_card_{{ sheet.sheet_id }}_{{ safe_col }}">
+                  
+                  <!-- Card Header: Column Name + Auto-Type Badge + Type Override + Select All -->
+                  <div class="col-card-header d-flex justify-content-between align-items-center flex-wrap gap-3 py-2 px-3">
+                    <h6 class="mb-0 d-flex align-items-center gap-2 flex-wrap">
+                      <span class="fw-bold text-dark">{{ col }}</span>
+                      <span class="type-badge {{ badgeClasses[col_type] if col_type in badgeClasses else 'badge-text' }}" id="badge_excel_{{ safe_col }}">{{ col_type|upper }}</span>
+                    </h6>
+                    
+                    <div class="d-flex align-items-center gap-3 flex-wrap">
+                      <!-- Type Override Dropdown -->
+                      <div class="d-flex align-items-center gap-1">
+                        <small class="text-muted" style="font-size: 0.72rem;">Type:</small>
+                        <select class="form-select form-select-sm type-override-select" id="type_override_excel_{{ safe_col }}" name="type_override_excel_{{ safe_col }}" data-col="excel_{{ safe_col }}" data-auto="{{ col_type }}" style="font-size: 0.75rem; padding: 2px 24px 2px 8px; height: auto; width: auto; min-width: 100px;">
+                          <option value="">Auto ({{ col_type|title }})</option>
+                          <option value="text">Text</option>
+                          <option value="email">Email</option>
+                          <option value="phone">Phone</option>
+                          <option value="url">URL</option>
+                          <option value="numeric">Numeric</option>
+                          <option value="date">Date</option>
+                        </select>
+                      </div>
+
+                      <!-- Select All rules check -->
+                      <div class="form-check mb-0 d-flex align-items-center gap-2">
+                        <input type="checkbox" class="form-check-input select-all-col" data-col="excel_{{ safe_col }}" id="selectall_excel_{{ safe_col }}">
+                        <label class="form-check-label" style="font-size:0.78rem;color:#6b7280;cursor:pointer;" for="selectall_excel_{{ safe_col }}">Select all</label>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Card Body -->
+                  <div class="col-card-body p-3">
+                    
+                    <!-- 1. Schema Mapping Field Row -->
+                    <div class="row mb-3 align-items-center">
+                      <div class="col-lg-3 col-md-4">
+                        <label class="form-label mb-lg-0 fw-bold d-flex align-items-center gap-1" style="font-size: 0.82rem;">
+                          <i class="bi bi-shuffle text-danger"></i> Match to System Field:
+                        </label>
+                      </div>
+                      <div class="col-lg-5 col-md-8">
+                        <select class="form-select form-select-sm mapping-select"
+                          name="map_col_{{ sheet.sheet_id }}_{{ safe_col }}"
+                          data-original-val="{% if sheet.suggestions[col] %}{{ sheet.suggestions[col] }}{% else %}ignore{% endif %}"
+                          style="font-size: 0.82rem;">
+                          <option value="ignore">[Ignore / Keep As Is]</option>
+                          <option value="__discard__" class="text-danger">[Ignore & Discard Column]</option>
+                          <optgroup label="Master Columns">
+                            {% for m in master_fields %}
+                            <option value="master:{{ m.identifier }}" {% if sheet.suggestions[col] == 'master:' ~ m.identifier %}selected{% endif %}>{{ m.name }}</option>
+                            {% endfor %}
+                          </optgroup>
+                          <optgroup label="Custom Fields">
+                            {% for c in custom_fields_registry %}
+                            <option value="custom:{{ c.id }}" {% if sheet.suggestions[col] == 'custom:' ~ c.id %}selected{% endif %}>{{ c.field_name }}</option>
+                            {% endfor %}
+                          </optgroup>
+                        </select>
+                      </div>
+                    </div>
+
+                    <!-- 2. Cleaning Rules Checkboxes Grid -->
+                    <div class="row g-2" id="rules_grid_excel_{{ safe_col }}">
+                      {% for rule_key, rule_meta in RULES_REGISTRY.items() %}
+                      {% set allowed = rule_meta.get('allowed_types', []) %}
+                      
+                      {% set is_checked = false %}
+                      {% if col in selected_rule_map and rule_key in selected_rule_map[col] %}
+                        {% set is_checked = true %}
+                      {% elif sheet.suggestions[col] %}
+                        {% if sheet.suggestions[col].startswith('master:') %}
+                          {% set target_key = 'master_' ~ sheet.suggestions[col].split('master:')[1] %}
+                          {% if target_key in selected_rule_map and rule_key in selected_rule_map[target_key] %}
+                            {% set is_checked = true %}
+                          {% endif %}
+                        {% elif sheet.suggestions[col].startswith('custom:') %}
+                          {% set target_key = 'custom_' ~ sheet.suggestions[col].split('custom:')[1] %}
+                          {% if target_key in selected_rule_map and rule_key in selected_rule_map[target_key] %}
+                            {% set is_checked = true %}
+                          {% endif %}
+                        {% endif %}
                       {% endif %}
-                      {{ rule_meta["label"] }}
-                    </span>
-                  </label>
+                      
+                      <div class="col-md-3 col-sm-4 rule-option" id="ruleoption_excel_{{ safe_col }}_{{ rule_key }}"
+                        data-col="excel_{{ safe_col }}" data-allowed="{{ allowed|join(',') }}" {% if col_type not in allowed %}style="display:none;"{% endif %}>
+                        <label class="rule-check-wrap {% if rule_key.startswith('predefined_') %}predefined-highlight{% endif %}" style="width:100%;">
+                          <input type="checkbox" class="form-check-input" name="rules_excel_{{ safe_col }}[]"
+                            value="{{ rule_key }}" id="{{ rule_key }}_{{ sheet.sheet_id }}_{{ safe_col }}" {% if is_checked %}checked{% endif %}>
+                          <span class="rule-label">
+                            {% if rule_key.startswith('predefined_') %}
+                            <span class="badge text-white rounded-pill px-2 py-0.5 me-1" style="background-color:var(--red-accent, #b91c1c); font-size: 0.6rem;">Predefined</span>
+                            {% endif %}
+                            {{ rule_meta["label"] }}
+                          </span>
+                        </label>
+                      </div>
+                      {% endfor %}
+                    </div>
+
+                    <!-- 3. Missing Value Strategy Row -->
+                    {% set initial_strategy_visible = false %}
+                    {% if col in selected_rule_map and "handle_missing" in selected_rule_map[col] %}
+                      {% set initial_strategy_visible = true %}
+                    {% endif %}
+                    <div class="strategy-row mt-3 pt-3 border-top {% if initial_strategy_visible %}visible{% endif %}" id="strategy_wrapper_excel_{{ safe_col }}" data-col-type="{{ col_type }}">
+                      <small class="text-muted fw-semibold text-nowrap" style="font-size:0.8rem;">
+                        <i class="bi bi-funnel me-1"></i>Missing value strategy:
+                      </small>
+                      <select class="form-select form-select-sm" style="width:auto;min-width:210px;"
+                        name="strategy_excel_{{ safe_col }}" id="strategy_select_excel_{{ safe_col }}">
+                        <option value="flag">Flag as invalid (default)</option>
+                        <option value="drop">Drop row</option>
+                        <option value="mean">Fill with mean (numeric)</option>
+                        <option value="median">Fill with median (numeric)</option>
+                        <option value="placeholder">Fill with "Unknown" (text)</option>
+                      </select>
+                    </div>
+
+                  </div>
                 </div>
                 {% endfor %}
               </div>
-
-              <!-- Strategy dropdown for handle_missing -->
-              {% set is_checked = 'master_' ~ m.identifier in column_rule_map and "handle_missing" in
-              column_rule_map['master_' ~ m.identifier] %}
-              {% set saved_strategy = selected_strategy_map.get('master_' ~ m.identifier, "") %}
-              <div class="strategy-row" id="strategy_wrapper_master_{{ m.identifier }}"
-                data-initially-visible="{{ 'true' if is_checked else 'false' }}" data-col-type="{{ m.type }}">
-                <small class="text-muted fw-semibold text-nowrap" style="font-size:0.8rem;">
-                  <i class="bi bi-funnel me-1"></i>Missing value strategy:
-                </small>
-                <select class="form-select form-select-sm" style="width:auto;min-width:210px;"
-                  name="strategy_master_{{ m.identifier }}" id="strategy_select_master_{{ m.identifier }}">
-                  <option value="flag" {% if saved_strategy in ("flag","") %}selected{% endif %}>Flag as invalid
-                    (default)</option>
-                  <option value="drop" {% if saved_strategy=="drop" %}selected{% endif %}>Drop row</option>
-                  <option value="mean" {% if saved_strategy=="mean" %}selected{% endif %}>Fill with mean (numeric)
-                  </option>
-                  <option value="median" {% if saved_strategy=="median" %}selected{% endif %}>Fill with median (numeric)
-                  </option>
-                  <option value="placeholder" {% if saved_strategy=="placeholder" %}selected{% endif %}>Fill with
-                    "Unknown" (text)</option>
-                </select>
-              </div>
-            </div>
-          </div>
-          {% endfor %}
+            {% endfor %}
+          {% endif %}
 
           <!-- 3. Custom Fields Rules Config Section -->
           <div class="d-flex justify-content-between align-items-center mb-3 mt-5">
@@ -897,23 +981,7 @@
             <!-- Dynamically populated custom field rule cards -->
           </div>
 
-          <!-- Store in Database Option -->
-          <div class="card shadow-sm border mb-3">
-            <div class="card-body py-3 d-flex align-items-center justify-content-between">
-              <div class="d-flex align-items-center gap-3">
-                <div class="theme-icon-container" style="background:#fee2e2;color:#ef4444;width:40px;height:40px;border-radius:8px;display:flex;align-items:center;justify-content:center;">
-                  <i class="bi bi-database-fill-down fs-5"></i>
-                </div>
-                <div>
-                  <h6 class="mb-0 fw-bold text-dark">Save to System Database</h6>
-                  <p class="text-muted small mb-0">Store successfully cleaned and validated rows into the master records table.</p>
-                </div>
-              </div>
-              <div class="form-check form-switch fs-5">
-                <input class="form-check-input" type="checkbox" name="store_in_db" id="storeInDbSwitch" value="1" checked>
-              </div>
-            </div>
-          </div>
+
 
           <!-- Submit bar -->
           <div class="submit-bar">
@@ -1120,6 +1188,44 @@
 
         // Type override dropdown — update visible rules on change
         document.addEventListener("change", function (e) {
+
+          // Handle mapping select dropdown change
+          if (e.target && e.target.classList && e.target.classList.contains("mapping-select")) {
+            const selectVal = e.target.value;
+            const card = e.target.closest(".col-card");
+            if (!card) return;
+
+            const typeOverrideSelect = card.querySelector(".type-override-select");
+            if (!typeOverrideSelect) return;
+            
+            const colId = typeOverrideSelect.dataset.col;
+
+            let resolvedType = "";
+            if (selectVal.startsWith("master:")) {
+              const targetIdentifier = selectVal.split("master:")[1];
+              const chooseRulesData = document.getElementById("chooseRulesData");
+              const masterFields = JSON.parse(chooseRulesData.getAttribute("data-master-fields") || "[]");
+              const targetField = masterFields.find(f => f.identifier === targetIdentifier);
+              if (targetField) {
+                resolvedType = targetField.type;
+              }
+            } else if (selectVal.startsWith("custom:")) {
+              const targetFid = selectVal.split("custom:")[1];
+              const chooseRulesData = document.getElementById("chooseRulesData");
+              const customFields = JSON.parse(chooseRulesData.getAttribute("data-custom-fields") || "[]");
+              const targetField = customFields.find(f => String(f.id) === String(targetFid));
+              if (targetField) {
+                resolvedType = targetField.data_type;
+              }
+            }
+
+            if (resolvedType) {
+              typeOverrideSelect.value = resolvedType;
+              typeOverrideSelect.dispatchEvent(new Event("change", { bubbles: true }));
+              syncSelectAllForCol(colId);
+            }
+            return;
+          }
 
           // Handle type override dropdown change
           if (e.target && e.target.id && e.target.id.startsWith("type_override_")) {
@@ -1498,6 +1604,9 @@
 
           // Real-time visibility toggle for master column rule cards
           function updateMasterRuleCardsVisibility() {
+            if (document.querySelectorAll(".mapping-select").length === 0) {
+              return;
+            }
             const mappedMasterFields = new Set();
             document.querySelectorAll(".mapping-select").forEach(select => {
               const val = select.value;

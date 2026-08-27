@@ -482,7 +482,7 @@ try:
     import json
     default_predefined_rules = {
         "email": {"validate_email": True, "lowercase_email": True},
-        "phone": {"validate_phone": True, "remove_phone_91_prefix": False, "format_phone_number": False},
+        "phone": {"validate_phone": True, "remove_phone_91_prefix": True, "format_phone_number": True},
         "numeric": {"validate_numeric": True, "normalize_currency": False},
         "text": {"clean_special_chars": True, "title_case_text": True, "trim_whitespace": True},
         "url": {"validate_url": True, "normalize_url_protocol": False},

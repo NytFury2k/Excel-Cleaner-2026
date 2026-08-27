@@ -2268,6 +2268,7 @@ def clean_data():
         return redirect(url_for("login"))
     
     uploaded_sheets = session.get("uploaded_sheets", [])
+    is_existing_db = (session.get("uploaded_file") == "Existing Database Records")
     if not uploaded_sheets:
         temp_path = session.get("temp_file")
         if temp_path and os.path.exists(temp_path):
@@ -2352,6 +2353,11 @@ def clean_data():
         cols_to_drop = []
         for column in df.columns:
             safe_col = column.replace(" ", "_")
+            
+            override_val = request.form.get(f"type_override_excel_{safe_col}")
+            if override_val:
+                type_overrides[column] = override_val
+                
             target = request.form.get(f"map_col_{sheet_id}_{safe_col}") or request.form.get(f"map_col_{safe_col}")
             if target == '__discard__':
                 cols_to_drop.append(column)
@@ -2368,20 +2374,24 @@ def clean_data():
                 # Backwards compatibility fallback
                 target = request.form.get(f"map_col_{safe_col}")
                 
-            if not target or target == 'ignore':
-                continue
-                
             rules_list = []
             strategy = "flag"
             
-            if target.startswith("master:"):
-                col_name = target.split("master:")[1]
-                rules_list = master_rules_saved.get(col_name, {}).get("rules", [])
-                strategy = master_rules_saved.get(col_name, {}).get("strategy", "flag")
-            elif target.startswith("custom:"):
-                fid = target.split("custom:")[1]
-                rules_list = custom_rules_by_field_id.get(fid, {}).get("rules", [])
-                strategy = custom_rules_by_field_id.get(fid, {}).get("strategy", "flag")
+            excel_rules = request.form.getlist(f"rules_excel_{safe_col}[]")
+            if excel_rules:
+                rules_list = excel_rules
+                strategy = request.form.get(f"strategy_excel_{safe_col}", "flag")
+            else:
+                if not target or target == 'ignore' or target == '__discard__':
+                    continue
+                if target.startswith("master:"):
+                    col_name = target.split("master:")[1]
+                    rules_list = master_rules_saved.get(col_name, {}).get("rules", [])
+                    strategy = master_rules_saved.get(col_name, {}).get("strategy", "flag")
+                elif target.startswith("custom:"):
+                    fid = target.split("custom:")[1]
+                    rules_list = custom_rules_by_field_id.get(fid, {}).get("rules", [])
+                    strategy = custom_rules_by_field_id.get(fid, {}).get("strategy", "flag")
                 
             for rule_name in rules_list:
                 rule_name = rule_name.strip()
@@ -2408,6 +2418,39 @@ def clean_data():
             type_overrides=type_overrides
         )
         
+        # Enrich detailed_errors with identifier values
+        id_col = None
+        for col in df.columns:
+            col_lower = col.lower()
+            if col_lower in ('id', 'lead id', 'lead_id', 'record id', 'record_id', 'customer id', 'customer_id', 'user_id', 'userid'):
+                id_col = col
+                break
+        
+        if not id_col:
+            for col in df.columns:
+                if 'id' in col.lower():
+                    id_col = col
+                    break
+                    
+        if not id_col:
+            for col in df.columns:
+                col_lower = col.lower()
+                if 'name' in col_lower:
+                    id_col = col
+                    break
+                    
+        if not id_col and len(df.columns) > 0:
+            id_col = df.columns[0]
+            
+        for error in detailed_errors:
+            idx = error.get("row_index")
+            if idx is not None and idx in df.index:
+                if id_col:
+                    val = df.loc[idx, id_col]
+                    error["identifier_val"] = str(val).strip() if pd.notna(val) else None
+                else:
+                    error["identifier_val"] = None
+
         valid_after += len(cleaned_df)
         invalid_after += len(invalid_df)
         removed_count += len(removed_rows)
@@ -2532,190 +2575,73 @@ def clean_data():
     except Exception:
         pass
 
-    # ── Store in DB if requested ──────────────────────────────────────────────
-    store_in_db = request.form.get("store_in_db", "0") == "1"
-    db_stored_count = 0
-    db_store_error  = None
-
-    if store_in_db:
-        # Master field identifier → DB column name (1-to-1 match by convention)
-        MASTER_FIELD_IDENTIFIERS = {"first_name", "last_name"}
-
-        # Build per-sheet column → master_field mapping from form data with dynamic custom fields creation
-        sheet_col_mappings = {}  # { sheet_id: { original_col: target_identifier } }
-        try:
-            conn_map = get_db_connection()
-            cursor_map = conn_map.cursor(dictionary=True)
-            
-            # Fetch physical columns
-            cursor_map.execute("SELECT column_name AS column_name FROM information_schema.columns WHERE table_name = 'master_records' AND table_schema = DATABASE()")
-            db_cols = {row['column_name'] for row in cursor_map.fetchall()}
-            
-            for sheet in uploaded_sheets:
-                sid = sheet["sheet_id"]
-                sheet_col_mappings[sid] = {}
-                # Read columns from results to get actual df columns
-                for res in results:
-                    if res.get("safe_sheet_name") == sheet["safe_sheet_name"]:
-                        for col in res["cleaned_df"].columns:
-                            safe_col = col.replace(" ", "_")
-                            target = request.form.get(f"map_col_{sid}_{safe_col}") or \
-                                     request.form.get(f"map_col_{safe_col}")
-                                     
-                            if target == '__discard__':
-                                continue
-                                
-                            if target == 'ignore' or not target:
-                                # Resolve and create dynamic custom field now!
-                                norm_col = col.strip().lower().replace(" ", "_")
-                                if norm_col in db_cols:
-                                    target = f"master:{norm_col}"
+    # Build per-sheet column -> master_field mapping from form data with dynamic custom fields creation
+    sheet_col_mappings = {}  # { sheet_id: { original_col: target_identifier } }
+    try:
+        conn_map = get_db_connection()
+        cursor_map = conn_map.cursor(dictionary=True)
+        
+        # Fetch physical columns
+        cursor_map.execute("SELECT column_name AS column_name FROM information_schema.columns WHERE table_name = 'master_records' AND table_schema = DATABASE()")
+        db_cols = {row['column_name'] for row in cursor_map.fetchall()}
+        
+        for sheet in uploaded_sheets:
+            sid = sheet["sheet_id"]
+            sheet_col_mappings[sid] = {}
+            for res in results:
+                if res.get("safe_sheet_name") == sheet["safe_sheet_name"]:
+                    for col in res["cleaned_df"].columns:
+                        safe_col = col.replace(" ", "_")
+                        target = request.form.get(f"map_col_{sid}_{safe_col}") or \
+                                 request.form.get(f"map_col_{safe_col}")
+                                 
+                        if target == '__discard__':
+                            continue
+                            
+                        if target == 'ignore' or not target:
+                            norm_col = col.strip().lower().replace(" ", "_")
+                            if norm_col in db_cols:
+                                target = f"master:{norm_col}"
+                            else:
+                                cursor_map.execute("SELECT target_type, target_identifier FROM field_aliases WHERE normalized_alias = %s", (norm_col,))
+                                alias_row = cursor_map.fetchone()
+                                if alias_row:
+                                    target = f"{alias_row['target_type']}:{alias_row['target_identifier']}"
                                 else:
-                                    # Match aliases
-                                    cursor_map.execute("SELECT target_type, target_identifier FROM field_aliases WHERE normalized_alias = %s", (norm_col,))
-                                    alias_row = cursor_map.fetchone()
-                                    if alias_row:
-                                        target = f"{alias_row['target_type']}:{alias_row['target_identifier']}"
+                                    cursor_map.execute("SELECT id FROM field_registry WHERE normalized_name = %s", (norm_col,))
+                                    reg_row = cursor_map.fetchone()
+                                    if reg_row:
+                                        target = f"custom:{reg_row['id']}"
                                     else:
-                                        # Check Registry
-                                        cursor_map.execute("SELECT id FROM field_registry WHERE normalized_name = %s", (norm_col,))
-                                        reg_row = cursor_map.fetchone()
-                                        if reg_row:
-                                            target = f"custom:{reg_row['id']}"
-                                        else:
-                                            # Create new dynamic custom field
-                                            cursor_map.execute(
-                                                "INSERT INTO field_registry (field_name, normalized_name, data_type, usage_count) VALUES (%s, %s, %s, %s)",
-                                                (col, norm_col, 'VARCHAR', 1)
-                                            )
-                                            new_id = cursor_map.lastrowid
-                                            cursor_map.execute(
-                                                "INSERT INTO field_aliases (alias, normalized_alias, target_type, target_identifier) VALUES (%s, %s, 'custom', %s)",
-                                                (col, norm_col, str(new_id))
-                                            )
-                                            target = f"custom:{new_id}"
-                                            
-                            if target and (target.startswith("master:") or target.startswith("custom:")):
-                                sheet_col_mappings[sid][col] = target
-                                
-            conn_map.commit()
+                                        cursor_map.execute(
+                                            "INSERT INTO field_registry (field_name, normalized_name, data_type, usage_count) VALUES (%s, %s, %s, %s)",
+                                            (col, norm_col, 'VARCHAR', 1)
+                                        )
+                                        new_id = cursor_map.lastrowid
+                                        cursor_map.execute(
+                                            "INSERT INTO field_aliases (alias, normalized_alias, target_type, target_identifier) VALUES (%s, %s, 'custom', %s)",
+                                            (col, norm_col, str(new_id))
+                                        )
+                                        target = f"custom:{new_id}"
+                                        
+                        if target and (target.startswith("master:") or target.startswith("custom:")):
+                            sheet_col_mappings[sid][col] = target
+                            
+        conn_map.commit()
+        conn_map.close()
+    except Exception as _map_err:
+        app.logger.error(f"Error resolving columns dynamic mappings: {_map_err}")
+        if 'conn_map' in locals() and conn_map:
+            conn_map.rollback()
             conn_map.close()
-        except Exception as _map_err:
-            import traceback
-            traceback.print_exc()
-            app.logger.error(f"Error resolving columns dynamic mappings: {_map_err}")
-            if 'conn_map' in locals() and conn_map:
-                conn_map.rollback()
-                conn_map.close()
 
-        try:
-            conn_store = get_db_connection()
-            cursor_store = conn_store.cursor(dictionary=True)
-            
-            # Dynamically fetch existing columns of master_records table
-            cursor_store.execute("SELECT column_name AS column_name FROM information_schema.columns WHERE table_name = 'master_records' AND table_schema = DATABASE()")
-            db_cols = {row['column_name'] for row in cursor_store.fetchall()}
+    session["sheet_col_mappings"] = sheet_col_mappings
+    session["stored_cleaned"] = False
+    session["stored_invalid"] = False
+    session["stored_removed"] = False
+    db_stored_count = 0
+    store_in_db = False
 
-            # Resolve the department manager ID for the uploading user to tag rows
-            cursor_store.execute("SELECT id, role, manager_id FROM users WHERE id = %s", (session["user_id"],))
-            uploader_info = cursor_store.fetchone()
-            uploader_mgr_id = None
-            if uploader_info:
-                if uploader_info["role"] == "manager":
-                    uploader_mgr_id = uploader_info["id"]
-                else:
-                    curr_mgr_lookup = uploader_info["manager_id"]
-                    visited_mgrs = set()
-                    while curr_mgr_lookup:
-                        if curr_mgr_lookup in visited_mgrs:
-                            break
-                        visited_mgrs.add(curr_mgr_lookup)
-                        cursor_store.execute("SELECT id, role, manager_id FROM users WHERE id = %s", (curr_mgr_lookup,))
-                        next_user = cursor_store.fetchone()
-                        if not next_user:
-                            break
-                        if next_user["role"] == "manager":
-                            uploader_mgr_id = curr_mgr_lookup
-                            break
-                        curr_mgr_lookup = next_user["manager_id"]
-            
-            from datetime import datetime as _dt
-            imported_by = "unknown"
-            if "user_id" in session:
-                cursor_store.execute("SELECT username FROM users WHERE id = %s", (session["user_id"],))
-                u_row = cursor_store.fetchone()
-                if u_row:
-                    imported_by = u_row["username"]
-            now = _dt.utcnow()
-
-            for sheet, res in zip(uploaded_sheets, results):
-                sid = sheet["sheet_id"]
-                mapping = sheet_col_mappings.get(sid, {})
-                if not mapping:
-                    continue  # no columns mapped for this sheet — skip
-
-                cleaned = res["cleaned_df"]
-                for _, row in cleaned.iterrows():
-                    record = {}
-                    custom_data = {}
-                    for col, target in mapping.items():
-                        val = row.get(col)
-                        if val is not None and str(val).strip() not in ("", "nan", "NaT"):
-                            val_str = str(val).strip()
-                            if target.startswith("master:"):
-                                master_id = target.split("master:")[1]
-                                if master_id == "full_name":
-                                    parts = val_str.split(None, 1)
-                                    if len(parts) > 0:
-                                        record['first_name'] = parts[0]
-                                    if len(parts) > 1:
-                                        record['last_name'] = parts[1]
-                                else:
-                                    record[master_id] = val_str
-                            elif target.startswith("custom:"):
-                                fid = target.split("custom:")[1]
-                                custom_data[fid] = val_str
-
-                    # Build dynamic insert columns and values
-                    cols_to_insert = ['file_id', 'created_at', 'updated_at', 'imported_by']
-                    vals_to_insert = [sheet.get("file_id", 0), now, now, imported_by]
-                    if 'manager_id' in db_cols:
-                        cols_to_insert.append('manager_id')
-                        vals_to_insert.append(uploader_mgr_id)
-
-                    # Add mapped record fields that exist in the database table
-                    for col_name, col_val in record.items():
-                        if col_name in db_cols and col_name not in ('id', 'file_id', 'created_at', 'updated_at', 'imported_by', 'custom_fields', 'manager_id'):
-                            cols_to_insert.append(col_name)
-                            vals_to_insert.append(col_val)
-
-                    # Add custom_fields JSON
-                    if 'custom_fields' in db_cols:
-                        cols_to_insert.append('custom_fields')
-                        vals_to_insert.append(json.dumps(custom_data) if custom_data else None)
-
-                    # Build insert sql
-                    placeholders = ", ".join(["%s"] * len(vals_to_insert))
-                    col_names_escaped = [f'`{c}`' for c in cols_to_insert]
-                    insert_sql = f"INSERT INTO master_records ({', '.join(col_names_escaped)}) VALUES ({placeholders})"
-                    
-                    cursor_store.execute(insert_sql, vals_to_insert)
-                    db_stored_count += 1
-
-            conn_store.commit()
-            conn_store.close()
-            flash(f"✅ {db_stored_count} cleaned record(s) saved to the database successfully.", "success")
-            log_action(session["user_id"], f"Stored {db_stored_count} cleaned records to master_records DB")
-
-        except Exception as _db_err:
-            db_store_error = str(_db_err)
-            app.logger.error(f"DB store error during clean: {_db_err}")
-            flash(f"Cleaning completed but DB storage failed: {_db_err}", "warning")
-            try:
-                conn_store.rollback()
-                conn_store.close()
-            except Exception:
-                pass
     # ─────────────────────────────────────────────────────────────────────────
 
     if valid_after == 0:
@@ -2763,8 +2689,420 @@ def clean_data():
         invalid_rows=invalid_after,
         removed=removed_count,
         store_in_db=store_in_db,
-        db_stored_count=db_stored_count
+        db_stored_count=db_stored_count,
+        is_existing_db=is_existing_db
     )
+
+@app.route("/api/store-cleaned", methods=["GET", "POST"])
+@login_required()
+def store_cleaned_endpoint():
+    cleaned_file = session.get("cleaned_file")
+    sheet_col_mappings = session.get("sheet_col_mappings") or {}
+    uploaded_sheets = session.get("uploaded_sheets") or []
+    
+    if not cleaned_file or not os.path.exists(cleaned_file):
+        flash("Cleaned records file not found. Please re-run cleaning.", "danger")
+        return redirect(url_for("choose_rules"))
+        
+    conn_store = None
+    try:
+        conn_store = get_db_connection()
+        cursor_store = conn_store.cursor(dictionary=True)
+        
+        # Dynamically fetch existing columns of master_records table
+        cursor_store.execute("SELECT column_name AS column_name FROM information_schema.columns WHERE table_name = 'master_records' AND table_schema = DATABASE()")
+        db_cols = {row['column_name'] for row in cursor_store.fetchall()}
+
+        # Resolve the department manager ID for the uploading user to tag rows
+        cursor_store.execute("SELECT id, role, manager_id FROM users WHERE id = %s", (session["user_id"],))
+        uploader_info = cursor_store.fetchone()
+        uploader_mgr_id = None
+        if uploader_info:
+            if uploader_info["role"] == "manager":
+                uploader_mgr_id = uploader_info["id"]
+            else:
+                curr_mgr_lookup = uploader_info["manager_id"]
+                visited_mgrs = set()
+                while curr_mgr_lookup:
+                    if curr_mgr_lookup in visited_mgrs:
+                        break
+                    visited_mgrs.add(curr_mgr_lookup)
+                    cursor_store.execute("SELECT id, role, manager_id FROM users WHERE id = %s", (curr_mgr_lookup,))
+                    next_user = cursor_store.fetchone()
+                    if not next_user:
+                        break
+                    if next_user["role"] == "manager":
+                        uploader_mgr_id = curr_mgr_lookup
+                        break
+                    curr_mgr_lookup = next_user["manager_id"]
+        
+        from datetime import datetime as _dt
+        imported_by = "unknown"
+        if "user_id" in session:
+            cursor_store.execute("SELECT username FROM users WHERE id = %s", (session["user_id"],))
+            u_row = cursor_store.fetchone()
+            if u_row:
+                imported_by = u_row["username"]
+        now = _dt.utcnow()
+
+        db_stored_count = 0
+        with pd.ExcelFile(cleaned_file) as xls:
+            for sheet in uploaded_sheets:
+                sid = sheet["sheet_id"]
+                safe_sheet = sheet["safe_sheet_name"]
+                if safe_sheet not in xls.sheet_names:
+                    continue
+                    
+                mapping = sheet_col_mappings.get(sid, {})
+                if not mapping:
+                    continue  # no columns mapped for this sheet — skip
+
+                cleaned_df = pd.read_excel(cleaned_file, sheet_name=safe_sheet)
+                for _, row in cleaned_df.iterrows():
+                    record = {}
+                    custom_data = {}
+                    for col, target in mapping.items():
+                        val = row.get(col)
+                        if val is not None and str(val).strip() not in ("", "nan", "NaT"):
+                            val_str = str(val).strip()
+                            if target.startswith("master:"):
+                                master_id = target.split("master:")[1]
+                                if master_id == "full_name":
+                                    parts = val_str.split(None, 1)
+                                    if len(parts) > 0:
+                                        record['first_name'] = parts[0]
+                                    if len(parts) > 1:
+                                        record['last_name'] = parts[1]
+                                else:
+                                    record[master_id] = val_str
+                            elif target.startswith("custom:"):
+                                fid = target.split("custom:")[1]
+                                custom_data[fid] = val_str
+
+                    # Build dynamic insert columns and values
+                    cols_to_insert = ['file_id', 'created_at', 'updated_at', 'imported_by']
+                    vals_to_insert = [sheet.get("file_id", 0), now, now, imported_by]
+                    if 'manager_id' in db_cols:
+                        cols_to_insert.append('manager_id')
+                        vals_to_insert.append(uploader_mgr_id)
+
+                    # Add mapped record fields that exist in the database table
+                    for col_name, col_val in record.items():
+                        if col_name in db_cols and col_name not in ('id', 'file_id', 'created_at', 'updated_at', 'imported_by', 'custom_fields', 'manager_id'):
+                            cols_to_insert.append(col_name)
+                            vals_to_insert.append(col_val)
+
+                    # Add custom_fields JSON
+                    if 'custom_fields' in db_cols:
+                        cols_to_insert.append('custom_fields')
+                        vals_to_insert.append(json.dumps(custom_data) if custom_data else None)
+
+                    # Build insert sql
+                    placeholders = ", ".join(["%s"] * len(vals_to_insert))
+                    col_names_escaped = [f'`{c}`' for c in cols_to_insert]
+                    insert_sql = f"INSERT INTO master_records ({', '.join(col_names_escaped)}) VALUES ({placeholders})"
+                    
+                    cursor_store.execute(insert_sql, vals_to_insert)
+                    db_stored_count += 1
+                    
+            # Update uploaded files status with stored count
+            for sheet in uploaded_sheets:
+                fid = sheet.get("file_id")
+                if fid:
+                    cursor_store.execute(
+                        "UPDATE uploaded_files SET rows_imported = rows_imported + %s WHERE id = %s",
+                        (db_stored_count, fid)
+                    )
+
+        conn_store.commit()
+        conn_store.close()
+        
+        session["stored_cleaned"] = True
+        msg = f"✅ {db_stored_count} cleaned record(s) saved to the database successfully."
+        log_action(session["user_id"], f"Stored {db_stored_count} cleaned records to master_records DB")
+        if request.headers.get('Accept') == 'application/json' or request.is_json:
+            return jsonify({"status": "success", "message": msg})
+        flash(msg, "success")
+        
+    except Exception as e:
+        app.logger.error(f"Error storing cleaned records: {e}")
+        msg = f"Failed to store cleaned records in database: {e}"
+        if conn_store:
+            conn_store.close()
+        if request.headers.get('Accept') == 'application/json' or request.is_json:
+            return jsonify({"status": "error", "message": msg})
+        flash(msg, "danger")
+        
+    return redirect(url_for("choose_rules"))
+
+
+@app.route("/api/store-invalid", methods=["GET", "POST"])
+@login_required()
+def store_invalid_endpoint():
+    invalid_file = session.get("invalid_file")
+    uploaded_sheets = session.get("uploaded_sheets") or []
+    sheet_col_mappings = session.get("sheet_col_mappings") or {}
+    
+    if not invalid_file or not os.path.exists(invalid_file):
+        flash("Invalid records file not found.", "warning")
+        return redirect(url_for("choose_rules"))
+        
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        stored_count = 0
+        with pd.ExcelFile(invalid_file) as xls:
+            for sheet in uploaded_sheets:
+                sid = sheet["sheet_id"]
+                safe_sheet = sheet["safe_sheet_name"]
+                if safe_sheet not in xls.sheet_names:
+                    continue
+                    
+                mapping = sheet_col_mappings.get(sid, {})
+                df_invalid = pd.read_excel(invalid_file, sheet_name=safe_sheet)
+                for _, row in df_invalid.iterrows():
+                    record_dict = {}
+                    if not mapping:
+                        for k, v in row.items():
+                            if pd.notna(v):
+                                record_dict[k] = str(v)
+                    else:
+                        custom_data = {}
+                        for col, target in mapping.items():
+                            val = row.get(col)
+                            if val is not None and str(val).strip() not in ("", "nan", "NaT"):
+                                val_str = str(val).strip()
+                                if target.startswith("master:"):
+                                    master_id = target.split("master:")[1]
+                                    if master_id == "full_name":
+                                        parts = val_str.split(None, 1)
+                                        if len(parts) > 0:
+                                            record_dict['first_name'] = parts[0]
+                                        if len(parts) > 1:
+                                            record_dict['last_name'] = parts[1]
+                                    else:
+                                        record_dict[master_id] = val_str
+                                elif target.startswith("custom:"):
+                                    fid = target.split("custom:")[1]
+                                    custom_data[fid] = val_str
+                        if custom_data:
+                            record_dict['custom_fields'] = custom_data
+                            
+                    row_json = json.dumps(record_dict)
+                    cursor.execute(
+                        "INSERT INTO rejected_records (file_id, row_data) VALUES (%s, %s)",
+                        (sheet.get("file_id", 0), row_json)
+                    )
+                    stored_count += 1
+                
+        conn.commit()
+        conn.close()
+        
+        session["stored_invalid"] = True
+        msg = f"✅ {stored_count} invalid record(s) stored in database rejected_records successfully."
+        log_action(session["user_id"], f"Stored {stored_count} invalid records to rejected_records DB")
+        if request.headers.get('Accept') == 'application/json' or request.is_json:
+            return jsonify({"status": "success", "message": msg})
+        flash(msg, "success")
+        
+    except Exception as e:
+        app.logger.error(f"Error storing invalid records: {e}")
+        msg = f"Failed to store invalid records in database: {e}"
+        if request.headers.get('Accept') == 'application/json' or request.is_json:
+            return jsonify({"status": "error", "message": msg})
+        flash(msg, "danger")
+        
+    return redirect(url_for("choose_rules"))
+
+
+@app.route("/api/store-removed", methods=["GET", "POST"])
+@login_required()
+def store_removed_endpoint():
+    removed_file = session.get("removed_file")
+    uploaded_sheets = session.get("uploaded_sheets") or []
+    sheet_col_mappings = session.get("sheet_col_mappings") or {}
+    
+    if not removed_file or not os.path.exists(removed_file):
+        flash("Removed records file not found.", "warning")
+        return redirect(url_for("choose_rules"))
+        
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        stored_count = 0
+        with pd.ExcelFile(removed_file) as xls:
+            for sheet in uploaded_sheets:
+                sid = sheet["sheet_id"]
+                safe_sheet = sheet["safe_sheet_name"]
+                if safe_sheet not in xls.sheet_names:
+                    continue
+                    
+                mapping = sheet_col_mappings.get(sid, {})
+                df_removed = pd.read_excel(removed_file, sheet_name=safe_sheet)
+                for _, row in df_removed.iterrows():
+                    record_dict = {}
+                    if not mapping:
+                        for k, v in row.items():
+                            if pd.notna(v):
+                                record_dict[k] = str(v)
+                    else:
+                        custom_data = {}
+                        for col, target in mapping.items():
+                            val = row.get(col)
+                            if val is not None and str(val).strip() not in ("", "nan", "NaT"):
+                                val_str = str(val).strip()
+                                if target.startswith("master:"):
+                                    master_id = target.split("master:")[1]
+                                    if master_id == "full_name":
+                                        parts = val_str.split(None, 1)
+                                        if len(parts) > 0:
+                                            record_dict['first_name'] = parts[0]
+                                        if len(parts) > 1:
+                                            record_dict['last_name'] = parts[1]
+                                    else:
+                                        record_dict[master_id] = val_str
+                                elif target.startswith("custom:"):
+                                    fid = target.split("custom:")[1]
+                                    custom_data[fid] = val_str
+                        if custom_data:
+                            record_dict['custom_fields'] = custom_data
+                            
+                    row_json = json.dumps(record_dict)
+                    cursor.execute(
+                        "INSERT INTO rejected_records (file_id, row_data) VALUES (%s, %s)",
+                        (sheet.get("file_id", 0), row_json)
+                    )
+                    stored_count += 1
+                
+        conn.commit()
+        conn.close()
+        
+        session["stored_removed"] = True
+        msg = f"✅ {stored_count} removed/duplicate record(s) stored in database rejected_records successfully."
+        log_action(session["user_id"], f"Stored {stored_count} removed records to rejected_records DB")
+        if request.headers.get('Accept') == 'application/json' or request.is_json:
+            return jsonify({"status": "success", "message": msg})
+        flash(msg, "success")
+        
+    except Exception as e:
+        app.logger.error(f"Error storing removed records: {e}")
+        msg = f"Failed to store removed records in database: {e}"
+        if request.headers.get('Accept') == 'application/json' or request.is_json:
+            return jsonify({"status": "error", "message": msg})
+        flash(msg, "danger")
+        
+    return redirect(url_for("choose_rules"))
+
+
+@app.route("/api/apply-db-updates", methods=["GET", "POST"])
+@login_required()
+def apply_db_updates_endpoint():
+    update_cleaned = request.form.get("update_cleaned") == "1"
+    delete_invalid = request.form.get("delete_invalid") == "1"
+    delete_removed = request.form.get("delete_removed") == "1"
+    
+    conn = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        
+        # 1. Update Cleaned records
+        updated_count = 0
+        if update_cleaned:
+            cleaned_file = session.get("cleaned_file")
+            if cleaned_file and os.path.exists(cleaned_file):
+                cursor.execute("SELECT column_name AS column_name FROM information_schema.columns WHERE table_name = 'master_records' AND table_schema = DATABASE()")
+                db_cols = {row['column_name'] for row in cursor.fetchall()}
+                
+                with pd.ExcelFile(cleaned_file) as xls:
+                    for sheet_name in xls.sheet_names:
+                        df_cleaned = pd.read_excel(cleaned_file, sheet_name=sheet_name)
+                        for _, row in df_cleaned.iterrows():
+                            row_id = row.get("id")
+                            if pd.isna(row_id):
+                                continue
+                            row_id = int(row_id)
+                            
+                            update_parts = []
+                            update_vals = []
+                            for col in df_cleaned.columns:
+                                if col in db_cols and col not in ('id', 'created_at', 'updated_at'):
+                                    val = row.get(col)
+                                    val_str = str(val).strip() if pd.notna(val) else None
+                                    update_parts.append(f"`{col}` = %s")
+                                    update_vals.append(val_str)
+                                    
+                            if update_parts:
+                                update_vals.append(row_id)
+                                update_sql = f"UPDATE master_records SET {', '.join(update_parts)} WHERE id = %s"
+                                cursor.execute(update_sql, update_vals)
+                                updated_count += 1
+                            
+        # 2. Delete Invalid records
+        deleted_invalid_count = 0
+        if delete_invalid:
+            invalid_file = session.get("invalid_file")
+            if invalid_file and os.path.exists(invalid_file):
+                with pd.ExcelFile(invalid_file) as xls:
+                    for sheet_name in xls.sheet_names:
+                        df_invalid = pd.read_excel(invalid_file, sheet_name=sheet_name)
+                        for _, row in df_invalid.iterrows():
+                            row_id = row.get("id")
+                            if pd.notna(row_id) and str(row_id).strip() != "":
+                                try:
+                                    cursor.execute("DELETE FROM master_records WHERE id = %s", (int(float(row_id)),))
+                                    deleted_invalid_count += 1
+                                except ValueError:
+                                    pass
+                                
+        # 3. Delete Removed records
+        deleted_removed_count = 0
+        if delete_removed:
+            removed_file = session.get("removed_file")
+            if removed_file and os.path.exists(removed_file):
+                with pd.ExcelFile(removed_file) as xls:
+                    for sheet_name in xls.sheet_names:
+                        df_removed = pd.read_excel(removed_file, sheet_name=sheet_name)
+                        for _, row in df_removed.iterrows():
+                            row_id = row.get("id")
+                            if pd.notna(row_id) and str(row_id).strip() != "":
+                                try:
+                                    cursor.execute("DELETE FROM master_records WHERE id = %s", (int(float(row_id)),))
+                                    deleted_removed_count += 1
+                                except ValueError:
+                                    pass
+
+        conn.commit()
+        conn.close()
+        
+        session["applied_db_updates"] = True
+        
+        msg_list = []
+        if update_cleaned:
+            msg_list.append(f"{updated_count} cleaned record(s) updated")
+        if delete_invalid:
+            msg_list.append(f"{deleted_invalid_count} invalid record(s) deleted")
+        if delete_removed:
+            msg_list.append(f"{deleted_removed_count} removed/duplicate record(s) deleted")
+            
+        msg = f"✅ Database updates applied successfully: {', '.join(msg_list) if msg_list else 'None selected'}"
+        log_action(session["user_id"], f"Applied DB Updates: updated={updated_count}, deleted_invalid={deleted_invalid_count}, deleted_removed={deleted_removed_count}")
+        if request.headers.get('Accept') == 'application/json' or request.is_json:
+            return jsonify({"status": "success", "message": msg})
+        flash(msg, "success")
+        
+    except Exception as e:
+        app.logger.error(f"Error applying database updates: {e}")
+        msg = f"Failed to apply database updates: {e}"
+        if conn:
+            conn.close()
+        if request.headers.get('Accept') == 'application/json' or request.is_json:
+            return jsonify({"status": "error", "message": msg})
+        flash(msg, "danger")
+        
+    return redirect(url_for("choose_rules"))
 
 
 # Step 4: Download cleaned file and invalid rows after preview
@@ -5531,6 +5869,70 @@ def dataset_completeness():
         "completeness_stats": missing_stats
     })
 
+@app.route('/api/dashboard/analytics', methods=['GET'])
+@login_required()
+def dashboard_analytics():
+    if "user_id" not in session or session.get("role") not in ROLE_PERMISSIONS:
+        return jsonify({"error": "Unauthorized"}), 403
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    try:
+        # 1. Monthly Leads Added
+        cursor.execute("""
+            SELECT DATE_FORMAT(created_at, '%Y-%m') AS month, COUNT(*) AS count 
+            FROM master_records 
+            GROUP BY DATE_FORMAT(created_at, '%Y-%m') 
+            ORDER BY month ASC
+        """)
+        monthly_leads = cursor.fetchall()
+
+        # 2. Leads Added User-Wise (from master_records.imported_by)
+        cursor.execute("""
+            SELECT COALESCE(imported_by, 'unknown') AS user, COUNT(*) AS count 
+            FROM master_records 
+            GROUP BY imported_by 
+            ORDER BY count DESC
+        """)
+        leads_userwise = cursor.fetchall()
+
+        # 3. User Uploads statistics (from uploaded_files grouped by user)
+        cursor.execute("""
+            SELECT u.username AS user, 
+                   COALESCE(SUM(uf.total_rows), 0) AS total_rows, 
+                   COALESCE(SUM(uf.rows_imported), 0) AS rows_imported, 
+                   COALESCE(SUM(uf.rows_rejected), 0) AS rows_rejected 
+            FROM uploaded_files uf 
+            JOIN users u ON uf.user_id = u.id 
+            GROUP BY u.username 
+            ORDER BY total_rows DESC
+        """)
+        user_uploads = cursor.fetchall()
+
+        # 4. Monthly Uploads and Imports Trends (from uploaded_files)
+        cursor.execute("""
+            SELECT DATE_FORMAT(uploaded_at, '%Y-%m') AS month, 
+                   COALESCE(SUM(total_rows), 0) AS total_rows, 
+                   COALESCE(SUM(rows_imported), 0) AS rows_imported 
+            FROM uploaded_files 
+            GROUP BY DATE_FORMAT(uploaded_at, '%Y-%m') 
+            ORDER BY month ASC
+        """)
+        monthly_uploads = cursor.fetchall()
+
+        return jsonify({
+            "monthly_leads": monthly_leads,
+            "leads_userwise": leads_userwise,
+            "user_uploads": user_uploads,
+            "monthly_uploads": monthly_uploads
+        })
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        conn.close()
+
 @app.route('/api/enrich/apollo', methods=['POST'])
 @login_required()
 def enrich_apollo():
@@ -6767,7 +7169,7 @@ def predefined_rules_view():
         
     default_config = {
         "email": {"validate_email": True, "lowercase_email": True},
-        "phone": {"validate_phone": True, "remove_phone_91_prefix": False, "format_phone_number": False},
+        "phone": {"validate_phone": True, "remove_phone_91_prefix": True, "format_phone_number": True},
         "numeric": {"validate_numeric": True, "normalize_currency": False},
         "text": {"clean_special_chars": True, "title_case_text": True, "trim_whitespace": True},
         "url": {"validate_url": True, "normalize_url_protocol": False},
@@ -8392,7 +8794,7 @@ if __name__ == "__main__":
             """)
             default_predefined_rules = {
                 "email": {"validate_email": True, "lowercase_email": True},
-                "phone": {"validate_phone": True, "remove_phone_91_prefix": False, "format_phone_number": False},
+                "phone": {"validate_phone": True, "remove_phone_91_prefix": True, "format_phone_number": True},
                 "numeric": {"validate_numeric": True, "normalize_currency": False},
                 "text": {"clean_special_chars": True, "title_case_text": True, "trim_whitespace": True},
                 "url": {"validate_url": True, "normalize_url_protocol": False},

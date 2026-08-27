@@ -491,7 +491,11 @@
                         <tr>
                           <td style="padding:8px 14px;border-bottom:1px solid #f3f4f6;">
                             {% if error.row_index is not none %}
-                            <span class="fw-semibold">Row {{ error.row_index + 2 }}</span> — {{ error.message }}
+                              {% if error.identifier_val %}
+                                <span class="fw-semibold">{{ error.identifier_val }}</span> — {{ error.message }}
+                              {% else %}
+                                <span class="fw-semibold">Row {{ error.row_index + 2 }}</span> — {{ error.message }}
+                              {% endif %}
                             {% else %}
                             <span class="fw-semibold">System</span> — {{ error.message }}
                             {% endif %}
@@ -516,6 +520,166 @@
         <i class="bi bi-check-circle-fill fs-5"></i>
         <span><strong>All clear!</strong> No validation issues found — all rows passed cleanly.</span>
       </div>
+      {% endif %}
+
+      {% if not is_existing_db %}
+      <!-- --- FILE UPLOAD DB STORE BUTTONS --- -->
+      <div class="card shadow-sm mt-5 border border-light">
+        <div class="card-header bg-white py-3 border-bottom-0">
+          <h5 class="fw-bold mb-0 text-dark"><i class="bi bi-database-fill me-2 text-danger"></i>Save Results to System Database</h5>
+          <p class="text-muted small mb-0">Select records to persist in the system database.</p>
+        </div>
+        <div class="card-body pt-3">
+          <div class="row g-3">
+            <!-- Card 1: Cleaned -->
+            <div class="col-md-4">
+              <div class="card h-100 border border-light bg-light shadow-none" style="border-radius:12px;">
+                <div class="card-body d-flex flex-column justify-content-between p-3">
+                  <div>
+                    <h6 class="fw-bold text-success"><i class="bi bi-check-circle me-1"></i>Cleaned Records</h6>
+                    <p class="text-muted small mb-3">Insert all validated and formatted records into the main master_records table.</p>
+                  </div>
+                  <form action="{{ url_for('store_cleaned_endpoint') }}" method="POST">
+                    {% if session.stored_cleaned %}
+                    <button type="button" class="btn btn-sm btn-success w-100 py-2 fw-semibold" disabled>
+                      <i class="bi bi-check-lg me-1"></i>Stored in DB
+                    </button>
+                    {% else %}
+                    <button type="submit" class="btn btn-sm btn-danger w-100 py-2 fw-semibold">
+                      <i class="bi bi-database-fill-add me-1"></i>Store Cleaned
+                    </button>
+                    {% endif %}
+                  </form>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Card 2: Invalid -->
+            <div class="col-md-4">
+              <div class="card h-100 border border-light bg-light shadow-none" style="border-radius:12px;">
+                <div class="card-body d-flex flex-column justify-content-between p-3">
+                  <div>
+                    <h6 class="fw-bold text-warning"><i class="bi bi-exclamation-triangle me-1"></i>Invalid Records</h6>
+                    <p class="text-muted small mb-3">Persist rows failing format validation tests in rejected_records for diagnostic review.</p>
+                  </div>
+                  <form action="{{ url_for('store_invalid_endpoint') }}" method="POST">
+                    {% if session.stored_invalid %}
+                    <button type="button" class="btn btn-sm btn-success w-100 py-2 fw-semibold" disabled>
+                      <i class="bi bi-check-lg me-1"></i>Stored in DB
+                    </button>
+                    {% else %}
+                    <button type="submit" class="btn btn-sm btn-outline-danger w-100 py-2 fw-semibold" {% if invalid == 0 %}disabled{% endif %}>
+                      <i class="bi bi-database-fill-exclamation me-1"></i>Store Invalid
+                    </button>
+                    {% endif %}
+                  </form>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Card 3: Removed -->
+            <div class="col-md-4">
+              <div class="card h-100 border border-light bg-light shadow-none" style="border-radius:12px;">
+                <div class="card-body d-flex flex-column justify-content-between p-3">
+                  <div>
+                    <h6 class="fw-bold" style="color: var(--red-accent, #b91c1c);"><i class="bi bi-trash me-1"></i>Removed/Duplicate Records</h6>
+                    <p class="text-muted small mb-3">Archive duplicates and values omitted by missing strategy handlers in rejected_records.</p>
+                  </div>
+                  <form action="{{ url_for('store_removed_endpoint') }}" method="POST">
+                    {% if session.stored_removed %}
+                    <button type="button" class="btn btn-sm btn-success w-100 py-2 fw-semibold" disabled>
+                      <i class="bi bi-check-lg me-1"></i>Stored in DB
+                    </button>
+                    {% else %}
+                    <button type="submit" class="btn btn-sm btn-outline-danger w-100 py-2 fw-semibold" {% if removed == 0 %}disabled{% endif %}>
+                      <i class="bi bi-database-fill-x me-1"></i>Store Removed
+                    </button>
+                    {% endif %}
+                  </form>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      {% endif %}
+
+      {% if is_existing_db %}
+      <!-- --- EXISTING DATABASE CLEANING ACTIONS --- -->
+      <form action="{{ url_for('apply_db_updates_endpoint') }}" method="POST" class="mt-5">
+        <div class="card shadow-sm border border-light">
+          <div class="card-header bg-white py-3 border-bottom-0">
+            <h5 class="fw-bold mb-0 text-dark"><i class="bi bi-shield-check me-2 text-danger"></i>Apply Changes to Database</h5>
+            <p class="text-muted small mb-0">Select database actions to perform on the existing records.</p>
+          </div>
+          <div class="card-body pt-3">
+            <div class="row g-3 mb-4">
+              <!-- Slider 1: Cleaned -->
+              <div class="col-md-4">
+                <div class="card h-100 border border-light bg-light shadow-none" style="border-radius:12px;">
+                  <div class="card-body p-3 d-flex flex-column justify-content-between">
+                    <div class="d-flex align-items-start justify-content-between mb-3">
+                      <div>
+                        <h6 class="fw-bold text-success mb-1">Update Cleaned Records</h6>
+                        <p class="text-muted small mb-0">Update all records in the database with their newly formatted and cleaned versions.</p>
+                      </div>
+                      <div class="form-check form-switch fs-5 ps-3">
+                        <input class="form-check-input" type="checkbox" name="update_cleaned" value="1" id="updateCleanedSwitch" checked {% if session.applied_db_updates %}disabled{% endif %}>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Slider 2: Invalid -->
+              <div class="col-md-4">
+                <div class="card h-100 border border-light bg-light shadow-none" style="border-radius:12px;">
+                  <div class="card-body p-3 d-flex flex-column justify-content-between">
+                    <div class="d-flex align-items-start justify-content-between mb-3">
+                      <div>
+                        <h6 class="fw-bold text-warning mb-1">Delete Invalid Records</h6>
+                        <p class="text-muted small mb-0">Permanently delete rows that failed validation checks. Leave unchecked to keep them as is.</p>
+                      </div>
+                      <div class="form-check form-switch fs-5 ps-3">
+                        <input class="form-check-input" type="checkbox" name="delete_invalid" value="1" id="deleteInvalidSwitch" {% if invalid == 0 or session.applied_db_updates %}disabled{% endif %}>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Slider 3: Removed -->
+              <div class="col-md-4">
+                <div class="card h-100 border border-light bg-light shadow-none" style="border-radius:12px;">
+                  <div class="card-body p-3 d-flex flex-column justify-content-between">
+                    <div class="d-flex align-items-start justify-content-between mb-3">
+                      <div>
+                        <h6 class="fw-bold mb-1" style="color: var(--red-accent, #b91c1c);">Delete Removed Records</h6>
+                        <p class="text-muted small mb-0">Delete duplicate rows or records excluded by missing value rules from the database.</p>
+                      </div>
+                      <div class="form-check form-switch fs-5 ps-3">
+                        <input class="form-check-input" type="checkbox" name="delete_removed" value="1" id="deleteRemovedSwitch" {% if removed == 0 or session.applied_db_updates %}disabled{% endif %}>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div class="text-end">
+              {% if session.applied_db_updates %}
+              <button type="button" class="btn btn-success px-5 py-2.5 fw-semibold" disabled>
+                <i class="bi bi-check-lg me-2"></i>Updates Applied Successfully
+              </button>
+              {% else %}
+              <button type="submit" class="btn btn-danger px-5 py-2.5 fw-semibold" style="border-radius:8px;">
+                <i class="bi bi-save me-2"></i>Apply Database Updates
+              </button>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </form>
       {% endif %}
       </div>
     </main>
@@ -603,7 +767,97 @@
       }
     }
 
-    document.addEventListener('DOMContentLoaded', () => loadPreviewPage(1, 'cleaned'));
+    document.addEventListener('DOMContentLoaded', () => {
+      loadPreviewPage(1, 'cleaned');
+      
+      // Intercept database storage and updates forms via AJAX to prevent post-clean redirect loops
+      const storeForms = document.querySelectorAll('form[action*="/api/store-"], form[action*="/api/apply-db-updates"]');
+      storeForms.forEach(form => {
+        form.addEventListener("submit", function(e) {
+          e.preventDefault();
+          
+          const submitBtn = form.querySelector('button[type="submit"]');
+          if (!submitBtn) return;
+          
+          const originalHtml = submitBtn.innerHTML;
+          submitBtn.disabled = true;
+          submitBtn.innerHTML = `<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Storing...`;
+          
+          const formData = new FormData(form);
+          
+          fetch(form.action, {
+            method: "POST",
+            body: formData,
+            headers: {
+              'Accept': 'application/json'
+            }
+          })
+          .then(res => res.json())
+          .then(data => {
+            if (data.status === 'success') {
+              if (form.action.includes('/api/apply-db-updates')) {
+                submitBtn.className = "btn btn-success px-5 py-2.5 fw-semibold";
+                submitBtn.innerHTML = `<i class="bi bi-check-lg me-2"></i>Updates Applied Successfully`;
+                form.querySelectorAll('.form-check-input').forEach(sw => sw.disabled = true);
+              } else {
+                submitBtn.className = "btn btn-sm btn-success w-100 py-2 fw-semibold";
+                submitBtn.innerHTML = `<i class="bi bi-check-lg me-1"></i>Stored in DB`;
+              }
+              showToastAlert('success', data.message);
+            } else {
+              submitBtn.disabled = false;
+              submitBtn.innerHTML = originalHtml;
+              showToastAlert('danger', data.message || 'Storage failed');
+            }
+          })
+          .catch(err => {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalHtml;
+            showToastAlert('danger', 'A connection error occurred while communicating with the database.');
+          });
+        });
+      });
+    });
+
+    function showToastAlert(category, message) {
+      let container = document.getElementById('toastAlertContainer');
+      if (!container) {
+        container = document.createElement('div');
+        container.id = 'toastAlertContainer';
+        container.style.position = 'fixed';
+        container.style.top = '24px';
+        container.style.right = '24px';
+        container.style.zIndex = '9999';
+        container.style.width = '360px';
+        document.body.appendChild(container);
+      }
+      
+      const alertDiv = document.createElement('div');
+      alertDiv.className = `alert alert-${category} alert-dismissible fade show shadow-lg mb-3 border-0`;
+      alertDiv.role = 'alert';
+      alertDiv.style.borderRadius = '12px';
+      alertDiv.style.padding = '16px 20px';
+      alertDiv.style.background = category === 'success' ? '#f0fdf4' : '#fef2f2';
+      alertDiv.style.color = category === 'success' ? '#166534' : '#991b1b';
+      alertDiv.innerHTML = `
+        <div class="d-flex align-items-start gap-3">
+          <div style="background:${category === 'success' ? '#dcfce7' : '#fee2e2'};color:${category === 'success' ? '#15803d' : '#ef4444'};width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <i class="bi bi-${category === 'success' ? 'check-lg' : 'exclamation-triangle'} fs-5"></i>
+          </div>
+          <div style="flex-grow:1;padding-right:12px;">
+            <h6 class="mb-1 fw-bold text-dark" style="font-size:0.9rem;">${category === 'success' ? 'Database Updated' : 'System Notification'}</h6>
+            <p class="mb-0 small text-muted" style="font-size:0.8rem;line-height:1.4;">${message}</p>
+          </div>
+        </div>
+        <button type="button" class="btn-close btn-close-dark" data-bs-dismiss="alert" aria-label="Close" style="top:12px;right:12px;"></button>
+      `;
+      container.appendChild(alertDiv);
+      
+      setTimeout(() => {
+        const bsAlert = new bootstrap.Alert(alertDiv);
+        bsAlert.close();
+      }, 5000);
+    }
   </script>
 
 </body>

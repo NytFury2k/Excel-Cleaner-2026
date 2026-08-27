@@ -213,3 +213,248 @@ def test_drop_unnamed_columns():
     assert "Unnamed: 1" not in df_cleaned.columns
     assert "unnamed" not in df_cleaned.columns
     assert "" not in df_cleaned.columns
+
+def test_clean_data_uses_excel_specific_rules(client, tmp_path):
+    csv_file = tmp_path / "excel_rules_test.csv"
+    df = pd.DataFrame({
+        "first_name": ["  Alice  ", "Bob"],
+    })
+    df.to_csv(csv_file, index=False)
+    
+    with client.session_transaction() as sess:
+        sess["user_id"] = 1
+        sess["role"] = "admin"
+        sess["uploaded_file"] = "excel_rules_test.csv"
+        sess["uploaded_sheets"] = [{
+            "sheet_id": "s_excel_123",
+            "original_filename": "excel_rules_test.csv",
+            "sheet_name": "CSV",
+            "safe_sheet_name": "CSV",
+            "temp_path": str(csv_file),
+            "columns": ["first_name"],
+            "total_rows": 2,
+            "file_id": 1
+        }]
+        
+    form_data = {
+        "map_col_s_excel_123_first_name": "master:first_name",
+        "rules_excel_first_name[]": ["trim_whitespace"]
+    }
+    
+    res = client.post("/clean", data=form_data)
+    assert res.status_code == 200
+    
+    cleaned_file_path = session.get("cleaned_file")
+    assert cleaned_file_path is not None
+    assert os.path.exists(cleaned_file_path)
+    
+    df_cleaned = pd.read_excel(cleaned_file_path)
+    assert df_cleaned["first_name"][0] == "Alice"
+    
+    if os.path.exists(cleaned_file_path):
+        os.remove(cleaned_file_path)
+
+def test_clean_data_type_override_and_predefined_email(client, tmp_path):
+    csv_file = tmp_path / "email_override_test.csv"
+    df = pd.DataFrame({
+        "my_field": ["Rishi#jhjb.com", "valid@example.com"],
+    })
+    df.to_csv(csv_file, index=False)
+    
+    with client.session_transaction() as sess:
+        sess["user_id"] = 1
+        sess["role"] = "admin"
+        sess["uploaded_file"] = "email_override_test.csv"
+        sess["uploaded_sheets"] = [{
+            "sheet_id": "s_email_123",
+            "original_filename": "email_override_test.csv",
+            "sheet_name": "CSV",
+            "safe_sheet_name": "CSV",
+            "temp_path": str(csv_file),
+            "columns": ["my_field"],
+            "total_rows": 2,
+            "file_id": 1
+        }]
+        
+    form_data = {
+        "map_col_s_email_123_my_field": "master:email_address",
+        "type_override_excel_my_field": "email",
+        "rules_excel_my_field[]": ["predefined_email"]
+    }
+    
+    res = client.post("/clean", data=form_data)
+    assert res.status_code == 200
+    
+    cleaned_file_path = session.get("cleaned_file")
+    invalid_file_path = session.get("invalid_file")
+    
+    assert cleaned_file_path is not None
+    assert invalid_file_path is not None
+    
+    df_cleaned = pd.read_excel(cleaned_file_path)
+    df_invalid = pd.read_excel(invalid_file_path)
+    
+    assert "valid@example.com" in df_cleaned["my_field"].values
+    assert "Rishi#jhjb.com" not in df_cleaned["my_field"].values
+    assert "rishi#jhjb.com" in df_invalid["my_field"].values
+    
+    if os.path.exists(cleaned_file_path):
+        os.remove(cleaned_file_path)
+    if os.path.exists(invalid_file_path):
+        os.remove(invalid_file_path)
+
+def test_clean_data_predefined_phone_rules(client, tmp_path):
+    csv_file = tmp_path / "phone_predefined_test.csv"
+    df = pd.DataFrame({
+        "my_phone": ["919876543210", "9876543210", "123"],
+    })
+    df.to_csv(csv_file, index=False)
+    
+    with client.session_transaction() as sess:
+        sess["user_id"] = 1
+        sess["role"] = "admin"
+        sess["uploaded_file"] = "phone_predefined_test.csv"
+        sess["uploaded_sheets"] = [{
+            "sheet_id": "s_phone_123",
+            "original_filename": "phone_predefined_test.csv",
+            "sheet_name": "CSV",
+            "safe_sheet_name": "CSV",
+            "temp_path": str(csv_file),
+            "columns": ["my_phone"],
+            "total_rows": 3,
+            "file_id": 1
+        }]
+        
+    form_data = {
+        "map_col_s_phone_123_my_phone": "master:primary_phone_number",
+        "type_override_excel_my_phone": "phone",
+        "rules_excel_my_phone[]": ["predefined_phone"]
+    }
+    
+    res = client.post("/clean", data=form_data)
+    assert res.status_code == 200
+    
+    cleaned_file_path = session.get("cleaned_file")
+    invalid_file_path = session.get("invalid_file")
+    
+    assert cleaned_file_path is not None
+    assert invalid_file_path is not None
+    
+    df_cleaned = pd.read_excel(cleaned_file_path)
+    df_invalid = pd.read_excel(invalid_file_path)
+    
+    assert "(987) 654-3210" in df_cleaned["my_phone"].values
+    assert len(df_cleaned) == 2
+    assert "123" in df_invalid["my_phone"].astype(str).values
+    
+    if os.path.exists(cleaned_file_path):
+        os.remove(cleaned_file_path)
+    if os.path.exists(invalid_file_path):
+        os.remove(invalid_file_path)
+
+def test_clean_data_unmapped_column_rules(client, tmp_path):
+    csv_file = tmp_path / "unmapped_rules_test.csv"
+    df = pd.DataFrame({
+        "my_field": ["  Alice  ", "Bob"],
+    })
+    df.to_csv(csv_file, index=False)
+    
+    with client.session_transaction() as sess:
+        sess["user_id"] = 1
+        sess["role"] = "admin"
+        sess["uploaded_file"] = "unmapped_rules_test.csv"
+        sess["uploaded_sheets"] = [{
+            "sheet_id": "s_unmapped_123",
+            "original_filename": "unmapped_rules_test.csv",
+            "sheet_name": "CSV",
+            "safe_sheet_name": "CSV",
+            "temp_path": str(csv_file),
+            "columns": ["my_field"],
+            "total_rows": 2,
+            "file_id": 1
+        }]
+        
+    form_data = {
+        "map_col_s_unmapped_123_my_field": "ignore",
+        "rules_excel_my_field[]": ["trim_whitespace"]
+    }
+    
+    res = client.post("/clean", data=form_data)
+    assert res.status_code == 200
+    
+    cleaned_file_path = session.get("cleaned_file")
+    assert cleaned_file_path is not None
+    
+    df_cleaned = pd.read_excel(cleaned_file_path)
+    assert df_cleaned["my_field"][0] == "Alice"
+    
+    if os.path.exists(cleaned_file_path):
+        os.remove(cleaned_file_path)
+
+def test_store_endpoints(client, tmp_path):
+    csv_file = tmp_path / "store_test.csv"
+    df = pd.DataFrame({
+        "name": ["Alice", "Bob"],
+        "email": ["alice@gmail.com", "bob#invalid.com"]
+    })
+    df.to_csv(csv_file, index=False)
+    
+    with client.session_transaction() as sess:
+        sess["user_id"] = 1
+        sess["role"] = "admin"
+        sess["uploaded_file"] = "store_test.csv"
+        sess["uploaded_sheets"] = [{
+            "sheet_id": "s_store_123",
+            "original_filename": "store_test.csv",
+            "sheet_name": "CSV",
+            "safe_sheet_name": "CSV",
+            "temp_path": str(csv_file),
+            "columns": ["name", "email"],
+            "total_rows": 2,
+            "file_id": 1
+        }]
+        
+    form_data = {
+        "map_col_s_store_123_name": "master:first_name",
+        "map_col_s_store_123_email": "master:email",
+        "rules_excel_email[]": ["predefined_email"]
+    }
+    
+    res = client.post("/clean", data=form_data)
+    assert res.status_code == 200
+    
+    with client.session_transaction() as sess:
+        assert sess.get("stored_cleaned") is False
+        assert sess.get("stored_invalid") is False
+        
+    res_store = client.post("/api/store-cleaned")
+    assert res_store.status_code == 302
+    
+    with client.session_transaction() as sess:
+        assert sess.get("stored_cleaned") is True
+        
+    res_invalid = client.post("/api/store-invalid")
+    assert res_invalid.status_code == 302
+    
+    with client.session_transaction() as sess:
+        assert sess.get("stored_invalid") is True
+        
+    # Query database to confirm records are stored in DB
+    from helpers import get_db_connection
+    import json
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT row_data FROM rejected_records WHERE file_id = 1")
+    db_rows = cursor.fetchall()
+    conn.close()
+    
+    assert len(db_rows) > 0
+    stored_item = json.loads(db_rows[0]["row_data"])
+    assert "email" in stored_item or "email_address" in stored_item or "first_name" in stored_item
+        
+    cleaned_file_path = session.get("cleaned_file")
+    invalid_file_path = session.get("invalid_file")
+    if cleaned_file_path and os.path.exists(cleaned_file_path):
+        os.remove(cleaned_file_path)
+    if invalid_file_path and os.path.exists(invalid_file_path):
+        os.remove(invalid_file_path)

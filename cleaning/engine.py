@@ -111,7 +111,7 @@ def attach_error_columns(df, errors):
 def load_predefined_rules_from_db():
     default_config = {
         "email": {"validate_email": True, "lowercase_email": True},
-        "phone": {"validate_phone": True, "remove_phone_91_prefix": False, "format_phone_number": False},
+        "phone": {"validate_phone": True, "remove_phone_91_prefix": True, "format_phone_number": True},
         "numeric": {"validate_numeric": True, "normalize_currency": False},
         "text": {"clean_special_chars": True, "title_case_text": True, "trim_whitespace": True},
         "url": {"validate_url": True, "normalize_url_protocol": False},
@@ -268,9 +268,9 @@ def run_cleaning_pipeline(df, selected_rules, duplicate_columns=None, duplicate_
         try:
             # print("RUNNING CLEANING: ", rule_name, "on", column)    #debug statement
             if rule_name == "handle_missing":
-                # extras is either the strategy string directly, or a dict with a "strategy" key
+                from .cleaning_rules import handle_missing
                 strategy = extras if isinstance(extras, str) else extras.get("strategy", "flag")
-                cleaned_df, errors = rule_meta["function"](
+                cleaned_df, errors = handle_missing(
                     cleaned_df, column, column_type_map.get(column), strategy=strategy
                 )
             else:

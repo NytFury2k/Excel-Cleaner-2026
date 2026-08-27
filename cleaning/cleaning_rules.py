@@ -230,10 +230,19 @@ def remove_phone_91_prefix(df, column, column_type=None):
         if pd.isna(val):
             return val
         s = str(val).strip()
-        if s.startswith("+91"):
+        if s.endswith(".0"):
+            s = s[:-2]
+            
+        digits_only = re.sub(r"[^\d]", "", s)
+        if digits_only.startswith("91") and len(digits_only) > 10:
+            if s.startswith("+"):
+                s = s[1:].strip()
+            if s.startswith("91"):
+                s = s[2:].strip()
+            s = re.sub(r"^[ \-\.\(\)]+", "", s)
+        elif s.startswith("+91"):
             s = s[3:].strip()
-        elif s.startswith("91") and len(s) > 10 and s[2:].isdigit():
-            s = s[2:].strip()
+            s = re.sub(r"^[ \-\.\(\)]+", "", s)
         return s
     df[column] = df[column].apply(clean_val)
     return df, []
@@ -245,10 +254,17 @@ def format_phone_number(df, column, column_type=None):
         if pd.isna(val):
             return val
         s = str(val).strip()
-        # Remove spaces, dashes, parentheses
+        if s.endswith(".0"):
+            s = s[:-2]
         cleaned = re.sub(r"[\s\-\(\)]", "", s)
         if len(cleaned) == 10 and cleaned.isdigit():
             return f"({cleaned[:3]}) {cleaned[3:6]}-{cleaned[6:]}"
+        if len(cleaned) == 13 and cleaned.startswith("+91") and cleaned[1:].isdigit():
+            last_10 = cleaned[3:]
+            return f"({last_10[:3]}) {last_10[3:6]}-{last_10[6:]}"
+        if len(cleaned) == 12 and cleaned.startswith("91") and cleaned.isdigit():
+            last_10 = cleaned[2:]
+            return f"({last_10[:3]}) {last_10[3:6]}-{last_10[6:]}"
         return cleaned
     df[column] = df[column].apply(format_val)
     return df, []
