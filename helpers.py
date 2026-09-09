@@ -1185,53 +1185,42 @@ def ingest_uploaded_file_with_mapping(file_id, file_path, username, mapping_conf
             if not has_any_value:
                 continue # Skip completely empty row
                 
-            # Perform Duplicate Check: if row master column and custom field value totally match, then reject them
-            dup_query = ["1=1"]
+            # Perform Duplicate Check: if all mapped non-empty master columns and custom fields match a stored row or batch row, reject them
+            dup_query = []
             dup_params = []
+            seen_tuple_list = []
             
-            for header, target in final_mapping.items():
+            for header, target in sorted(final_mapping.items()):
                 if target.startswith("master:"):
                     col_name = target.split("master:")[1]
-                    if col_name in record_dict:
-                        val = record_dict[col_name]
-                        if val is not None:
-                            dup_query.append(f"TRIM(LOWER(`{col_name}`)) = TRIM(LOWER(%s))")
-                            dup_params.append(val)
-                        else:
-                            dup_query.append(f"(`{col_name}` IS NULL OR `{col_name}` = '')")
+                    val = record_dict.get(col_name)
+                    if val is not None and str(val).strip() != "":
+                        v_clean = str(val).strip()
+                        dup_query.append(f"TRIM(LOWER(`{col_name}`)) = TRIM(LOWER(%s))")
+                        dup_params.append(v_clean)
+                        seen_tuple_list.append((target, v_clean.lower()))
                 elif target.startswith("custom:"):
                     field_id = target.split("custom:")[1]
                     val = record_dict['custom_fields'].get(field_id)
-                    if val is not None:
+                    if val is not None and str(val).strip() != "":
+                        v_clean = str(val).strip()
                         dup_query.append("TRIM(LOWER(custom_fields ->> %s)) = TRIM(LOWER(%s))")
                         dup_params.append(field_id)
-                        dup_params.append(val)
-                    else:
-                        dup_query.append("(custom_fields IS NULL OR custom_fields ->> %s IS NULL OR custom_fields ->> %s = '')")
-                        dup_params.append(field_id)
-                        dup_params.append(field_id)
+                        dup_params.append(v_clean)
+                        seen_tuple_list.append((target, v_clean.lower()))
                         
-            # Check in-memory duplicates for the current ingestion batch
-            seen_tuple_list = []
-            for h, t in sorted(final_mapping.items()):
-                if t.startswith("master:"):
-                    col_name = t.split("master:")[1]
-                    v = record_dict.get(col_name)
-                    seen_tuple_list.append((t, v.strip().lower() if v else ""))
-                elif t.startswith("custom:"):
-                    field_id = t.split("custom:")[1]
-                    v = record_dict['custom_fields'].get(field_id)
-                    seen_tuple_list.append((t, v.strip().lower() if v else ""))
             seen_tuple = tuple(seen_tuple_list)
-            
             is_dup = False
-            if seen_tuple in seen_in_batch:
+            
+            if seen_tuple and seen_tuple in seen_in_batch:
                 is_dup = True
-            else:
+            elif dup_query:
                 cursor.execute(f"SELECT COUNT(*) as count FROM master_records WHERE {' AND '.join(dup_query)}", dup_params)
                 dup_row = cursor.fetchone()
-                if dup_row and dup_row['count'] > 0:
-                    is_dup = True
+                if dup_row:
+                    c_val = dup_row['count'] if isinstance(dup_row, dict) else dup_row[0]
+                    if c_val > 0:
+                        is_dup = True
                     
             if is_dup:
                 rejected_count += 1
@@ -1243,7 +1232,8 @@ def ingest_uploaded_file_with_mapping(file_id, file_path, username, mapping_conf
                 )
             else:
                 records_to_insert.append(record_dict)
-                seen_in_batch.add(seen_tuple)
+                if seen_tuple:
+                    seen_in_batch.add(seen_tuple)
                 
         # 4. Insert dynamic inserts
         if records_to_insert:

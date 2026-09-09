@@ -755,6 +755,16 @@
     </a>
     {% endif %}
 
+    <!-- Custom Features Section -->
+    <div class="sidebar-section-header px-3 pt-3 pb-1" style="font-size:0.72rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em;">
+      <span class="sidebar-text">Custom Features</span>
+    </div>
+    <a href="{{ url_for('custom_merge_excel') }}"
+      class="sidebar-link{% if request.endpoint == 'custom_merge_excel' %} active{% endif %}">
+      <i class="bi bi-intersect"></i>
+      <span class="sidebar-text">Merge Excel Files</span>
+    </a>
+
 
     {% if session.role in ["admin", "manager"] %}
     <a href="{{ url_for('list_users') }}"

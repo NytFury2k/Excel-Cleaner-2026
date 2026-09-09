@@ -111,4 +111,24 @@ def test_inbox_access_for_all_roles(client):
     res = client.get("/inbox")
     assert res.status_code == 200
 
+def test_custom_merge_access_all_roles(client):
+    for role_name in ["admin", "manager", "team_lead", "user"]:
+        with client.session_transaction() as sess:
+            sess["user_id"] = 100
+            sess["username"] = f"test_{role_name}"
+            sess["role"] = role_name
+            sess["permissions"] = ["upload_file", "download_results", "view_own_logs"]
+
+        res = client.get("/custom/merge-excel")
+        assert res.status_code == 200, f"Role {role_name} should be able to access /custom/merge-excel"
+
+def test_custom_merge_unauthenticated_blocked(client):
+    with client.session_transaction() as sess:
+        sess.clear()
+
+    res = client.get("/custom/merge-excel")
+    assert res.status_code == 302
+    assert res.headers["Location"] == "/"
+
+
 

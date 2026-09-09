@@ -2746,6 +2746,9 @@ def store_cleaned_endpoint():
         now = _dt.utcnow()
 
         db_stored_count = 0
+        db_rejected_dup_count = 0
+        seen_in_batch = set()
+
         with pd.ExcelFile(cleaned_file) as xls:
             for sheet in uploaded_sheets:
                 sid = sheet["sheet_id"]
@@ -2779,47 +2782,94 @@ def store_cleaned_endpoint():
                                 fid = target.split("custom:")[1]
                                 custom_data[fid] = val_str
 
-                    # Build dynamic insert columns and values
-                    cols_to_insert = ['file_id', 'created_at', 'updated_at', 'imported_by']
-                    vals_to_insert = [sheet.get("file_id", 0), now, now, imported_by]
-                    if 'manager_id' in db_cols:
-                        cols_to_insert.append('manager_id')
-                        vals_to_insert.append(uploader_mgr_id)
+                    if not record and not custom_data:
+                        continue
 
-                    # Add mapped record fields that exist in the database table
-                    for col_name, col_val in record.items():
+                    # Duplicate Check against master_records and current batch
+                    dup_conditions = []
+                    dup_params = []
+                    seen_tuple_items = []
+
+                    for col_name, col_val in sorted(record.items()):
                         if col_name in db_cols and col_name not in ('id', 'file_id', 'created_at', 'updated_at', 'imported_by', 'custom_fields', 'manager_id'):
-                            cols_to_insert.append(col_name)
-                            vals_to_insert.append(col_val)
+                            dup_conditions.append(f"TRIM(LOWER(`{col_name}`)) = TRIM(LOWER(%s))")
+                            dup_params.append(col_val)
+                            seen_tuple_items.append((f"master:{col_name}", col_val.lower()))
 
-                    # Add custom_fields JSON
-                    if 'custom_fields' in db_cols:
-                        cols_to_insert.append('custom_fields')
-                        vals_to_insert.append(json.dumps(custom_data) if custom_data else None)
+                    for fid, fval in sorted(custom_data.items()):
+                        dup_conditions.append("TRIM(LOWER(custom_fields ->> %s)) = TRIM(LOWER(%s))")
+                        dup_params.append(fid)
+                        dup_params.append(fval.lower())
+                        seen_tuple_items.append((f"custom:{fid}", fval.lower()))
 
-                    # Build insert sql
-                    placeholders = ", ".join(["%s"] * len(vals_to_insert))
-                    col_names_escaped = [f'`{c}`' for c in cols_to_insert]
-                    insert_sql = f"INSERT INTO master_records ({', '.join(col_names_escaped)}) VALUES ({placeholders})"
-                    
-                    cursor_store.execute(insert_sql, vals_to_insert)
-                    db_stored_count += 1
-                    
-            # Update uploaded files status with stored count
+                    seen_tuple = tuple(seen_tuple_items)
+                    is_dup = False
+
+                    if seen_tuple and seen_tuple in seen_in_batch:
+                        is_dup = True
+                    elif dup_conditions:
+                        dup_sql = f"SELECT COUNT(*) as count FROM master_records WHERE {' AND '.join(dup_conditions)}"
+                        cursor_store.execute(dup_sql, dup_params)
+                        dup_row = cursor_store.fetchone()
+                        if dup_row:
+                            c_cnt = dup_row['count'] if isinstance(dup_row, dict) else dup_row[0]
+                            if c_cnt > 0:
+                                is_dup = True
+
+                    if is_dup:
+                        db_rejected_dup_count += 1
+                        row_json_dict = dict(record)
+                        if custom_data:
+                            row_json_dict['custom_fields'] = custom_data
+                        cursor_store.execute(
+                            "INSERT INTO rejected_records (file_id, row_data) VALUES (%s, %s)",
+                            (sheet.get("file_id", 0), json.dumps(row_json_dict))
+                        )
+                    else:
+                        if seen_tuple:
+                            seen_in_batch.add(seen_tuple)
+
+                        # Dynamic insert columns and values
+                        cols_to_insert = ['file_id', 'created_at', 'updated_at', 'imported_by']
+                        vals_to_insert = [sheet.get("file_id", 0), now, now, imported_by]
+                        if 'manager_id' in db_cols:
+                            cols_to_insert.append('manager_id')
+                            vals_to_insert.append(uploader_mgr_id)
+
+                        for col_name, col_val in record.items():
+                            if col_name in db_cols and col_name not in ('id', 'file_id', 'created_at', 'updated_at', 'imported_by', 'custom_fields', 'manager_id'):
+                                cols_to_insert.append(col_name)
+                                vals_to_insert.append(col_val)
+
+                        if 'custom_fields' in db_cols:
+                            cols_to_insert.append('custom_fields')
+                            vals_to_insert.append(json.dumps(custom_data) if custom_data else None)
+
+                        placeholders = ", ".join(["%s"] * len(vals_to_insert))
+                        col_names_escaped = [f'`{c}`' for c in cols_to_insert]
+                        insert_sql = f"INSERT INTO master_records ({', '.join(col_names_escaped)}) VALUES ({placeholders})"
+                        
+                        cursor_store.execute(insert_sql, vals_to_insert)
+                        db_stored_count += 1
+                        
+            # Update uploaded files status with stored count and rejected count
             for sheet in uploaded_sheets:
                 fid = sheet.get("file_id")
                 if fid:
                     cursor_store.execute(
-                        "UPDATE uploaded_files SET rows_imported = rows_imported + %s WHERE id = %s",
-                        (db_stored_count, fid)
+                        "UPDATE uploaded_files SET rows_imported = rows_imported + %s, rows_rejected = rows_rejected + %s WHERE id = %s",
+                        (db_stored_count, db_rejected_dup_count, fid)
                     )
 
         conn_store.commit()
         conn_store.close()
         
         session["stored_cleaned"] = True
-        msg = f"✅ {db_stored_count} cleaned record(s) saved to the database successfully."
-        log_action(session["user_id"], f"Stored {db_stored_count} cleaned records to master_records DB")
+        if db_rejected_dup_count > 0:
+            msg = f"✅ {db_stored_count} cleaned record(s) saved to the database. {db_rejected_dup_count} duplicate record(s) were rejected."
+        else:
+            msg = f"✅ {db_stored_count} cleaned record(s) saved to the database successfully."
+        log_action(session["user_id"], f"Stored {db_stored_count} cleaned records to master_records DB ({db_rejected_dup_count} duplicates rejected)")
         if request.headers.get('Accept') == 'application/json' or request.is_json:
             return jsonify({"status": "success", "message": msg})
         flash(msg, "success")
@@ -2895,6 +2945,14 @@ def store_invalid_endpoint():
                         (sheet.get("file_id", 0), row_json)
                     )
                     stored_count += 1
+                
+            for sheet in uploaded_sheets:
+                fid = sheet.get("file_id")
+                if fid:
+                    cursor.execute(
+                        "UPDATE uploaded_files SET rows_rejected = rows_rejected + %s WHERE id = %s",
+                        (stored_count, fid)
+                    )
                 
         conn.commit()
         conn.close()
@@ -2975,6 +3033,14 @@ def store_removed_endpoint():
                         (sheet.get("file_id", 0), row_json)
                     )
                     stored_count += 1
+                
+            for sheet in uploaded_sheets:
+                fid = sheet.get("file_id")
+                if fid:
+                    cursor.execute(
+                        "UPDATE uploaded_files SET rows_rejected = rows_rejected + %s WHERE id = %s",
+                        (stored_count, fid)
+                    )
                 
         conn.commit()
         conn.close()
@@ -8813,5 +8879,242 @@ if __name__ == "__main__":
         except Exception as e:
             print(f"Migration error: {e}")
 
+# ==============================================================================
+# Custom Features — Excel Merge / Inner Join
+# ==============================================================================
+
+def _read_dataframe_from_file_storage(file_storage):
+    if not file_storage or not file_storage.filename or file_storage.filename.strip() == "":
+        raise ValueError("Missing file. Both File 1 and File 2 are required.")
+    filename = file_storage.filename
+    ext = filename.rsplit('.', 1)[-1].lower() if '.' in filename else ''
+    if ext not in ['xlsx', 'xls', 'csv']:
+        raise ValueError(f"Invalid file format: .{ext}. Only Excel (.xlsx, .xls) and CSV files are allowed.")
+    
+    file_bytes = file_storage.read()
+    file_storage.seek(0)
+    if len(file_bytes) == 0:
+        raise ValueError(f"Uploaded file '{filename}' is empty.")
+    
+    try:
+        bio = BytesIO(file_bytes)
+        if ext == 'csv':
+            df = pd.read_csv(bio)
+        else:
+            df = pd.read_excel(bio)
+    except Exception as e:
+        raise ValueError(f"Unable to parse file '{filename}': {str(e)}")
+    
+    if df is None or len(df.columns) == 0 or len(df) == 0 and len(df.columns) == 0:
+        raise ValueError(f"Uploaded Excel file '{filename}' is empty.")
+    
+    # Check if all column names are unnamed or blank
+    valid_cols = [str(c).strip() for c in df.columns if str(c).strip() and not str(c).startswith("Unnamed:")]
+    if len(valid_cols) == 0:
+        raise ValueError(f"Excel file '{filename}' contains no usable headers.")
+    
+    return df
+
+def _normalize_key_val(val):
+    if pd.isna(val) or val is None:
+        return None
+    if isinstance(val, (int, np.integer)):
+        return str(val).strip()
+    if isinstance(val, (float, np.floating)):
+        if np.isnan(val):
+            return None
+        if val.is_integer():
+            return str(int(val)).strip()
+        return str(val).strip()
+    s = str(val).strip()
+    if s == "" or s.lower() in ["nan", "null", "none"]:
+        return None
+    if s.endswith(".0"):
+        prefix = s[:-2]
+        if prefix.replace("-", "", 1).isdigit():
+            return prefix
+    return s
+
+def _perform_excel_inner_join(df1, df2, merge_key):
+    cols1_map = {str(c).strip().lower(): c for c in df1.columns}
+    cols2_map = {str(c).strip().lower(): c for c in df2.columns}
+    
+    mk_lower = merge_key.strip().lower()
+    if mk_lower not in cols1_map or mk_lower not in cols2_map:
+        raise ValueError(f"Selected merge column '{merge_key}' does not exist in both files.")
+    
+    actual_key1 = cols1_map[mk_lower]
+    actual_key2 = cols2_map[mk_lower]
+    
+    norm_keys1 = df1[actual_key1].apply(_normalize_key_val)
+    norm_keys2 = df2[actual_key2].apply(_normalize_key_val)
+    
+    if norm_keys1.dropna().empty or norm_keys2.dropna().empty:
+        raise ValueError(f"Selected merge column '{merge_key}' contains unusable values.")
+    
+    work_df1 = df1.copy()
+    work_df2 = df2.copy()
+    
+    work_df1["_join_key_norm"] = norm_keys1
+    work_df2["_join_key_norm"] = norm_keys2
+    
+    work_df1 = work_df1[work_df1["_join_key_norm"].notnull()]
+    work_df2 = work_df2[work_df2["_join_key_norm"].notnull()]
+    
+    merged = pd.merge(work_df1, work_df2, on="_join_key_norm", how="inner", suffixes=("_File1", "_File2"))
+    
+    drop_cols = ["_join_key_norm"]
+    if actual_key1 in merged.columns and actual_key1 != merge_key:
+        drop_cols.append(actual_key1)
+    if actual_key2 in merged.columns and actual_key2 != merge_key and actual_key2 != actual_key1:
+        drop_cols.append(actual_key2)
+    if f"{actual_key1}_File1" in merged.columns:
+        merged.rename(columns={f"{actual_key1}_File1": merge_key}, inplace=True)
+    if f"{actual_key2}_File2" in merged.columns:
+        drop_cols.append(f"{actual_key2}_File2")
+        
+    merged = merged.drop(columns=[c for c in drop_cols if c in merged.columns], errors="ignore")
+    
+    if merge_key not in merged.columns:
+        if actual_key1 in merged.columns:
+            merged.rename(columns={actual_key1: merge_key}, inplace=True)
+        else:
+            merged.insert(0, merge_key, "")
+            
+    all_cols = list(merged.columns)
+    if merge_key in all_cols:
+        all_cols.remove(merge_key)
+        all_cols.insert(0, merge_key)
+        merged = merged[all_cols]
+        
+    return merged
+
+@app.route("/custom/merge-excel", methods=["GET"])
+@login_required()
+def custom_merge_excel():
+    return render_template("custom_merge_excel.html")
+
+@app.route("/api/custom/merge/inspect", methods=["POST"])
+@login_required()
+def api_custom_merge_inspect():
+    if "file1" not in request.files or "file2" not in request.files:
+        return jsonify({"ok": False, "error": "Missing file. Both File 1 and File 2 are required."}), 400
+    
+    file1 = request.files["file1"]
+    file2 = request.files["file2"]
+    
+    if not file1 or not file1.filename or not file2 or not file2.filename:
+        return jsonify({"ok": False, "error": "Missing file. Please select both File 1 and File 2."}), 400
+    
+    try:
+        df1 = _read_dataframe_from_file_storage(file1)
+        df2 = _read_dataframe_from_file_storage(file2)
+    except ValueError as ve:
+        return jsonify({"ok": False, "error": str(ve)}), 400
+    except Exception as e:
+        return jsonify({"ok": False, "error": f"Unexpected error processing files: {str(e)}"}), 500
+    
+    cols1 = [str(c).strip() for c in df1.columns]
+    cols2 = [str(c).strip() for c in df2.columns]
+    
+    cols2_norm_map = {str(c).strip().lower(): str(c).strip() for c in df2.columns}
+    common_columns = []
+    for c1 in cols1:
+        if c1.lower() in cols2_norm_map:
+            if c1 not in common_columns:
+                common_columns.append(c1)
+                
+    return jsonify({
+        "ok": True,
+        "file1_row_count": len(df1),
+        "file2_row_count": len(df2),
+        "file1_columns": cols1,
+        "file2_columns": cols2,
+        "common_columns": common_columns
+    })
+
+@app.route("/api/custom/merge/preview", methods=["POST"])
+@login_required()
+def api_custom_merge_preview():
+    if "file1" not in request.files or "file2" not in request.files:
+        return jsonify({"ok": False, "error": "Missing file. Both File 1 and File 2 are required."}), 400
+    
+    merge_key = request.form.get("merge_key", "").strip()
+    if not merge_key:
+        return jsonify({"ok": False, "error": "User has not selected a merge column."}), 400
+
+    file1 = request.files["file1"]
+    file2 = request.files["file2"]
+    
+    try:
+        df1 = _read_dataframe_from_file_storage(file1)
+        df2 = _read_dataframe_from_file_storage(file2)
+        merged_df = _perform_excel_inner_join(df1, df2, merge_key)
+    except ValueError as ve:
+        return jsonify({"ok": False, "error": str(ve)}), 400
+    except Exception as e:
+        return jsonify({"ok": False, "error": f"Unexpected error during merge: {str(e)}"}), 500
+    
+    matched_count = len(merged_df)
+    preview_rows = []
+    columns = list(merged_df.columns)
+    
+    if matched_count > 0:
+        preview_df = merged_df.head(15).copy()
+        preview_df = preview_df.where(pd.notnull(preview_df), None)
+        preview_rows = preview_df.to_dict(orient="records")
+
+    return jsonify({
+        "ok": True,
+        "matched_rows_count": matched_count,
+        "columns": columns,
+        "preview_rows": preview_rows
+    })
+
+@app.route("/api/custom/merge/download", methods=["POST"])
+@login_required()
+def api_custom_merge_download():
+    if "file1" not in request.files or "file2" not in request.files:
+        return jsonify({"ok": False, "error": "Missing file. Both File 1 and File 2 are required."}), 400
+    
+    merge_key = request.form.get("merge_key", "").strip()
+    if not merge_key:
+        return jsonify({"ok": False, "error": "User has not selected a merge column."}), 400
+
+    file1 = request.files["file1"]
+    file2 = request.files["file2"]
+    
+    try:
+        df1 = _read_dataframe_from_file_storage(file1)
+        df2 = _read_dataframe_from_file_storage(file2)
+        merged_df = _perform_excel_inner_join(df1, df2, merge_key)
+    except ValueError as ve:
+        return jsonify({"ok": False, "error": str(ve)}), 400
+    except Exception as e:
+        return jsonify({"ok": False, "error": f"Unexpected error generating merged Excel file: {str(e)}"}), 500
+
+    if len(merged_df) == 0:
+        return jsonify({
+            "ok": False,
+            "error": "No matching records found. The selected column does not contain any values that exist in both files."
+        }), 400
+
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine="openpyxl") as writer:
+        merged_df.to_excel(writer, index=False, sheet_name="Merged Data")
+    output.seek(0)
+
+    clean_key = re.sub(r'[^a-zA-Z0-9_]', '_', merge_key)
+    filename = f"merged_{clean_key}.xlsx"
+    return send_file(
+        output,
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        as_attachment=True,
+        download_name=filename
+    )
+
+if __name__ == "__main__":
     run_db_migrations()
-    app.run(debug=True)
+    app.run(debug=True, port=5000)
+
+

@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Merge Excel Files — Paramantra</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <link rel="icon" href="https://paramantra.us/aldius/images/favicon.png" type="image/gif">
+  <style>
+    :root {
+      --red: #b91c1c;
+      --red-hover: #991b1b;
+      --border: #e5e7eb;
+      --surface: #f9fafb;
+    }
+
+    [data-theme="dark"] {
+      --red: #ef4444;
+      --red-hover: #dc2626;
+      --border: #2d2d34;
+      --surface: #18181c;
+    }
+
+    body {
+      background: #f4f5f7;
+      font-family: system-ui, -apple-system, sans-serif;
+    }
+
+    .merge-card {
+      background: var(--bg-card, #ffffff);
+      border: 1px solid var(--border-color, #e5e7eb);
+      border-radius: 12px;
+      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
+      padding: 28px;
+      margin-bottom: 24px;
+    }
+
+    .drop-zone {
+      border: 2px dashed #d1d5db;
+      border-radius: 10px;
+      padding: 32px 20px;
+      text-align: center;
+      cursor: pointer;
+      background: var(--bg-primary, #fafafa);
+      transition: border-color 0.2s, background 0.2s;
+      position: relative;
+    }
+
+    .drop-zone:hover, .drop-zone.dragover {
+      border-color: var(--red);
+      background: var(--hover-bg, #fef2f2);
+    }
+
+    .drop-zone.has-file {
+      border-color: #10b981;
+      background: #ecfdf5;
+    }
+
+    [data-theme="dark"] .drop-zone.has-file {
+      background: #064e3b;
+      border-color: #34d399;
+    }
+
+    .drop-zone i {
+      font-size: 2rem;
+      color: #9ca3af;
+      margin-bottom: 8px;
+    }
+
+    .drop-zone.has-file i {
+      color: #10b981;
+    }
+
+    .step-badge {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: var(--red);
+      color: #ffffff;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 0.9rem;
+      margin-right: 10px;
+    }
+
+    .preview-wrap {
+      max-height: 400px;
+      overflow-y: auto;
+      overflow-x: auto;
+      border: 1px solid var(--border-color, #e5e7eb);
+      border-radius: 8px;
+    }
+
+    .stat-pill {
+      background: var(--bg-primary, #f3f4f6);
+      border: 1px solid var(--border-color, #e5e7eb);
+      border-radius: 8px;
+      padding: 12px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .stat-pill .label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      font-weight: 600;
+      color: var(--text-muted, #6b7280);
+    }
+
+    .stat-pill .val {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--text-main, #111827);
+    }
+  </style>
+</head>
+
+<body>
+  <div class="app-layout">
+    {% include '_sidebar.html' %}
+
+    <div class="content-area">
+      <div class="container-fluid px-4 py-3">
+
+        <!-- Page Title Header -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+          <div>
+            <h4 class="fw-bold mb-1" style="color: var(--text-main);">
+              <i class="bi bi-intersect me-2 text-danger"></i>Merge Excel Files
+            </h4>
+            <p class="text-muted small mb-0">
+              Upload two Excel files to combine rows based on a matching join column. Non-matching records will be excluded. Data is processed in-memory and is not saved to the database.
+            </p>
+          </div>
+        </div>
+
+        <!-- Global Alert Container -->
+        <div id="alertContainer"></div>
+
+        <!-- Workflow Step 1: Upload Files -->
+        <div class="merge-card">
+          <div class="d-flex align-items-center mb-3">
+            <span class="step-badge">1</span>
+            <h5 class="fw-bold mb-0">Upload Excel Files</h5>
+          </div>
+
+          <div class="row g-4 mb-3">
+            <!-- File 1 Drop Zone -->
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">File 1 (Primary Spreadsheet)</label>
+              <div class="drop-zone" id="dropZone1">
+                <i class="bi bi-file-earmark-excel" id="icon1"></i>
+                <div id="text1" class="fw-medium">Drag & drop File 1 here or <span class="text-danger text-decoration-underline">browse</span></div>
+                <div class="text-muted small mt-1">Supported formats: .xlsx, .xls, .csv</div>
+                <input type="file" id="fileInput1" accept=".xlsx, .xls, .csv" style="display:none;">
+              </div>
+              <div id="fileInfo1" class="mt-2 text-success small fw-medium" style="display:none;"></div>
+            </div>
+
+            <!-- File 2 Drop Zone -->
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">File 2 (Secondary Spreadsheet)</label>
+              <div class="drop-zone" id="dropZone2">
+                <i class="bi bi-file-earmark-excel" id="icon2"></i>
+                <div id="text2" class="fw-medium">Drag & drop File 2 here or <span class="text-danger text-decoration-underline">browse</span></div>
+                <div class="text-muted small mt-1">Supported formats: .xlsx, .xls, .csv</div>
+                <input type="file" id="fileInput2" accept=".xlsx, .xls, .csv" style="display:none;">
+              </div>
+              <div id="fileInfo2" class="mt-2 text-success small fw-medium" style="display:none;"></div>
+            </div>
+          </div>
+
+          <div class="d-flex justify-content-end">
+            <button id="btnInspect" class="btn btn-danger px-4" disabled>
+              <span class="spinner-border spinner-border-sm me-2 d-none" id="inspectSpinner"></span>
+              <i class="bi bi-search me-1" id="inspectIcon"></i> Analyze Files & Identify Common Columns
+            </button>
+          </div>
+        </div>
+
+        <!-- Workflow Step 2: Select Join Column & Preview Stats -->
+        <div class="merge-card d-none" id="step2Card">
+          <div class="d-flex align-items-center mb-3">
+            <span class="step-badge">2</span>
+            <h5 class="fw-bold mb-0">Select Common Join Column</h5>
+          </div>
+
+          <div id="noCommonColumnsAlert" class="alert alert-warning d-none">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+            <strong>No Common Columns Found!</strong> The two uploaded Excel files do not share any column headers with identical names.
+          </div>
+
+          <div id="joinColumnSelectionGroup">
+            <div class="row mb-4 align-items-end">
+              <div class="col-md-6">
+                <label for="selectMergeColumn" class="form-label fw-semibold">
+                  Select Common Column Key <span class="text-danger">*</span>
+                </label>
+                <select id="selectMergeColumn" class="form-select form-select-lg">
+                  <option value="">-- Choose Join Column --</option>
+                </select>
+              </div>
+              <div class="col-md-6">
+                <p class="text-muted small mb-0">
+                  <i class="bi bi-info-circle me-1"></i> Data values will be trimmed and matched regardless of minor numeric/string data type differences (e.g. <code>101</code> matches <code>"101"</code>).
+                </p>
+              </div>
+            </div>
+
+            <!-- Analysis Preview Metrics -->
+            <div class="row g-3 mb-4">
+              <div class="col-md-4">
+                <div class="stat-pill">
+                  <span class="label">File 1 Rows</span>
+                  <span class="val" id="statFile1Rows">-</span>
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="stat-pill">
+                  <span class="label">File 2 Rows</span>
+                  <span class="val" id="statFile2Rows">-</span>
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="stat-pill border-danger" style="background: var(--hover-bg, #fef2f2);">
+                  <span class="label text-danger">Matched Rows</span>
+                  <span class="val text-danger" id="statMatchedRows">-</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Join Column Detail Preview -->
+            <div class="card p-3 mb-4 bg-light text-dark border">
+              <div class="row g-3 small">
+                <div class="col-md-4">
+                  <strong>File 1 Columns:</strong> <span id="lblFile1Cols" class="text-muted">-</span>
+                </div>
+                <div class="col-md-4">
+                  <strong>File 2 Columns:</strong> <span id="lblFile2Cols" class="text-muted">-</span>
+                </div>
+                <div class="col-md-4">
+                  <strong>Selected Key:</strong> <span id="lblSelectedKey" class="badge bg-danger fs-6">-</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="d-flex justify-content-end">
+              <button id="btnMerge" class="btn btn-danger px-4 btn-lg" disabled>
+                <span class="spinner-border spinner-border-sm me-2 d-none" id="mergeSpinner"></span>
+                <i class="bi bi-intersect me-1" id="mergeIcon"></i> Merge Files
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Workflow Step 3: Result Preview & Download -->
+        <div class="merge-card d-none" id="step3Card">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <div class="d-flex align-items-center">
+              <span class="step-badge">3</span>
+              <h5 class="fw-bold mb-0">Merged Result Preview</h5>
+            </div>
+            <button id="btnDownload" class="btn btn-success btn-lg px-4 d-none">
+              <i class="bi bi-download me-1"></i> Download Merged Excel
+            </button>
+          </div>
+
+          <!-- Empty Match Warning -->
+          <div id="noMatchAlert" class="alert alert-warning p-4 d-none">
+            <div class="d-flex align-items-start">
+              <i class="bi bi-exclamation-triangle-fill fs-3 me-3 text-warning"></i>
+              <div>
+                <h6 class="fw-bold mb-1">No matching records found.</h6>
+                <p class="mb-0 small">The selected column does not contain any values that exist in both files. Try selecting a different common column key.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Merged Preview Table -->
+          <div id="mergedResultsWrap" class="d-none">
+            <div class="alert alert-success d-flex justify-content-between align-items-center mb-3">
+              <div>
+                <i class="bi bi-check-circle-fill me-2"></i> Successfully merged <strong><span id="txtMatchedCount">0</span></strong> matching rows.
+              </div>
+            </div>
+
+            <p class="small text-muted mb-2"><i class="bi bi-eye me-1"></i> Displaying top preview rows of the merged dataset:</p>
+            <div class="preview-wrap">
+              <table class="table table-striped table-hover mb-0" id="mergedPreviewTable">
+                <thead id="previewThead"></thead>
+                <tbody id="previewTbody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      const dropZone1 = document.getElementById("dropZone1");
+      const dropZone2 = document.getElementById("dropZone2");
+      const fileInput1 = document.getElementById("fileInput1");
+      const fileInput2 = document.getElementById("fileInput2");
+      const fileInfo1 = document.getElementById("fileInfo1");
+      const fileInfo2 = document.getElementById("fileInfo2");
+      const text1 = document.getElementById("text1");
+      const text2 = document.getElementById("text2");
+      const btnInspect = document.getElementById("btnInspect");
+      const btnMerge = document.getElementById("btnMerge");
+      const btnDownload = document.getElementById("btnDownload");
+      const alertContainer = document.getElementById("alertContainer");
+
+      const step2Card = document.getElementById("step2Card");
+      const step3Card = document.getElementById("step3Card");
+
+      const selectMergeColumn = document.getElementById("selectMergeColumn");
+      const noCommonColumnsAlert = document.getElementById("noCommonColumnsAlert");
+      const joinColumnSelectionGroup = document.getElementById("joinColumnSelectionGroup");
+
+      const statFile1Rows = document.getElementById("statFile1Rows");
+      const statFile2Rows = document.getElementById("statFile2Rows");
+      const statMatchedRows = document.getElementById("statMatchedRows");
+      const lblFile1Cols = document.getElementById("lblFile1Cols");
+      const lblFile2Cols = document.getElementById("lblFile2Cols");
+      const lblSelectedKey = document.getElementById("lblSelectedKey");
+
+      const noMatchAlert = document.getElementById("noMatchAlert");
+      const mergedResultsWrap = document.getElementById("mergedResultsWrap");
+      const txtMatchedCount = document.getElementById("txtMatchedCount");
+      const previewThead = document.getElementById("previewThead");
+      const previewTbody = document.getElementById("previewTbody");
+
+      let f1 = null;
+      let f2 = null;
+      let commonCols = [];
+
+      function showAlert(message, type = "danger") {
+        alertContainer.innerHTML = `
+          <div class="alert alert-${type} alert-dismissible fade show" role="alert">
+            <i class="bi bi-exclamation-circle-fill me-2"></i> ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+          </div>
+        `;
+      }
+
+      function clearAlert() {
+        alertContainer.innerHTML = "";
+      }
+
+      function setupDropZone(dropZone, fileInput, fileInfo, textElem, setFileCallback) {
+        dropZone.addEventListener("click", () => fileInput.click());
+
+        dropZone.addEventListener("dragover", (e) => {
+          e.preventDefault();
+          dropZone.classList.add("dragover");
+        });
+
+        dropZone.addEventListener("dragleave", () => {
+          dropZone.classList.remove("dragover");
+        });
+
+        dropZone.addEventListener("drop", (e) => {
+          e.preventDefault();
+          dropZone.classList.remove("dragover");
+          if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+            fileInput.files = e.dataTransfer.files;
+            handleFileSelect(fileInput.files[0], dropZone, fileInfo, textElem, setFileCallback);
+          }
+        });
+
+        fileInput.addEventListener("change", () => {
+          if (fileInput.files && fileInput.files.length > 0) {
+            handleFileSelect(fileInput.files[0], dropZone, fileInfo, textElem, setFileCallback);
+          }
+        });
+      }
+
+      function handleFileSelect(file, dropZone, fileInfo, textElem, setFileCallback) {
+        const ext = file.name.split('.').pop().toLowerCase();
+        if (!['xlsx', 'xls', 'csv'].includes(ext)) {
+          showAlert(`Invalid file format: <strong>.${ext}</strong>. Only Excel (.xlsx, .xls) and CSV files are allowed.`);
+          return;
+        }
+
+        clearAlert();
+        setFileCallback(file);
+        dropZone.classList.add("has-file");
+        textElem.innerHTML = `<strong>${file.name}</strong> (${(file.size / 1024).toFixed(1)} KB)`;
+        fileInfo.style.display = "block";
+        fileInfo.innerHTML = `<i class="bi bi-check-circle-fill"></i> Ready for inspection`;
+
+        checkInspectButtonState();
+      }
+
+      setupDropZone(dropZone1, fileInput1, fileInfo1, text1, (file) => { f1 = file; });
+      setupDropZone(dropZone2, fileInput2, fileInfo2, text2, (file) => { f2 = file; });
+
+      function checkInspectButtonState() {
+        if (f1 && f2) {
+          btnInspect.disabled = false;
+        } else {
+          btnInspect.disabled = true;
+        }
+      }
+
+      // Step 1: Inspect Files
+      btnInspect.addEventListener("click", async function () {
+        if (!f1 || !f2) return;
+
+        clearAlert();
+        step2Card.classList.add("d-none");
+        step3Card.classList.add("d-none");
+        btnMerge.disabled = true;
+
+        document.getElementById("inspectSpinner").classList.remove("d-none");
+        document.getElementById("inspectIcon").classList.add("d-none");
+        btnInspect.disabled = true;
+
+        const formData = new FormData();
+        formData.append("file1", f1);
+        formData.append("file2", f2);
+
+        try {
+          const res = await fetch("/api/custom/merge/inspect", {
+            method: "POST",
+            body: formData
+          });
+
+          const data = await res.json();
+          if (!res.ok || !data.ok) {
+            showAlert(data.error || "Failed to inspect Excel files.");
+            return;
+          }
+
+          // Populate metrics
+          statFile1Rows.textContent = data.file1_row_count;
+          statFile2Rows.textContent = data.file2_row_count;
+          lblFile1Cols.textContent = data.file1_columns.join(", ");
+          lblFile2Cols.textContent = data.file2_columns.join(", ");
+
+          // Populate common columns dropdown
+          commonCols = data.common_columns || [];
+          selectMergeColumn.innerHTML = `<option value="">-- Choose Join Column --</option>`;
+
+          if (commonCols.length === 0) {
+            noCommonColumnsAlert.classList.remove("d-none");
+            joinColumnSelectionGroup.classList.add("d-none");
+          } else {
+            noCommonColumnsAlert.classList.add("d-none");
+            joinColumnSelectionGroup.classList.remove("d-none");
+
+            commonCols.forEach(col => {
+              const opt = document.createElement("option");
+              opt.value = col;
+              opt.textContent = col;
+              selectMergeColumn.appendChild(opt);
+            });
+
+            // Auto-select if only 1 common column
+            if (commonCols.length === 1) {
+              selectMergeColumn.value = commonCols[0];
+              triggerColumnPreview();
+            }
+          }
+
+          step2Card.classList.remove("d-none");
+          step2Card.scrollIntoView({ behavior: 'smooth' });
+
+        } catch (err) {
+          showAlert("Unexpected error occurred while inspecting files: " + err.message);
+        } finally {
+          document.getElementById("inspectSpinner").classList.add("d-none");
+          document.getElementById("inspectIcon").classList.remove("d-none");
+          btnInspect.disabled = false;
+        }
+      });
+
+      // Step 2: Select Common Column & Calculate Match Preview
+      selectMergeColumn.addEventListener("change", triggerColumnPreview);
+
+      async function triggerColumnPreview() {
+        const selectedCol = selectMergeColumn.value;
+        lblSelectedKey.textContent = selectedCol || "-";
+        step3Card.classList.add("d-none");
+
+        if (!selectedCol) {
+          btnMerge.disabled = true;
+          statMatchedRows.textContent = "-";
+          return;
+        }
+
+        btnMerge.disabled = true;
+        statMatchedRows.textContent = "Calculating...";
+
+        const formData = new FormData();
+        formData.append("file1", f1);
+        formData.append("file2", f2);
+        formData.append("merge_key", selectedCol);
+
+        try {
+          const res = await fetch("/api/custom/merge/preview", {
+            method: "POST",
+            body: formData
+          });
+
+          const data = await res.json();
+          if (!res.ok || !data.ok) {
+            showAlert(data.error || "Error calculating join preview.");
+            statMatchedRows.textContent = "0";
+            return;
+          }
+
+          statMatchedRows.textContent = data.matched_rows_count;
+          btnMerge.disabled = false;
+        } catch (err) {
+          showAlert("Failed to preview join matches: " + err.message);
+          statMatchedRows.textContent = "0";
+        }
+      }
+
+      // Step 3: Perform Merge
+      btnMerge.addEventListener("click", async function () {
+        const selectedCol = selectMergeColumn.value;
+        if (!selectedCol) {
+          showAlert("Please select a merge column key.");
+          return;
+        }
+
+        clearAlert();
+        step3Card.classList.add("d-none");
+
+        document.getElementById("mergeSpinner").classList.remove("d-none");
+        document.getElementById("mergeIcon").classList.add("d-none");
+        btnMerge.disabled = true;
+
+        const formData = new FormData();
+        formData.append("file1", f1);
+        formData.append("file2", f2);
+        formData.append("merge_key", selectedCol);
+
+        try {
+          const res = await fetch("/api/custom/merge/preview", {
+            method: "POST",
+            body: formData
+          });
+
+          const data = await res.json();
+          if (!res.ok || !data.ok) {
+            showAlert(data.error || "Failed to perform merge.");
+            return;
+          }
+
+          step3Card.classList.remove("d-none");
+          step3Card.scrollIntoView({ behavior: 'smooth' });
+
+          if (data.matched_rows_count === 0) {
+            noMatchAlert.classList.remove("d-none");
+            mergedResultsWrap.classList.add("d-none");
+            btnDownload.classList.add("d-none");
+          } else {
+            noMatchAlert.classList.add("d-none");
+            mergedResultsWrap.classList.remove("d-none");
+            btnDownload.classList.remove("d-none");
+
+            txtMatchedCount.textContent = data.matched_rows_count;
+
+            // Render Preview Table
+            renderPreviewTable(data.columns, data.preview_rows);
+          }
+
+        } catch (err) {
+          showAlert("Unexpected error during merge operation: " + err.message);
+        } finally {
+          document.getElementById("mergeSpinner").classList.add("d-none");
+          document.getElementById("mergeIcon").classList.remove("d-none");
+          btnMerge.disabled = false;
+        }
+      });
+
+      function renderPreviewTable(cols, rows) {
+        previewThead.innerHTML = "";
+        previewTbody.innerHTML = "";
+
+        const trHead = document.createElement("tr");
+        cols.forEach(c => {
+          const th = document.createElement("th");
+          th.textContent = c;
+          trHead.appendChild(th);
+        });
+        previewThead.appendChild(trHead);
+
+        rows.forEach(r => {
+          const tr = document.createElement("tr");
+          cols.forEach(c => {
+            const td = document.createElement("td");
+            const val = r[c];
+            td.textContent = (val !== null && val !== undefined) ? val : "";
+            tr.appendChild(td);
+          });
+          previewTbody.appendChild(tr);
+        });
+      }
+
+      // Step 4: Download Merged Excel File
+      btnDownload.addEventListener("click", async function () {
+        const selectedCol = selectMergeColumn.value;
+        if (!selectedCol || !f1 || !f2) return;
+
+        btnDownload.disabled = true;
+        btnDownload.innerHTML = `<span class="spinner-border spinner-border-sm me-2"></span>Generating File...`;
+
+        const formData = new FormData();
+        formData.append("file1", f1);
+        formData.append("file2", f2);
+        formData.append("merge_key", selectedCol);
+
+        try {
+          const res = await fetch("/api/custom/merge/download", {
+            method: "POST",
+            body: formData
+          });
+
+          if (!res.ok) {
+            const errData = await res.json().catch(() => ({}));
+            showAlert(errData.error || "Failed to download merged Excel file.");
+            return;
+          }
+
+          const blob = await res.blob();
+          const downloadUrl = window.URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = downloadUrl;
+          a.download = `merged_${selectedCol.replace(/\s+/g, '_')}_${Date.now()}.xlsx`;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          window.URL.revokeObjectURL(downloadUrl);
+
+        } catch (err) {
+          showAlert("Error downloading file: " + err.message);
+        } finally {
+          btnDownload.disabled = false;
+          btnDownload.innerHTML = `<i class="bi bi-download me-1"></i> Download Merged Excel`;
+        }
+      });
+    });
+  </script>
+</body>
+
+</html>
