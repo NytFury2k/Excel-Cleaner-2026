@@ -98,7 +98,7 @@ Open `.env` in your editor and ensure key configurations match your setup:
 
 ```env
 # Flask Secret Key (replace with a secure random key in production)
-FLASK_SECRET_KEY=bec16071429b40e09435226c1b91e5e4f94839488191131b6759dfcfe5639ea5
+FLASK_SECRET_KEY=change-me  # generate: python -c "import secrets; print(secrets.token_hex(32))"
 
 # Local PostgreSQL Database Credentials (matching docker-compose.yml)
 SUPABASE_DB_HOST=127.0.0.1
@@ -140,7 +140,7 @@ You should see `local-postgres` running on port `5433`.
 Run the database setup script to automatically create all required tables (`users`, `logs`, `master_records`, `api_tokens`, `rule_presets`, etc.) and seed the default administrator account:
 
 ```bash
-python fix_db.py
+python scripts/fix_db.py
 ```
 
 ---
