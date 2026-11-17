@@ -100,7 +100,7 @@ Critical security vulnerabilities (such as active Flask debug mode, lack of CSRF
 ### 3. Operational & Infrastructure Deficiencies
 
 #### A. Database Migration System
-* **Issue:** Schema changes are currently run via ad-hoc python scripts (`fix_db.py`, `migrate_name.py`). There is no versioning or rollback strategy.
+* **Issue:** Schema changes are currently run via ad-hoc python scripts (`scripts/fix_db.py`, `scripts/migrate_name.py`). There is no versioning or rollback strategy.
 * **Remediation:**
   * Implement **Alembic** / **Flask-Migrate** to manage database migrations cleanly.
 
